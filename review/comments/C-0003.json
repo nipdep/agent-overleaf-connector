@@ -1,0 +1,25 @@
+{
+  "anchor": {
+    "build_commit": "6bb6b26c8b23c23051055f727eecb32a40fbb41d",
+    "page": 1,
+    "quote": "The improvement is huge on the hardest benchmark.",
+    "source": {
+      "confidence": 1.0,
+      "file": "sections/results.tex",
+      "line": 7
+    }
+  },
+  "author": "human",
+  "body": "replace \"huge\" with a measured number-free phrase",
+  "created": "2026-11-02T18:47:43Z",
+  "id": "C-0003",
+  "kind": "change-request",
+  "origin": {
+    "external_id": "f5c178413fd5",
+    "type": "marker"
+  },
+  "resolution": null,
+  "schema": 1,
+  "status": "open",
+  "thread": []
+}
