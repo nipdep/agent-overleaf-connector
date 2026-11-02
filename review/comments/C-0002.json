@@ -18,8 +18,12 @@
     "external_id": "6acb5f5abed5",
     "type": "marker"
   },
-  "resolution": null,
+  "resolution": {
+    "at": "2026-11-02T18:48:39Z",
+    "by": "agent",
+    "note": "shortened"
+  },
   "schema": 1,
-  "status": "open",
+  "status": "addressed",
   "thread": []
 }
