@@ -26,6 +26,23 @@ Read `mode` in `.paper-review.yml`:
   never touch the default branch, and push that branch. The researcher reviews a redline
   and accepts or rejects each change.
 
+## Local mode (a clone of the Overleaf Git remote, no CI)
+
+If `.paper-review.yml` has a `remote:` entry you are working in a clone of the researcher's
+Overleaf project. There is no CI and no watcher; two commands wrap your task:
+
+1. **Before anything else:** `paper-review pull`. It fetches the researcher's edits, turns their
+   markers into comments, applies any accept/reject lines they typed in `review/redline.tex`, and
+   prints what happened to the comments (new, reopened, removed by the researcher, rejected with
+   a reason). Read that output; `paper-review pull --json` gives the same data for parsing.
+2. Do the task below (the loop). Keep your work on the local `agent/round-N` branch in `suggest`
+   mode, or on the default branch in `direct` mode. Never push the agent branch.
+3. **When done:** switch back to the default branch and run `paper-review push`. It refreshes
+   `review/redline.tex` and the change log and publishes the default branch to Overleaf.
+
+If `pull` or `push` reports a conflict or a warning, stop and tell the researcher; do not
+force anything. Never push with plain `git push` in this mode.
+
 ## The loop
 
 1. `paper-review build` renders the paper; page images are in `build/pages/p-NNN.png`.

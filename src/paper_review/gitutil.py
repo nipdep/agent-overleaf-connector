@@ -52,6 +52,16 @@ def default_branch(root: Path, configured: str | None = None) -> str:
     return current_branch(root) or "main"
 
 
+def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    return subprocess.run(["git", "merge-base", "--is-ancestor", ancestor, descendant], cwd=root).returncode == 0
+
+
+def has_changes_outside(root: Path, a: str, b: str, excluded_dir: str) -> bool:
+    """True if ``a`` and ``b`` differ anywhere except under ``excluded_dir``."""
+    return subprocess.run(["git", "diff", "--quiet", a, b, "--", ".", f":(exclude){excluded_dir}"],
+                          cwd=root).returncode != 0
+
+
 def resolve_ref(root: Path, name: str) -> str | None:
     """Local branch first, then ``origin/<name>``."""
     return rev_parse(root, name) or rev_parse(root, f"origin/{name}")

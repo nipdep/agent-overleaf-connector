@@ -33,7 +33,7 @@ def _write(path: Path, content: str, actions: list[str], force: bool, label: str
 
 
 def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflow: bool = True,
-         force: bool = False) -> list[str]:
+         force: bool = False, local: bool = False) -> list[str]:
     root = cfg.root
     actions: list[str] = []
     try:
@@ -45,6 +45,9 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
     data = {"mode": mode, "engine": engine}
     if main:
         data["main"] = main
+    if local:  # Overleaf's Git server has one branch, called master
+        data["remote"] = cfg.remote
+        data["remote_branch"] = "master"
     body = (
         "# paper-review configuration (https://github.com/nipdep/agent-overleaf-connector)\n"
         "# mode: direct = agent commits on the current branch; suggest = agent pushes agent/round-N\n"

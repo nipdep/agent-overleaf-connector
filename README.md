@@ -45,7 +45,47 @@ Overleaf ──push──► GitHub repo ──► CI: build PDF, sync comments,
    with what is still pending. Pull in Overleaf. Real undo is git history, not the editor.
 5. `review/CHANGELOG.md` is generated from the trailers: what changed, why, and where.
 
-## Setup (researcher)
+## Local mode: Overleaf Git, no CI, no push/pull buttons (recommended)
+
+Overleaf also runs its own Git server (a premium feature, separate from the GitHub sync). A clone
+of it on the machine where the agent runs removes the CI wait and the manual buttons. There is
+no daemon and no polling; the agent wraps its task in two commands:
+
+```
+paper-review pull   # before: fetch the researcher's edits and report what happened to the comments
+   ... agent edits, commits on a local agent/round-N branch ...
+paper-review push   # after: refresh review/redline.tex + change log, publish master to Overleaf
+```
+
+1. In Overleaf: Menu → Sync → Git shows the clone URL (`https://git.overleaf.com/<project-id>`);
+   create a Git token in your Overleaf account settings. Let your git credential helper store
+   it; never paste it into a chat or commit it.
+2. `git clone https://git.overleaf.com/<project-id> paper && cd paper`
+3. `paper-review init --local --mode suggest`, review the files, commit, then `paper-review push`.
+4. Per round: you type `%% @agent: ...` markers in Overleaf (nothing to press: Overleaf's Git
+   server creates a commit from your latest edits when the clone fetches). The agent runs `pull`,
+   works, and runs `push`. In Overleaf you open `review/redline.tex` (set it as main document),
+   type `accept` / `reject` on the `%% decision[...]` lines, and carry on. The next `pull`
+   applies your decisions and reports them.
+
+Behaviour worth knowing:
+- Only the default branch is pushed (Overleaf's Git has a single branch, `master`); the
+  `agent/round-N` branch stays local, as do the rollback tags.
+- History stays linear (fast-forward or rebase, never a merge commit). If the researcher edited
+  the same lines as a local unpushed commit, `pull` stops and changes nothing.
+- If you edit the paper in Overleaf while an agent branch is open, `pull` rebases the branch
+  onto your edits and regenerates the redline so it only shows the agent's changes.
+- `pull` / `push` are idempotent: repeated runs create no new commits.
+
+Verified here against a bare git repository that imitates Overleaf's remote (single `master`
+branch, a second clone playing the researcher): the full round without CI, conflicts, a push
+that races with the researcher, and no churn on repeated runs. **Not verified against the real
+`git.overleaf.com`**: that a clone sees edits you just made in the editor, how quickly the open
+editor refreshes after a push, and whether Overleaf accepts the redline and comment files.
+
+## CI mode: GitHub sync (no local machine needed)
+
+### Setup (researcher)
 
 1. In Overleaf: Menu → GitHub, create the repository. (Overleaf's GitHub/Git sync is a
    premium feature; see [docs/design.md](docs/design.md#10-overleaf-compatibility-notes) for
@@ -70,7 +110,8 @@ paper-review round                   next agent/round-N name
 paper-review redline <branch>        write review/redline.tex
 paper-review apply                   apply accept/reject decisions
 paper-review changelog               write review/CHANGELOG.md
-paper-review ci [--push]             what the workflow runs
+paper-review pull / push             local mode: wrap an agent task (see above)
+paper-review ci [--push]             what the workflow runs (CI mode)
 paper-review doctor                  check environment
 ```
 
@@ -80,7 +121,7 @@ toolchain as CI. Offline use is just `paper-review build` on a clone.
 
 ## What is verified
 
-Unit and integration tests (`pytest`, 19 tests, real git and real TeX Live): marker parsing,
+Unit and integration tests (`pytest`, 27 tests, real git and real TeX Live): marker parsing,
 comment lifecycle, build outputs (PDF, page PNGs, text boxes), redline generation and that it
 **compiles to a PDF**, change attribution to commits, accept / reject / pending, conflict
 rollback, stale-redline refusal, asset handling, change log, and the CI entry points against a

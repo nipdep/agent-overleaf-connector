@@ -16,6 +16,7 @@ from .changelog import write_changelog
 from .config import CONFIG_NAME, Config, detect_engine, detect_main, find_root, load_config
 from .gitutil import GitError, default_branch, git, rev_parse
 from .init import DEFAULT_USES, init
+from .local import LocalError, pull, push
 from .redline import RedlineError, generate
 from .store import Store
 from .sync import sync
@@ -30,7 +31,7 @@ def _cfg(args) -> Config:
 
 
 def cmd_init(args, cfg):
-    for line in init(cfg, mode=args.mode, uses=args.uses, workflow=not args.no_workflow, force=args.force):
+    for line in init(cfg, mode=args.mode, uses=args.uses, workflow=not (args.no_workflow or args.local), force=args.force, local=args.local):
         print(line)
     print("Next: review the new files, commit and push them.")
 
@@ -132,6 +133,42 @@ def cmd_ci(args, cfg):
     return 0 if r["ok"] else 1
 
 
+def cmd_pull(args, cfg):
+    r = pull(cfg)
+    if args.json:
+        print(json.dumps(r, indent=2, ensure_ascii=False))
+        return
+    lines = [f"pulled {r['fetched_commits']} commit(s) from {r['remote']}"
+             + (f" (changed: {', '.join(r['files'][:8])}{' ...' if len(r['files']) > 8 else ''})" if r["files"] else "")]
+    c = r["comments"]
+    lines.append("comments: " + ", ".join(f"{len(v)} {k.replace('_', ' ')} ({', '.join(v)})" for k, v in c.items() if v)
+                 if any(c.values()) else "comments: no changes from the researcher")
+    d = r["decisions"]
+    if d and d.get("status") == "applied":
+        lines.append(f"decisions applied: accepted {d['accepted'] or 'none'}, rejected {d['rejected'] or 'none'}, "
+                     f"still pending {d['pending'] or 'none'}")
+    lines.append(f"redline: {r['redline']}")
+    for w in r["warnings"]:
+        lines.append(f"WARNING: {w}")
+    lines.append(f"open comments ({len(r['open'])}):")
+    for o in r["open"]:
+        where = f"{o['file']}:{o['line']}" if o["file"] else "-"
+        lines.append(f"  {o['id']}  {where:<30} {o['body'][:80]}")
+        for t in o["thread"]:
+            lines.append(f"      reply: {t[:100]}")
+    print("\n".join(lines))
+
+
+def cmd_push(args, cfg):
+    r = push(cfg)
+    if args.json:
+        print(json.dumps(r, indent=2, ensure_ascii=False))
+        return
+    print(f"pushed to {r['remote']} (redline: {r['redline']})")
+    for w in r["warnings"]:
+        print(f"WARNING: {w}")
+
+
 def cmd_doctor(args, cfg):
     ok = True
 
@@ -174,7 +211,8 @@ def main(argv: list[str] | None = None) -> int:
     sp = add("init", cmd_init, "add config, workflow and agent instructions to a repo")
     sp.add_argument("--mode", choices=["direct", "suggest"], default="direct")
     sp.add_argument("--uses", default=DEFAULT_USES, help="reusable workflow reference")
-    sp.add_argument("--no-workflow", action="store_true")
+    sp.add_argument("--no-workflow", action="store_true", help="skip the GitHub workflow file")
+    sp.add_argument("--local", action="store_true", help="local-first mode (pull/push, no CI): implies --no-workflow")
     sp.add_argument("--force", action="store_true", help="overwrite existing files")
     add("build", cmd_build, "build PDF, page images and text.json", True)
     add("sync", cmd_sync, "turn %% @agent markers into comments", True)
@@ -197,6 +235,8 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("head", help="agent branch or commit")
     sp.add_argument("--base", help="base ref (default: the default branch)")
     add("apply", cmd_apply, "apply accept/reject decisions from review/redline.tex", True)
+    add("pull", cmd_pull, "before an agent task: fetch the researcher's edits and report what happened to the comments", True)
+    add("push", cmd_push, "after an agent task: refresh the redline and publish the default branch", True)
     add("changelog", cmd_changelog, "regenerate review/CHANGELOG.md")
     sp = add("ci", cmd_ci, "run the CI steps for the current branch")
     sp.add_argument("--branch")
@@ -206,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     try:
         return args.fn(args, _cfg(args)) or 0
-    except (BuildError, RedlineError, ApplyError, GitError, KeyError, FileNotFoundError, ValueError) as exc:
+    except (BuildError, RedlineError, ApplyError, LocalError, GitError, KeyError, FileNotFoundError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

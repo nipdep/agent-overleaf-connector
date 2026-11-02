@@ -30,6 +30,8 @@ class Config:
     review_dir: str = "review"
     build_dir: str = "build"
     default_branch: str | None = None
+    remote: str = "origin"  # git remote used by `pull` / `push` (e.g. Overleaf's git.overleaf.com)
+    remote_branch: str | None = None  # branch on that remote (Overleaf: master); default: default_branch
     marker: str = "agent"  # comment marker word: ``%% @agent: ...``
     page_dpi: int = 110
     extra: dict = field(default_factory=dict)

@@ -21,6 +21,11 @@
 > - The viewer/server is deferred; offline use is `paper-review build` on a clone.
 > - Python implementation, Apache-2.0 license.
 >
+> **Local mode (added):** `paper-review pull` / `push` wrap an agent task with no CI, no daemon and
+> no polling: `pull` fetches from the Overleaf Git remote, syncs markers, applies decisions and
+> reports what happened to the comments; `push` refreshes the redline and change log and publishes
+> the default branch. The agent branch and rollback tags stay local (Overleaf Git has one branch).
+>
 > **Not built:** local viewer/server, PDF-annotation and Overleaf comment adapters, WASM build,
 > SyncTeX-based click-to-source, automatic `stale` marking, per-hunk decisions.
 
