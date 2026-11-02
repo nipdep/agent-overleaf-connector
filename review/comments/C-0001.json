@@ -18,8 +18,12 @@
     "external_id": "b8fe6cff790b",
     "type": "marker"
   },
-  "resolution": null,
+  "resolution": {
+    "at": "2026-11-02T18:40:42Z",
+    "by": "agent",
+    "note": "softened the claim"
+  },
   "schema": 1,
-  "status": "open",
+  "status": "addressed",
   "thread": []
 }
