@@ -56,6 +56,8 @@ def run(cfg: Config, branch: str | None = None, push: bool = False) -> dict:
                 log.append(f"apply: {result}")
                 if push and remote:
                     _push(root, default, remote)
+                    if result.get("tag"):  # keep the rollback point beyond this runner
+                        git(root, "push", remote, f"refs/tags/{result['tag']}")
                     b = result.get("branch")
                     if b and result.get("branch_action") == "recreated":
                         git(root, "push", "--force", remote, f"{b}:refs/heads/{b}")

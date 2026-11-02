@@ -214,4 +214,6 @@ def test_ci_pushes_to_a_real_remote(round1, repo, cfg, tmp_path):
     assert "outperforms most baselines" in remote_results
     branches = sh(tmp_path, "git", "--git-dir", str(remote), "branch", "--list")
     assert "agent/round-1" not in branches  # all decided -> remote branch deleted
+    tags = sh(tmp_path, "git", "--git-dir", str(remote), "tag", "--list")
+    assert "paper-review/pre-apply-" in tags  # rollback point survives the CI runner
     assert sh(repo, "git", "status", "--porcelain").strip() == ""
