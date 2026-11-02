@@ -74,7 +74,7 @@ paper-review ci [--push]             what the workflow runs
 paper-review doctor                  check environment
 ```
 
-Install: `pip install paper-review` (from a checkout: `pip install -e .`). It needs
+Install: `pipx install "git+https://github.com/nipdep/agent-overleaf-connector@main"` (from a checkout: `pip install -e .`; not on PyPI yet). It needs
 `latexmk` and `latexdiff` (TeX Live) on the PATH, or use `docker/Dockerfile`, the same
 toolchain as CI. Offline use is just `paper-review build` on a clone.
 

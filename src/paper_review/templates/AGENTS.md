@@ -10,7 +10,7 @@ Never delete or rewrite a human's comment; reply to it instead.
 ## Setup
 
 ```bash
-pipx install paper-review   # or: pip install paper-review
+pipx install "git+https://github.com/nipdep/agent-overleaf-connector@main"
 paper-review doctor         # checks git, latexmk, latexdiff, detected main file
 ```
 

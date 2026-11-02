@@ -15,7 +15,7 @@ import yaml
 from .config import CONFIG_NAME, Config, detect_engine, detect_main
 from .gitutil import default_branch
 
-DEFAULT_USES = "YOUR_ORG/paper-review/.github/workflows/review.yml@v1"
+DEFAULT_USES = "nipdep/agent-overleaf-connector/.github/workflows/review.yml@main"
 
 
 def _template(name: str) -> str:
@@ -46,7 +46,7 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
     if main:
         data["main"] = main
     body = (
-        "# paper-review configuration (https://github.com/YOUR_ORG/paper-review)\n"
+        "# paper-review configuration (https://github.com/nipdep/agent-overleaf-connector)\n"
         "# mode: direct = agent commits on the current branch; suggest = agent pushes agent/round-N\n"
         "# and you accept/reject changes in review/redline.tex.\n"
         "# engine: Overleaf's compiler setting is not stored in git, so check it matches yours.\n"
@@ -57,8 +57,6 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
         branch = default_branch(root, cfg.default_branch)
         text = _template("workflow.yml").replace("{default_branch}", branch).replace("{uses}", uses)
         _write(root / ".github" / "workflows" / "paper-review.yml", text, actions, force, ".github/workflows/paper-review.yml")
-        if "YOUR_ORG" in uses:
-            actions.append("note: set the real reusable-workflow reference in .github/workflows/paper-review.yml")
 
     protocol = _template("AGENTS.md")
     if (root / "AGENTS.md").exists() and not force:

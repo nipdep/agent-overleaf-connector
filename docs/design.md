@@ -112,7 +112,7 @@ build/                      generated, gitignored (pdf, pages, text.json, syncte
 AGENTS.md                   agent protocol (see 9)
 CHANGELOG.md                generated
 .devcontainer/              same image as CI
-.github/workflows/          uses: <org>/paper-review@v1
+.github/workflows/          uses: nipdep/agent-overleaf-connector/.github/workflows/review.yml@main
 Makefile                    pdf, pages, serve, diff, changelog
 ```
 

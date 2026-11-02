@@ -1,5 +1,5 @@
 # Reusable workflow. Callers add a ~10 line file (see `paper-review init`):
-#   jobs: { review: { uses: <owner>/paper-review/.github/workflows/review.yml@v1 } }
+#   jobs: { review: { uses: nipdep/agent-overleaf-connector/.github/workflows/review.yml@main } }
 name: paper-review (reusable)
 on:
   workflow_call:
@@ -9,7 +9,7 @@ on:
         default: "texlive/texlive:latest"   # pin a tag or digest for reproducible builds
       package:
         type: string
-        default: "paper-review"            # pip requirement, e.g. a git URL pinned to a tag
+        default: "git+https://github.com/nipdep/agent-overleaf-connector@main"   # pin a tag or commit for reproducible runs
 
 concurrency:
   group: paper-review-${{ github.repository }}
