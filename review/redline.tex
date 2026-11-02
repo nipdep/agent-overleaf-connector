@@ -1,5 +1,68 @@
-%% paper-review: no pending changes.
+%% paper-review redline (generated). Edit ONLY the 'decision[...]' and 'reason[...]' lines.
+%% Set a decision to: accept | reject  (leave 'pending' to decide later). Then push to GitHub.
+%% base a84074f  head 6542513  branch agent/round-2
+%% Changes in this round:
+%%   C-0002   fe245a8  Shorten ablation sentence
+%%   C-0003   6542513  Reword 'huge'
+
 \documentclass{article}
+%DIF LATEXDIFF DIFFERENCE FILE
+%DIF DEL a.tex   Mon Nov  2 18:50:08 2026
+%DIF ADD b.tex   Mon Nov  2 18:50:08 2026
+%DIF PREAMBLE EXTENSION ADDED BY LATEXDIFF
+%DIF UNDERLINE PREAMBLE %DIF PREAMBLE
+\RequirePackage[normalem]{ulem} %DIF PREAMBLE
+\RequirePackage{color}\definecolor{RED}{rgb}{1,0,0}\definecolor{BLUE}{rgb}{0,0,1} %DIF PREAMBLE
+\providecommand{\DIFadd}[1]{{\protect\color{blue}\uwave{#1}}} %DIF PREAMBLE
+\providecommand{\DIFdel}[1]{{\protect\color{red}\sout{#1}}} %DIF PREAMBLE
+%DIF SAFE PREAMBLE %DIF PREAMBLE
+\providecommand{\DIFaddbegin}{} %DIF PREAMBLE
+\providecommand{\DIFaddend}{} %DIF PREAMBLE
+\providecommand{\DIFdelbegin}{} %DIF PREAMBLE
+\providecommand{\DIFdelend}{} %DIF PREAMBLE
+\providecommand{\DIFmodbegin}{} %DIF PREAMBLE
+\providecommand{\DIFmodend}{} %DIF PREAMBLE
+%DIF FLOATSAFE PREAMBLE %DIF PREAMBLE
+\providecommand{\DIFaddFL}[1]{\DIFadd{#1}} %DIF PREAMBLE
+\providecommand{\DIFdelFL}[1]{\DIFdel{#1}} %DIF PREAMBLE
+\providecommand{\DIFaddbeginFL}{} %DIF PREAMBLE
+\providecommand{\DIFaddendFL}{} %DIF PREAMBLE
+\providecommand{\DIFdelbeginFL}{} %DIF PREAMBLE
+\providecommand{\DIFdelendFL}{} %DIF PREAMBLE
+%DIF COLORLISTINGS PREAMBLE %DIF PREAMBLE
+\RequirePackage{listings} %DIF PREAMBLE
+\RequirePackage{color} %DIF PREAMBLE
+\lstdefinelanguage{DIFcode}{ %DIF PREAMBLE
+%DIF DIFCODE_UNDERLINE %DIF PREAMBLE
+  moredelim=[il][\color{red}\sout]{\%DIF\ <\ }, %DIF PREAMBLE
+  moredelim=[il][\color{blue}\uwave]{\%DIF\ >\ } %DIF PREAMBLE
+} %DIF PREAMBLE
+\lstdefinestyle{DIFverbatimstyle}{ %DIF PREAMBLE
+	language=DIFcode, %DIF PREAMBLE
+	basicstyle=\ttfamily, %DIF PREAMBLE
+	columns=fullflexible, %DIF PREAMBLE
+	keepspaces=true %DIF PREAMBLE
+} %DIF PREAMBLE
+\lstnewenvironment{DIFverbatim}[1][]{\lstset{style=DIFverbatimstyle}}{} %DIF PREAMBLE
+\lstnewenvironment{DIFverbatim*}[1][]{\lstset{style=DIFverbatimstyle,showspaces=true}}{} %DIF PREAMBLE
+\lstset{extendedchars=\true,inputencoding=utf8}
+
+%DIF END PREAMBLE EXTENSION ADDED BY LATEXDIFF
+
 \begin{document}
-No pending agent changes to review.
+\title{Sandbox paper}\maketitle
+\section{Results}
+Our method outperforms most baselines on all benchmarks we tried.
+
+%DIF < % @agent: make this sentence shorter
+%% ---- paper-review: C-0002 - Shorten ablation sentence ----
+%% decision[C-0002]: pending
+%% reason[C-0002]: 
+\DIFdelbegin \DIFdel{The ablation study that we ran separately on every single dataset shows that }\DIFdelend \DIFaddbegin \DIFadd{Ablations show that }\DIFaddend each component helps.
+
+%DIF < % @agent: replace "huge" with a measured number-free phrase
+%% ---- paper-review: C-0003 - Reword 'huge' ----
+%% decision[C-0003]: pending
+%% reason[C-0003]: 
+The improvement is \DIFdelbegin \DIFdel{huge }\DIFdelend \DIFaddbegin \DIFadd{considerable }\DIFaddend on the hardest benchmark.
 \end{document}
