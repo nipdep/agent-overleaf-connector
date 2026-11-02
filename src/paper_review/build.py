@@ -69,7 +69,7 @@ def warnings_from_log(log: str) -> dict:
     return {
         "latex_warnings": len(re.findall(r"LaTeX Warning:", log)),
         "overfull_boxes": len(re.findall(r"Overfull \\[hv]box", log)),
-        "undefined_refs": len(re.findall(r"undefined", log, re.I)),
+        "undefined_refs": len(re.findall(r"Warning: (?:Reference|Citation)", log)),
     }
 
 
@@ -77,6 +77,9 @@ def build(cfg: Config) -> dict:
     main = detect_main(cfg)
     engine, how = detect_engine(cfg)
     pdf, log = run_latexmk(cfg, main, engine)
+    final_log = pdf.with_suffix(".log")  # last pass only; latexmk stdout repeats every pass
+    if final_log.exists():
+        log = final_log.read_text(encoding="utf-8", errors="replace")
     out = cfg.build_path
     final = out / "paper.pdf"
     shutil.copyfile(pdf, final)

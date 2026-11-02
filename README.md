@@ -101,6 +101,21 @@ pushed. A run takes about 1.5 to 2 minutes, mostly pulling the TeX Live image.
 - agent behaviour with `AGENTS.md` across vendors;
 - private repositories (Actions minutes) and branch protection on the default branch.
 
+## Match Overleaf's TeX Live version
+
+Overleaf's compiler and TeX Live version are project settings that are not stored in git, and
+they matter: on the TGDK journal class, `texlive/texlive:latest` failed with
+`Command \c@lemma already defined` while an older TeX Live built it. Set the image in the
+caller workflow to match Overleaf (Menu → Settings → TeX Live version):
+
+```yaml
+jobs:
+  review:
+    uses: nipdep/agent-overleaf-connector/.github/workflows/review.yml@main
+    with:
+      texlive_image: texlive/texlive:TL2025-historic
+```
+
 ## Known limits
 
 - Overleaf's compiler and TeX Live version are project settings that are not in git; set

@@ -8,3 +8,7 @@ permissions:
 jobs:
   review:
     uses: {uses}
+    # The build must use the TeX Live version your Overleaf project uses (Overleaf: Menu >
+    # Settings > TeX Live version); a newer/older one can break journal classes. Uncomment:
+    # with:
+    #   texlive_image: texlive/texlive:TL2025-historic
