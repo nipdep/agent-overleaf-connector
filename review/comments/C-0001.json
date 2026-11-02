@@ -19,11 +19,13 @@
     "type": "marker"
   },
   "resolution": {
-    "at": "2026-11-02T18:40:42Z",
-    "by": "agent",
+    "at": "2026-11-02T18:44:31Z",
+    "by": "human",
+    "commit": "17ee79e1a8c4349ad2071a1f7afc2d671307f309",
+    "decision": "accept",
     "note": "softened the claim"
   },
   "schema": 1,
-  "status": "addressed",
+  "status": "resolved",
   "thread": []
 }
