@@ -80,17 +80,26 @@ toolchain as CI. Offline use is just `paper-review build` on a clone.
 
 ## What is verified
 
-Tested here (`pytest`, 19 tests, real git and real TeX Live): marker parsing, comment
-lifecycle, build outputs (PDF, page PNGs, text boxes), redline generation and that it
+Unit and integration tests (`pytest`, 19 tests, real git and real TeX Live): marker parsing,
+comment lifecycle, build outputs (PDF, page PNGs, text boxes), redline generation and that it
 **compiles to a PDF**, change attribution to commits, accept / reject / pending, conflict
 rollback, stale-redline refusal, asset handling, change log, and the CI entry points against a
 real bare remote.
 
+**On real GitHub Actions** (a sandbox branch with a demo paper, 6 runs): the reusable workflow
+resolves from another branch; the `texlive/texlive` image runs the install, build and artifact
+upload; the bot pushes sync / redline / decision / change-log commits with `[skip ci]` and does
+not re-trigger itself; a full round works: markers become comments, an `agent/round-N` push
+produces `review/redline.tex`, and `accept` / `reject` (with a reason) pushed back are applied,
+the rejected comment reopens, the agent branch is deleted and the pre-apply rollback tag is
+pushed. A run takes about 1.5 to 2 minutes, mostly pulling the TeX Live image.
+
 **Not verified**, so treat as unproven until tried on a scratch project:
-- the reusable GitHub workflow on real Actions runners (image, Python install, permissions);
-- Overleaf compiling `redline.tex` as a main document and syncing the generated files;
+- Overleaf compiling `redline.tex` as a main document and syncing the generated files back
+  (the redline does compile with a plain TeX Live);
 - whether Overleaf's GitHub sync follows only the default branch;
-- agent behaviour with `AGENTS.md` across vendors.
+- agent behaviour with `AGENTS.md` across vendors;
+- private repositories (Actions minutes) and branch protection on the default branch.
 
 ## Known limits
 
