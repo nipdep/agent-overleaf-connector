@@ -1,0 +1,61 @@
+# Reusable workflow. Callers add a ~10 line file (see `paper-review init`):
+#   jobs: { review: { uses: <owner>/paper-review/.github/workflows/review.yml@v1 } }
+name: paper-review (reusable)
+on:
+  workflow_call:
+    inputs:
+      texlive_image:
+        type: string
+        default: "texlive/texlive:latest"   # pin a tag or digest for reproducible builds
+      package:
+        type: string
+        default: "paper-review"            # pip requirement, e.g. a git URL pinned to a tag
+
+concurrency:
+  group: paper-review-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    container: ${{ inputs.texlive_image }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install paper-review
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq python3-venv git > /dev/null
+          python3 -m venv /opt/pr
+          /opt/pr/bin/pip install -q "${{ inputs.package }}"
+          echo "/opt/pr/bin" >> "$GITHUB_PATH"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build PDF and page images
+        id: build
+        continue-on-error: true
+        run: paper-review build
+
+      - name: Upload build artifacts
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper
+          path: |
+            build/paper.pdf
+            build/pages
+            build/build.json
+
+      # sync markers, apply accept/reject decisions, redline for agent/* pushes, change log
+      - name: Review step
+        run: paper-review ci --push
+
+      - name: Fail if the paper did not build
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "LaTeX build failed; see the 'Build PDF and page images' step." >&2
+          exit 1

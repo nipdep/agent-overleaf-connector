@@ -1,0 +1,10 @@
+# Added by paper-review. All logic lives in the reusable workflow; bump the tag to upgrade.
+name: paper-review
+on:
+  push:
+    branches: ["{default_branch}", "agent/**"]
+permissions:
+  contents: write
+jobs:
+  review:
+    uses: {uses}
