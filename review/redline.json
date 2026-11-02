@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "base": "0ddb1ca43ff949f7f37069ceaeb8b2a051e8a055",
+  "head": "17ee79e1a8c4349ad2071a1f7afc2d671307f309",
+  "branch": "agent/round-1",
+  "entries": [
+    {
+      "key": "C-0001",
+      "shas": [
+        "17ee79e1a8c4349ad2071a1f7afc2d671307f309"
+      ],
+      "comment_ids": [
+        "C-0001"
+      ],
+      "subject": "Soften results claim"
+    }
+  ],
+  "generated": "2026-11-02T18:42:08Z",
+  "warnings": []
+}
