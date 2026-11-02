@@ -1,0 +1,25 @@
+{
+  "anchor": {
+    "build_commit": "c489bc547c434fb10bf34a8527d6306c6d2db319",
+    "page": 1,
+    "quote": "Our method always outperforms the baselines on all benchmarks we tried.",
+    "source": {
+      "confidence": 1.0,
+      "file": "sections/results.tex",
+      "line": 2
+    }
+  },
+  "author": "human",
+  "body": "soften this claim and add a citation",
+  "created": "2026-11-02T18:38:27Z",
+  "id": "C-0001",
+  "kind": "change-request",
+  "origin": {
+    "external_id": "b8fe6cff790b",
+    "type": "marker"
+  },
+  "resolution": null,
+  "schema": 1,
+  "status": "open",
+  "thread": []
+}
