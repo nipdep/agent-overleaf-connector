@@ -19,11 +19,13 @@
     "type": "marker"
   },
   "resolution": {
-    "at": "2026-11-02T18:48:39Z",
-    "by": "agent",
+    "at": "2026-11-02T18:52:41Z",
+    "by": "human",
+    "commit": "fe245a888c5403530f32addbf36e2e863292d571",
+    "decision": "accept",
     "note": "shortened"
   },
   "schema": 1,
-  "status": "addressed",
+  "status": "resolved",
   "thread": []
 }
