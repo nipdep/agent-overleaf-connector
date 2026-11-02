@@ -1,0 +1,9 @@
+name: paper-review
+on:
+  push:
+    branches: ["sandbox/demo", "agent/**"]
+permissions:
+  contents: write
+jobs:
+  review:
+    uses: nipdep/agent-overleaf-connector/.github/workflows/review.yml@main

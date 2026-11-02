@@ -1,0 +1,4 @@
+mode: suggest
+engine: pdflatex
+main: main.tex
+default_branch: sandbox/demo
