@@ -1,30 +1,8 @@
 {
   "version": 1,
-  "base": "a84074f69d37edae441578a4da588b631c4f6a39",
-  "head": "6542513e583bdb295e0f7dba818a9e484a5695db",
-  "branch": "agent/round-2",
-  "entries": [
-    {
-      "key": "C-0002",
-      "shas": [
-        "fe245a888c5403530f32addbf36e2e863292d571"
-      ],
-      "comment_ids": [
-        "C-0002"
-      ],
-      "subject": "Shorten ablation sentence"
-    },
-    {
-      "key": "C-0003",
-      "shas": [
-        "6542513e583bdb295e0f7dba818a9e484a5695db"
-      ],
-      "comment_ids": [
-        "C-0003"
-      ],
-      "subject": "Reword 'huge'"
-    }
-  ],
-  "generated": "2026-11-02T18:50:08Z",
-  "warnings": []
+  "base": "627b33c2cc9a4988aa193edc526df3a53cf34d42",
+  "head": null,
+  "branch": null,
+  "entries": [],
+  "generated": "2026-11-02T18:52:41Z"
 }
