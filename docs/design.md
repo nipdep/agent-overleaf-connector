@@ -509,3 +509,39 @@ each `reply`/`resolve` re-lists). Tracked changes are a separate, premium-depend
 **Not verified.** Everything against the real olcli and Overleaf: the actual JSON, that `line` and
 `selectedText` match a git clone's content, that replies render as expected, olcli's behaviour when
 given a project id positionally for `reply`/`resolve` (its source says a 24-hex id is accepted).
+
+## 21. The agent's edits as Overleaf tracked changes  [investigated, not built]
+
+**Wanted.** Suggestions as tracked changes ("Reviewing" mode) in `main.tex` itself, next to the comments,
+and in direct mode a plain edit.
+
+**Direct mode already is a plain edit:** the agent commits, `push` goes to Overleaf's Git, and the file
+changes in place.
+
+**Findings for Reviewing mode** (read from sources, not tried):
+- **olcli cannot author tracked changes.** Its `tracked-changes.ts` only lists them and rejects them (OT ops
+  carrying the editor's undo flag); there is no accept path and nothing that creates a suggestion.
+- **Git cannot create them either.** Overleaf's docs say pushes from Git can lose or displace tracked
+  changes and comments and recommend not mixing active Git use with track changes and comments.
+- **The only known writer** is netique's `overleaf-mcp` (AGPL-3.0, an MCP server, Chrome-based login): it
+  sends edits over the editor's live Socket.IO channel (`applyOtUpdate`) with track-change metadata.
+  Using it means running it as a separate process (license stays separate) or a clean-room implementation of
+  the write path, which cannot be verified without a live session and can corrupt a document if the OT ops
+  are wrong.
+
+**What is unknown, and decides the design.** (1) What a git clone shows for a file that holds pending tracked
+changes: are tracked deletions still in the text? Both versions of a sentence side by side would break our
+whole git-based flow. (2) Whether `olmcp push` of other files, or the next `pull`, disturbs pending
+suggestions or comment anchors.
+
+**Consequence if built.** The model flips for files with pending suggestions: Overleaf is the source of
+truth, the agent edits through the live channel, git is pull-only for those files, and `apply` /
+cherry-picks / the local agent branch are replaced by Overleaf's own accept and reject (observed through
+`olcli comments list --changes`). A different architecture for suggest mode, not an add-on.
+
+**Decision.** Not built. Interim, shipped in 0.7.0: the proposed edit appears inside the comment thread as a
+word diff, so comment and change are together and accept/reject is already in the Review panel (section 20).
+
+**Experiment that would settle the unknowns** (on a scratch copy of a project, with netique's tool): make a
+suggestion with `edit_file` (`track: on`); look at it in the editor; `git pull` and read the file; push an
+unrelated change and re-check the suggestion and a comment anchor.

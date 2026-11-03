@@ -110,6 +110,11 @@ proposed. Then, right in the Review panel:
 - **Reply: reject or adjust.** Your reply is the instruction for the agent's next attempt. A reply that
   says "accept", "ok", "lgtm" or gives a thumbs-up accepts instead; "reject: reason" rejects with that reason.
 
+The agent's reply in the thread includes **the edit itself** as an inline word diff
+(`Our method [-always-] outperforms [-the-]{+most+} baselines`), labelled "Proposed edit" (suggest mode) or
+"Edit applied" (direct mode). So the comment, the change and the accept/reject controls are all in the Review
+panel. In direct mode the agent edits your file in place (a normal Overleaf edit), nothing to accept.
+
 Typing `accept` / `reject` on the `decision[...]` lines in `redline.tex` still works and wins if the two
 disagree. `redline.tex` remains the place to see the change as a typeset redline.
 `%%` markers keep working alongside. Resolving or deleting a thread in Overleaf is mirrored, and a

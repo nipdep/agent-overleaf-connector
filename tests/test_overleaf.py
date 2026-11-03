@@ -132,7 +132,7 @@ def test_agent_reply_lands_in_the_overleaf_thread_once_and_thread_is_resolved_in
     assert out["overleaf"] == {"replies_posted": ["C-0003"], "threads_resolved": ["C-0003"]}
     t1 = w.state_read()[0]
     assert t1["resolved"] is True
-    assert [m["content"] for m in t1["messages"]][-1] == "[agent] Softened to 'most baselines'."
+    assert [m["content"] for m in t1["messages"]][-1].startswith("[agent] Softened to 'most baselines'.")
     n = len(t1["messages"])
     out = push(w.cfg)  # idempotent: nothing posted again
     assert out["overleaf"] == {"replies_posted": [], "threads_resolved": []}
@@ -396,3 +396,39 @@ def test_two_edits_of_one_comment_file_merge_without_losing_either_conversation(
     assert m["status"] == "addressed" and m["resolution"] == {"by": "agent"}
     assert m["origin"]["messages_seen"] == ["m1", "m9"]
     assert merge_comments(ours, ours)["thread"] == ours["thread"]  # no duplicates
+
+
+def test_word_diff_reads_on_one_line():
+    assert overleaf.word_diff("Our method always outperforms the baselines.",
+                              "Our method outperforms most baselines.") == \
+        "Our method [-always-] outperforms [-the-]{+most+} baselines."
+    assert overleaf.word_diff("same", "same") == "same"
+    assert overleaf.word_diff("a b c", "a c") == "a [-b-] c"
+    assert overleaf.word_diff("a c", "a b c") == "a {+b+} c"
+    assert overleaf.edits_block([], True) == ""
+
+
+def test_the_thread_shows_the_edit_next_to_the_comment_in_both_modes(ov):
+    w = ov
+    w.state_write([thread("T1", "make this less absolute", "always outperforms the baselines")])
+    pull(w.cfg)
+    PaperTools(w.repo).address_comment("C-0003", [SOFTEN], "Softened the claim.")
+    push(w.cfg)
+    msg = w.state_read()[0]["messages"][-1]["content"]
+    assert msg.startswith("[agent] Softened the claim.")
+    assert "Edit applied in sections/results.tex:" in msg  # direct mode: already on the paper
+    assert "[-always-] outperforms [-the-]{+most+} baselines" in msg
+    assert "resolve this thread" not in msg
+    n = len(w.state_read()[0]["messages"])
+    push(w.cfg)
+    assert len(w.state_read()[0]["messages"]) == n  # still posted once
+
+
+@needs_latexdiff
+def test_in_suggest_mode_the_thread_says_proposed_edit_and_how_to_decide(ov):
+    w = ov
+    _suggest(w)
+    _proposal(w)
+    msg = w.state_read()[0]["messages"][-1]["content"]
+    assert "Proposed edit in sections/results.tex:" in msg and "{+most+}" in msg
+    assert "resolve this thread to accept it" in msg

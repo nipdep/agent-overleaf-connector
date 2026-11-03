@@ -2,6 +2,13 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.7.0
+- **The change appears in the comment thread.** The agent's reply in the Overleaf thread now includes the edit
+  itself as an inline word diff (`kept [-removed-]{+added+} kept`), labelled "Proposed edit" (suggest mode) or
+  "Edit applied" (direct mode), so the comment, the change and the accept/reject controls are in one place in
+  the Review panel instead of the change living only in `redline.tex`. The edits are stored with the reply in
+  the comment file.
+
 ## 0.6.0
 - **Renamed.** The command is now **`olmcp`** (Overleaf + MCP: short to type); the installable package and
   repository are **`agent-overleaf-connector`**; the Python module is `olmcp`. `paper-review` still works as a

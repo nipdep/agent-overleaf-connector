@@ -100,9 +100,9 @@ class Store:
         self.save(comment)
         return comment
 
-    def reply(self, cid: str, author: str, body: str) -> dict:
+    def reply(self, cid: str, author: str, body: str, **extra) -> dict:
         c = self.get(cid)
-        c["thread"].append({"author": author, "at": now(), "body": body})
+        c["thread"].append({"author": author, "at": now(), "body": body, **extra})
         self.save(c)
         return c
 

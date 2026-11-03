@@ -279,8 +279,34 @@ def import_comments(cfg: Config) -> OverleafSync:
 
 
 # ------------------------------------------------------------------------------ write back
-def _agent_replies(c: dict) -> list[str]:
-    return [t["body"].strip() for t in c.get("thread", [])
+def word_diff(old: str, new: str) -> str:
+    """Inline word diff: ``kept [-removed-]{+added+} kept``, so a change reads on one line."""
+    import difflib
+
+    a, b = re.findall(r"\S+|\s+", old), re.findall(r"\S+|\s+", new)
+    out = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if op == "equal":
+            out.append("".join(a[i1:i2]))
+            continue
+        if i2 > i1:
+            out.append("[-" + "".join(a[i1:i2]).strip() + "-]")
+        if j2 > j1:
+            out.append("{+" + "".join(b[j1:j2]).strip() + "+}")
+        out.append(" ")
+    return re.sub(r" {2,}", " ", "".join(out)).strip()
+
+
+def edits_block(edits: list[dict], proposed: bool) -> str:
+    """What changed, for the Overleaf thread: the comment and its change in one place."""
+    if not edits:
+        return ""
+    head = "Proposed edit" if proposed else "Edit applied"
+    return "".join(f"\n\n{head} in {e['file']}:\n{word_diff(e['old'], e['new'])}" for e in edits)
+
+
+def _agent_replies(c: dict) -> list[tuple[str, list[dict]]]:
+    return [(t["body"].strip(), t.get("edits") or []) for t in c.get("thread", [])
             if str(t.get("author", "")).startswith("agent") and t.get("body", "").strip()]
 
 
@@ -321,10 +347,10 @@ def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
         have = [m["text"].strip() for m in t["messages"]]
         stored = store.get(c["id"])
         proposal = cfg.mode == "suggest" and stored["status"] != "resolved"
-        for text in _agent_replies(c):
+        for text, edits in _agent_replies(c):
             head = (AGENT_PREFIX + text).strip()
-            if not any(h.startswith(head) for h in have):  # matches with or without the footer
-                msg = AGENT_PREFIX + text + (DECIDE_HINT if proposal else "")
+            if not any(h.startswith(head) for h in have):  # matches with or without the diff and footer
+                msg = AGENT_PREFIX + text + edits_block(edits, proposal) + (DECIDE_HINT if proposal else "")
                 reply(cfg, t["thread_id"], msg)
                 have.append(msg.strip())
                 posted.append(c["id"])

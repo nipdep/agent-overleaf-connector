@@ -25,6 +25,10 @@ MAX_READ_CHARS = 200_000
 MAX_DIFF_CHARS = 8_000
 
 
+def _clip(text: str, limit: int = 1200) -> str:
+    return text if len(text) <= limit else text[:limit] + " ..."
+
+
 class ToolError(RuntimeError):
     """A refusal or failure that is safe and useful to show the agent."""
 
@@ -193,7 +197,8 @@ class PaperTools:
 
             for p, text in new_texts.items():
                 p.write_text(text, encoding="utf-8")
-            store.reply(comment_id, "agent", reply.strip())
+            store.reply(comment_id, "agent", reply.strip(),
+                        edits=[{"file": e["file"], "old": _clip(e["old"]), "new": _clip(e["new"])} for e in edits])
             status = "resolved" if cfg.mode == "direct" else "addressed"
             store.set_status(comment_id, status, by="agent", note=reply.strip()[:300])
 
