@@ -42,7 +42,7 @@ marker lines typed in Overleaf, Apache-2.0, Python.
 | `--main`, dependency tree | **[planned]** |
 | Diff-based changes, hunk ids, `REVIEW.md`, typed thread, reply gate | **[planned]** |
 | CI mirror for renders (`renders`, `push --mirror`) | **[planned]** |
-| Typeset redline mirror under `review/redline/` | **[spike]** |
+| Typeset redline: main file beside the real main, counterparts under `review/redline/` | **[planned]**, later |
 | Docker runner, Windows, PyPI release | **[planned]**, later |
 
 ---
@@ -218,23 +218,21 @@ No TeX, no Perl, no compile: works anywhere git works.
 Today: flattened `latexdiff` of base vs agent branch with the same decision lines (needs
 `latexdiff`; Overleaf compiles it). It stays as an optional layer.
 
-Planned replacement: a **self-contained mirror of the paper root under `review/redline/`**:
-changed text files replaced by latexdiff-marked counterparts, unchanged text copied, assets
-referenced rather than duplicated where possible. No flattening. Each counterpart starts with a
-visible stamp so a wrong resolution is obvious.
+Planned replacement, built on one invariant: **the redline's main file lives in the same folder
+as the real main file** (the paper root; e.g. `<paper-root>/redline.tex`, name configurable).
+Whatever way Overleaf resolves relative paths for the real main, it resolves them the same way
+for the redline main, so `\includegraphics`, `\bibliography` and `\input` of unchanged files keep
+working untouched. For each changed text file the tool writes a latexdiff-marked counterpart at
+`review/redline/<same relative path>`, and the redline main `\input`s it by a path relative to
+the paper root (`review/redline/sections/03_model`), the same base the paper's own relative
+references use. No flattening, no copy of unchanged files or assets, and **no assumption about
+Overleaf's path resolution**, so no probe is needed. Each counterpart starts with a visible stamp
+as a cheap guard against compiling an unmarked original by mistake.
 
-**[spike] Overleaf path question.** When the main document is `review/redline/main.tex`, does
-`\input{sections/03_model}` resolve from the **project root** (case A) or from **the main
-file's folder** (case B)?
-- **B:** the mirror works untouched, but everything the paper uses must be reachable from it.
-- **A:** the mirror would silently pick up the original, unmarked files (a "nothing changed"
-  failure), so `\input` lines of changed files must be rewritten to
-  `review/redline/...`; unchanged files, figures and `.bib` keep their normal paths.
-
-Probe, to run once in the Overleaf project: create `probe/main.tex` containing
-`\input{probe/inner}` and `probe/inner.tex` containing `hello`; set `probe/main.tex` as main and
-compile. Success means A; if only `\input{inner}` works it is B. Until this is answered the
-typeset mirror is not built; the stamps and the probe are the guard.
+Known gap in what is built today: `review/redline.tex` sits in a subfolder and rewrites paths of
+newly added figures to `review/assets/...`, which assumes Overleaf resolves from the project
+root. Compiling that file in Overleaf, especially its figures and bibliography, is
+**[unverified]**; moving the redline main beside the real main removes the question.
 
 ## 9. Modes and the loop
 
@@ -306,7 +304,7 @@ review/
   REVIEW.md              what the researcher reads and decides in           [planned]
   comments/C-0001.json   the conversation
   changes/C-0001/…diff   patches, same relative paths as the source          [planned]
-  redline/               optional typeset mirror                             [spike]
+  redline/               counterparts of changed files (typeset redline)    [planned]
   redline.tex, redline.json   current flattened redline                     [built]
   CHANGELOG.md
 build/                   generated renders (gitignored)
@@ -327,7 +325,7 @@ The tool never moves or rewrites the researcher's files except by an accepted ch
 
 | Failure | Handling |
 |---|---|
-| Redline mirror compiles original files (Overleaf path case A) | stamps make it visible; probe decides the design |
+| Redline compiles the unmarked originals instead of the counterparts | stamps make it visible; the redline main sits beside the real main, so path resolution matches the paper's own |
 | Quote no longer found after edits | `stale`, listed by `doctor`, never silently moved |
 | Agent commit without a reply | `push` refuses (reply gate) |
 | Researcher edits the same lines as an unpushed local commit | `pull` stops, changes nothing |
@@ -346,8 +344,8 @@ repeated runs, CI entry points against a bare remote. On real GitHub Actions: fu
 mixed accept/reject, bot commits not re-triggering, rollback tag pushed. On the real 31-page
 TGDK paper: build, redline generation and compile, `pull` (0.5 s) and `push` (1.3 s).
 
-**Not verified:** anything against the real `git.overleaf.com`; Overleaf compiling the redline;
-the path question (8.2); agent behaviour with `AGENTS.md` across vendors; macOS; Windows;
+**Not verified:** anything against the real `git.overleaf.com`;
+Overleaf compiling the redline (the built flat redline sits in `review/`, so its figure and bibliography paths are unverified); agent behaviour with `AGENTS.md` across vendors; macOS; Windows;
 private repositories and protected branches.
 
 ## 16. Milestones (revised)
@@ -359,11 +357,11 @@ private repositories and protected branches.
    `review/changes/`, `REVIEW.md`, per-hunk decisions, follow-up markers.
 4. **CI mirror renders.** Render-only workflow mode, `paper-review/build` branch, `renders`,
    `push --mirror`.
-5. **Typeset redline mirror**, after the probe.
+5. **Typeset redline mirror**, and move the redline main beside the real main.
 6. **Platforms and release.** macOS check, Windows CI matrix, PyPI, optional Docker runner.
 
 ## 17. Open questions
-1. Overleaf path semantics for a main document in a subfolder (probe in 8.2).
+1. ~~Overleaf path semantics~~ resolved by design: the redline main sits beside the real main (8.2).
 2. Per-hunk decisions or per-comment only? Per-hunk is designed; start per-comment if simpler.
 3. Final project name (repo is `agent-overleaf-connector`, CLI is `paper-review`).
 4. Replace `latexdiff` with a Python diff to drop Perl entirely (riskier: latexdiff is careful
