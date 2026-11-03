@@ -9,6 +9,9 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
   `comment_tags: false` disables them. The 0.9 start-of-comment forms still work.
 
 ## Unreleased
+- `olmcp guard [--codex]` and `olmcp init` deny agents the `olcli` command (Claude Code `.claude/settings.json`, merged not
+  overwritten; Codex rule file in `~/.codex/rules/olmcp.rules`), so an agent cannot resolve threads behind the tool's
+  back. `doctor` checks it.
 - `pull` re-reads the tags of every message in an already imported thread, so comments imported by an older
   version pick up their `#suggest` / `#direct` / `#agent` / `#no-agent` tags. `pull` and `doctor` print the version.
 - Documentation set: a short README front page and `docs/` (setup, usage, agents, CI mode, architecture, status and

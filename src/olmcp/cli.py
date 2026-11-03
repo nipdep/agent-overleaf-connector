@@ -95,6 +95,16 @@ def cmd_reply(args, cfg):
     print(f"replied to {args.id}")
 
 
+def cmd_guard(args, cfg):
+    from .guard import protect_claude, protect_codex
+
+    print(protect_claude(cfg))
+    if args.codex:
+        print(protect_codex(cfg))
+    else:
+        print("Codex: run 'olmcp guard --codex' to also block it (writes ~/.codex/rules/olmcp.rules)")
+
+
 def cmd_resolve(args, cfg):
     status = "addressed"
     extra = {"by": args.author, "note": args.note or ""}
@@ -285,8 +295,12 @@ def cmd_doctor(args, cfg):
         check("AGENTS.md tells agents never to resolve threads",
               "never resolve" in agents_md.read_text().lower(),
               "(your AGENTS.md is from an old version: run olmcp init --force and review git diff)")
-    print("[info] the tool never resolves a thread by itself; if one is resolved, the agent ran "
-          "'olcli comments resolve' itself: deny it (see docs/agents.md, 'Stop an agent resolving threads')")
+    from .guard import claude_rule
+    settings = cfg.root / ".claude" / "settings.json"
+    guarded = settings.exists() and claude_rule(cfg) in settings.read_text()
+    check("Claude Code is denied olcli", guarded, "(run: olmcp guard)")
+    print("[info] the tool never resolves a thread itself; if one is resolved, an agent ran 'olcli comments "
+          "resolve'. Block it: olmcp guard (Claude Code) and olmcp guard --codex")
     return 0 if ok else 1
 
 
@@ -344,6 +358,8 @@ def main(argv: list[str] | None = None) -> int:
     sp = add("ci", cmd_ci, "run the CI steps for the current branch")
     sp.add_argument("--branch")
     sp.add_argument("--push", action="store_true")
+    sp = add("guard", cmd_guard, "stop agents from running olcli (and so from resolving threads)")
+    sp.add_argument("--codex", action="store_true", help="also write a Codex rule in ~/.codex/rules (all projects)")
     add("doctor", cmd_doctor, "check the environment and configuration")
 
     args = p.parse_args(argv)

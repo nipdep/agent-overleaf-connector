@@ -160,3 +160,23 @@ def test_word_diff_ignores_whitespace_and_keeps_punctuation_attached():
     assert word_diff("is unchanged.", "is unchanged in every setting.") == "is unchanged {+in every setting+}."
     assert word_diff("  leading  space", "leading space") == "leading space"  # no stray empty insert
     assert word_diff("use \\emph{old} text", "use \\emph{new} text") == "use \\emph{[-old-]{+new+}} text"
+
+
+def test_guard_denies_olcli_without_clobbering_settings(repo, tmp_path):
+    import json
+
+    from olmcp.config import load_config
+    from olmcp.guard import protect_claude, protect_codex
+
+    cfg = load_config(repo)
+    path = repo / ".claude" / "settings.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps({"permissions": {"deny": ["Bash(rm:*)"], "allow": ["Bash(ls:*)"]}, "x": 1}))
+    protect_claude(cfg)
+    protect_claude(cfg)   # idempotent
+    data = json.loads(path.read_text())
+    assert data["permissions"]["deny"] == ["Bash(rm:*)", "Bash(olcli:*)"]
+    assert data["permissions"]["allow"] == ["Bash(ls:*)"] and data["x"] == 1
+    protect_codex(cfg, home=tmp_path)
+    rule = (tmp_path / ".codex" / "rules" / "olmcp.rules").read_text()
+    assert 'prefix_rule(pattern=["olcli"], decision="forbidden")' in rule

@@ -14,6 +14,7 @@ import yaml
 
 from .config import CONFIG_NAME, LEGACY_CONFIG_NAME, Config, detect_engine, detect_main
 from .gitutil import default_branch
+from .guard import protect_claude
 
 DEFAULT_USES = "nipdep/agent-overleaf-connector/.github/workflows/review.yml@main"
 
@@ -79,6 +80,8 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
     _write(root / ".mcp.json", _template("mcp.json"), actions, force, ".mcp.json (Claude Code project MCP server)")
     _write(root / ".claude" / "commands" / "address-comments.md", _template("address-comments.md"), actions, force,
            ".claude/commands/address-comments.md (/address-comments)")
+    actions.append(protect_claude(cfg))
+    actions.append("note: block Codex from running olcli too: olmcp guard --codex")
     actions.append("note: the MCP server needs the extra: pipx install --force "
                    '"agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"; '
                    "Codex: codex mcp add olmcp -- olmcp mcp")
