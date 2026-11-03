@@ -131,7 +131,10 @@ def test_the_old_config_name_still_works_and_init_migrates_it(repo, cli):
 
 
 def test_the_old_alias_and_module_name_are_declared(tmp_path):
-    import tomllib
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.10
+        import tomli as tomllib
     from pathlib import Path
 
     meta = tomllib.loads((Path(__file__).parent.parent / "pyproject.toml").read_text())
