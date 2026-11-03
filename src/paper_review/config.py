@@ -30,6 +30,8 @@ class Config:
     review_dir: str = "review"
     build_dir: str = "build"
     default_branch: str | None = None
+    overleaf_project: str | None = None  # Overleaf project id: enables native Overleaf comments (via olcli)
+    olcli: str = "olcli"  # command used to reach Overleaf's comment API
     remote: str = "origin"  # git remote used by `pull` / `push` (e.g. Overleaf's git.overleaf.com)
     remote_branch: str | None = None  # branch on that remote (Overleaf: master or main); default: the default branch
     marker: str = "agent"  # comment marker word: ``%% @agent: ...``

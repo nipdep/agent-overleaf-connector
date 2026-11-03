@@ -83,6 +83,33 @@ that races with the researcher, and no churn on repeated runs. **Not verified ag
 `git.overleaf.com`**: that a clone sees edits you just made in the editor, how quickly the open
 editor refreshes after a push, and whether Overleaf accepts the redline and comment files.
 
+## Native Overleaf comments: select text, comment, done
+
+Instead of typing `%%` markers you can use Overleaf's own Review panel: select a range, add a
+comment, and the agent sees your message **and the exact selected text**. Its reply shows up in the
+same Overleaf thread (prefixed `[agent]`), and the thread is resolved when the change is accepted.
+This is optional and uses the community CLI [olcli](https://github.com/aloth/olcli) (MIT), because
+Overleaf has no public API for comments and they are not in git.
+
+1. `npm install -g @aloth/olcli`
+2. Log in with your Overleaf **session cookie**: in your browser's developer tools open Application →
+   Cookies → `overleaf.com` and copy the value of `overleaf_session2`, then run
+   `olcli auth --cookie "<value>"` (or set `OVERLEAF_SESSION`). Never paste it into a chat. It gives full
+   access to your account, `olcli` stores it in plain text, and it expires after a few days (repeat this
+   step when `pull` warns about a session).
+3. In `.paper-review.yml` add `overleaf_project: <the 24-character id in your project's URL>`.
+4. Check it: `paper-review overleaf-check` should print `ok: project …: N thread(s) …`.
+
+Then comment in Overleaf as usual and run `pull`; the comments appear with their selected text.
+`%%` markers keep working alongside. Resolving or deleting a thread in Overleaf is mirrored, and a
+follow-up you write there reopens the comment for the agent.
+
+Verified here against a **fake `olcli`** that follows the documented command shapes (import, selected
+text, follow-ups, replies, resolving in both edit modes, failures as warnings). **Not verified against
+the real `olcli` and Overleaf yet**: its exact JSON for `comments list --json` is undocumented, so the
+parser accepts the documented field names and aliases; if `overleaf-check` fails, run
+`paper-review overleaf-check --raw` and send me the output with the names and emails removed.
+
 ## Use it from Claude Code, Codex and other AI tools
 
 You should only have to say **"address the review comments"**. The tool does the git work, so
@@ -157,7 +184,7 @@ toolchain as CI. Offline use is just `paper-review build` on a clone.
 
 ## What is verified
 
-Unit and integration tests (`pytest`, 52 tests, real git and real TeX Live): marker parsing,
+Unit and integration tests (`pytest`, 61 tests, real git and real TeX Live): marker parsing,
 comment lifecycle, build outputs (PDF, page PNGs, text boxes), redline generation and that it
 **compiles to a PDF**, change attribution to commits, accept / reject / pending, conflict
 rollback, stale-redline refusal, asset handling, change log, and the CI entry points against a

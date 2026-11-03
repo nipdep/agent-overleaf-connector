@@ -75,6 +75,7 @@ class PaperTools:
             src = c["anchor"].get("source") or {}
             out.append({
                 "id": c["id"], "status": c["status"], "request": c["body"],
+                "selected_text": c["anchor"].get("quote") or None,
                 "file": src.get("file"), "line": src.get("line"), "page": c["anchor"].get("page"),
                 "thread": [{"author": t["author"], "text": t["body"]} for t in c["thread"]],
             })
@@ -96,7 +97,9 @@ class PaperTools:
         page = c["anchor"].get("page")
         has_image = bool(page) and (self.cfg.build_path / "pages" / f"p-{page:03d}.png").exists()
         return {
-            "id": c["id"], "status": c["status"], "request": c["body"], "file": src.get("file"),
+            "id": c["id"], "status": c["status"], "request": c["body"],
+            "selected_text": c["anchor"].get("quote") or None,
+            "from": (c.get("origin") or {}).get("type"), "file": src.get("file"),
             "line": src.get("line"), "page": page, "page_image_available": has_image,
             "source_context": context, "source_context_first_line": start,
             "thread": [{"author": t["author"], "text": t["body"]} for t in c["thread"]],

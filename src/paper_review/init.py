@@ -81,7 +81,9 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
 
     gi = root / ".gitignore"
     existing = gi.read_text(encoding="utf-8") if gi.exists() else ""
-    if f"{cfg.build_dir}/" not in existing.split():
-        gi.write_text(existing + ("" if existing.endswith("\n") or not existing else "\n") + f"{cfg.build_dir}/\n", encoding="utf-8")
-        actions.append(f"added {cfg.build_dir}/ to .gitignore")
+    for entry in (f"{cfg.build_dir}/", ".olauth"):  # .olauth: olcli's plaintext credentials, never commit
+        if entry not in existing.split():
+            existing += ("" if existing.endswith("\n") or not existing else "\n") + entry + "\n"
+            gi.write_text(existing, encoding="utf-8")
+            actions.append(f"added {entry} to .gitignore")
     return actions

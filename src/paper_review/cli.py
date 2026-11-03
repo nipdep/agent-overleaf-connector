@@ -143,6 +143,10 @@ def cmd_pull(args, cfg):
     c = r["comments"]
     lines.append("comments: " + ", ".join(f"{len(v)} {k.replace('_', ' ')} ({', '.join(v)})" for k, v in c.items() if v)
                  if any(c.values()) else "comments: no changes from the researcher")
+    ov = r.get("overleaf")
+    if ov and any(ov.values()):
+        lines.append("Overleaf comments: " + ", ".join(f"{len(v)} {k.replace('_', ' ')} ({', '.join(v)})"
+                                                         for k, v in ov.items() if v))
     d = r["decisions"]
     if d and d.get("status") == "applied":
         lines.append(f"decisions applied: accepted {d['accepted'] or 'none'}, rejected {d['rejected'] or 'none'}, "
@@ -154,6 +158,8 @@ def cmd_pull(args, cfg):
     for o in r["open"]:
         where = f"{o['file']}:{o['line']}" if o["file"] else "-"
         lines.append(f"  {o['id']}  {where:<30} {o['body'][:80]}")
+        if o.get("selected_text"):
+            lines.append(f"      on: \"{' '.join(o['selected_text'].split())[:100]}\"")
         for t in o["thread"]:
             lines.append(f"      reply: {t[:100]}")
     print("\n".join(lines))
@@ -193,6 +199,25 @@ def cmd_mcp(args, cfg):
     serve(cfg.root)  # speaks MCP on stdin/stdout: print nothing else
 
 
+def cmd_overleaf_check(args, cfg):
+    from . import overleaf
+
+    if not overleaf.enabled(cfg):
+        print("overleaf_project is not set in .paper-review.yml, so native Overleaf comments are off.\n"
+              "Set it to the project id (the 24-character id in the Overleaf URL).")
+        return 1
+    if args.raw:
+        print(overleaf._run(cfg, ["comments", "list", cfg.overleaf_project, "--status", "all", "--json"]))
+        return 0
+    try:
+        info = overleaf.check(cfg)
+    except overleaf.OverleafError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"ok: project {info['project']}: {info['threads']} thread(s), {info['open']} open, "
+          f"{info['with_selected_text']} with selected text")
+
+
 def cmd_doctor(args, cfg):
     ok = True
 
@@ -215,6 +240,10 @@ def cmd_doctor(args, cfg):
     except FileNotFoundError as exc:
         check("main file", False, str(exc))
     check("config", (cfg.root / CONFIG_NAME).exists(), "" if (cfg.root / CONFIG_NAME).exists() else "(run: paper-review init)")
+    if cfg.overleaf_project:
+        found = shutil.which(cfg.olcli.split()[0]) if cfg.olcli.strip() else None
+        print(f"[{'ok' if found else 'warn'}] olcli {'found' if found else 'not found (native Overleaf comments need it: ' + 'npm install -g @aloth/olcli)'}"
+              f"; project {cfg.overleaf_project}")
     print(f"[info] mode {cfg.mode}, default branch {default_branch(cfg.root, cfg.default_branch)}")
     return 0 if ok else 1
 
@@ -264,6 +293,8 @@ def main(argv: list[str] | None = None) -> int:
     sp = add("address", cmd_address, "address ONE comment atomically (edits + reply + commit) from JSON in a file or stdin")
     sp.add_argument("id")
     sp.add_argument("json_file", nargs="?", default="-", help="JSON file, or - for stdin (default)")
+    sp = add("overleaf-check", cmd_overleaf_check, "check that native Overleaf comments are reachable (needs olcli)")
+    sp.add_argument("--raw", action="store_true", help="print olcli's raw JSON (contains names/emails)")
     add("mcp", cmd_mcp, "run the MCP server (stdio) so Claude Code, Codex and other MCP clients can use the tools")
     add("changelog", cmd_changelog, "regenerate review/CHANGELOG.md")
     sp = add("ci", cmd_ci, "run the CI steps for the current branch")

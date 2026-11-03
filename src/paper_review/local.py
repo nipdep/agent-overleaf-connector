@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import asdict
 
+from . import overleaf
 from .apply import ApplyError, apply, ensure_identity, pending_decisions
 from .changelog import write_changelog
 from .config import Config
@@ -148,12 +150,25 @@ def pull(cfg: Config) -> dict:
     summary["comments"] = {"new": res.created, "reopened": res.reopened,
                            "removed_by_researcher": res.addressed, "updated": res.updated}
 
+    summary["overleaf"] = None
+    if overleaf.enabled(cfg):  # native comments: select text in Overleaf's Review panel
+        try:
+            ov = overleaf.import_comments(cfg)
+            if ov.changed:
+                commit_paths(root, [f"{cfg.review_dir}/comments"],
+                             f"paper-review: sync Overleaf comments (+{len(ov.created)} new)")
+            summary["overleaf"] = {k: v for k, v in asdict(ov).items() if k != "changed"}
+        except overleaf.OverleafError as exc:
+            summary["warnings"].append(f"Overleaf comments were not synced: {exc}")
+
     summary["decisions"] = None
     if pending_decisions(cfg):
         try:
             summary["decisions"] = apply(cfg)
         except ApplyError as exc:
             summary["warnings"].append(f"decisions in redline.tex were not applied: {exc}")
+
+    summary["overleaf_sync_back"] = _overleaf_back(cfg, summary["warnings"])  # resolves accepted threads
 
     agent = _refresh_agent(cfg, default)
     summary["redline"] = agent["redline"]
@@ -162,10 +177,25 @@ def pull(cfg: Config) -> dict:
     summary["open"] = [
         {"id": c["id"], "body": c["body"], "file": (c["anchor"].get("source") or {}).get("file"),
          "line": (c["anchor"].get("source") or {}).get("line"),
+         "selected_text": c["anchor"].get("quote") or None,
+         "from": (c.get("origin") or {}).get("type"),
          "thread": [t["body"] for t in c["thread"]]}
         for c in Store(cfg).all() if c["status"] == "open"
     ]
     return summary
+
+
+def _overleaf_back(cfg: Config, warnings: list[str]) -> dict | None:
+    """Post the agent's replies into their Overleaf threads; resolve accepted ones. Never fatal."""
+    if not overleaf.enabled(cfg):
+        return None
+    try:
+        done = overleaf.reconcile(cfg, agent_branch(cfg))
+    except overleaf.OverleafError as exc:
+        warnings.append(f"Overleaf threads were not updated: {exc}")
+        return None
+    commit_paths(cfg.root, [f"{cfg.review_dir}/comments"], "paper-review: sync Overleaf thread state")
+    return done
 
 
 def push(cfg: Config) -> dict:
@@ -173,6 +203,7 @@ def push(cfg: Config) -> dict:
     default, remote, rbranch = _setup(cfg)
     root = cfg.root
     out: dict = {"remote": f"{remote}/{rbranch}", "warnings": []}
+    out["overleaf"] = _overleaf_back(cfg, out["warnings"])  # replies appear in the Overleaf thread
     for attempt in (1, 2):
         agent = _refresh_agent(cfg, default)
         out["redline"] = agent["redline"]

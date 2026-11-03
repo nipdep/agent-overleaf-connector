@@ -24,6 +24,7 @@ project showed what hurt, and these decisions replace v1's centre of gravity:
 | D6 | **Local mode** is the primary transport: a clone of Overleaf's Git remote, `pull` before and `push` after an agent task. No daemon, no polling, no CI, no push/pull buttons. | CI + GitHub sync as the primary path |
 | D7 | **Rendering has pluggable providers**: none, local TeX, CI mirror, Docker. | One build path |
 | D8 | Linux and macOS first; Windows later (WSL2 as an interim route). | Cross-platform from day one |
+| D10 | **Native Overleaf comments are supported** (select text in the Review panel), through the community CLI `olcli`. The `%%` marker stays as a no-dependency alternative. | `%%` markers as the only way to comment on a range of text |
 | D9 | **The protocol is enforced by tools, not instructions.** An MCP server and `paper-review address` apply edits, write the reply, resolve, commit and handle branches atomically; the agent never runs git. | An `AGENTS.md` loop the agent had to follow step by step (a real agent pushed a branch to Overleaf and left the comment open) |
 
 Not changed: git is the database, the CLI is the agent interface, comments are `%% @agent:`
@@ -41,6 +42,7 @@ marker lines typed in Overleaf, Apache-2.0, Python.
 | Change log from `Resolves:` trailers | **[built]** |
 | MCP server (`paper-review mcp`) and the atomic `paper-review address` for shell agents | **[built]**, tested with the SDK client, not yet inside Claude Code / Codex |
 | ChatGPT web/desktop connector (remote MCP over HTTPS) | **[planned]**, blocked on an authentication decision (19) |
+| Native Overleaf comments via `olcli`: import with selected text, replies and resolve written back | **[built]**, tested against a fake olcli only (20) |
 | Optional rendering, `setup`, paper-aware `doctor` | **[planned]** |
 | `--main`, dependency tree | **[planned]** |
 | Diff-based changes, hunk ids, `REVIEW.md`, typed thread, reply gate | **[planned]** |
@@ -434,3 +436,55 @@ None is built. Until one is chosen, ChatGPT users use Codex.
 
 **Not verified.** Behaviour inside Claude Code and Codex themselves (only the SDK's own client has
 driven the server); whether agents reliably choose the tools over improvised git.
+
+## 20. Native Overleaf comments  [built, unverified against the real service]
+
+**Why.** `%%` markers cover a paragraph, not a selected range, and are clumsy to type. The experience
+the researcher wants is Overleaf's own: select text, add a comment. Those comments live in Overleaf's
+database, not in git, so the only route is the web editor's own API.
+
+**How the existing tools do it** (read from their source, not tried): comment threads come from
+`GET /project/<id>/threads` (messages), the commented text range from a Socket.IO `joinDoc` per file
+(ranges with the thread id, position and text); writes are `POST .../thread/<id>/messages`
+(`{content}`) and `POST .../doc/<doc>/thread/<id>/resolve|reopen`, with the session cookie and a CSRF
+token read from the `/project` page. Two community implementations exist: **olcli** (MIT, Node CLI,
+`comments list|reply|resolve|reopen|delete`) and netique's **overleaf-mcp** (AGPL-3.0, an MCP server).
+We use olcli through its CLI: MIT is compatible with Apache-2.0, a subprocess keeps the licenses
+separate, and re-implementing a Socket.IO 0.9 client blind, without a session to test against, would
+be riskier than depending on a tool that already does it. netique's tool is not used (AGPL, MCP-only).
+
+**Contract.** `olcli comments list <project-id> --status <s> --json` prints an array of
+`{threadId, docId, path, position, line, column, selectedText, resolved, messages[{id, content,
+timestamp, user}]}` (types from olcli's `client.ts`; the exact `--json` output is undocumented, so the
+parser also accepts aliases and `{comments, changes}`). `reply <thread> <body> <project>`,
+`resolve <thread> <project>`. Credentials stay with olcli (`OVERLEAF_SESSION` / `olcli auth`); this
+tool never reads, stores or logs the cookie.
+
+**Mapping.**
+- `pull` imports each open thread as a comment: `origin = {type: overleaf, thread_id, doc_id}`,
+  `body` = the first human message, `anchor.quote` = the selected text, `anchor.source` = file and line
+  (olcli's line is trusted only if the quote is on it, otherwise the quote is searched in the file).
+  Threads already resolved are not imported. Later human messages become thread entries and reopen a
+  comment that was handled; resolving a thread in Overleaf resolves the local comment; deleting it
+  marks the comment `wontfix`; reopening a thread we had resolved reopens the comment.
+- **Telling the agent's messages apart.** Posted messages appear under the researcher's account, so every
+  agent message is prefixed `[agent] ` and never imported as feedback.
+- `push` (and `pull`, for accepted changes) **reconciles idempotently without local state**: an agent
+  reply is posted only if no message with exactly that text is in the thread; a thread is resolved only
+  if the local comment is `resolved` and it is still open there. In `suggest` mode replies are read from
+  the agent branch's copy of the comment, so the researcher sees the reply before deciding; the thread is
+  resolved only after the change is accepted.
+- No marker exists for these comments, so there is nothing to remove from the source.
+
+**Failure handling.** Every olcli problem (missing binary, expired cookie, API change, timeout) becomes
+a warning in `pull`/`push` and never blocks the git side. `overleaf-check` verifies access;
+`overleaf-check --raw` prints olcli's JSON for diagnosing schema differences.
+
+**Risks.** Unofficial API and a session cookie with full account access, stored in plain text by olcli
+and expiring after days; `olcli auth --save-local` writes `.olauth` into the project (now gitignored by
+`init`). Reading project documents for ranges is slow for large projects (olcli fetches every document;
+each `reply`/`resolve` re-lists). Tracked changes are a separate, premium-dependent feature and unused here.
+
+**Not verified.** Everything against the real olcli and Overleaf: the actual JSON, that `line` and
+`selectedText` match a git clone's content, that replies render as expected, olcli's behaviour when
+given a project id positionally for `reply`/`resolve` (its source says a 24-hex id is accepted).

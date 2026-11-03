@@ -18,6 +18,12 @@ Do exactly this, nothing more:
 3. **Push.** Publish once, after all comments are handled. Then tell the researcher what you
    changed per comment and anything you could not do.
 
+Comments reach you from two places, and both look the same to the tools: `%% @agent:` marker lines
+typed in the source, and **native Overleaf comments** (the researcher selects text in Overleaf's
+Review panel). A comment's `selected_text` is the exact range it is about; edit that range and what
+the request needs, nothing else. For a native comment your reply is posted into the same Overleaf
+thread, so write it for the researcher to read there.
+
 You never create branches, resolve comments by hand, write commit trailers, or run `git push`
 yourself: the tools do all of that. In `suggest` mode they keep your work on a local
 `agent/round-N` branch and `push` publishes only the redline; the researcher accepts or rejects

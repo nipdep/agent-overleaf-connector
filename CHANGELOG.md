@@ -2,6 +2,16 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.4.0
+- **Native Overleaf comments** (optional, needs the community CLI `olcli`, MIT): select text in Overleaf's
+  Review panel and comment; `pull` imports each thread with its selected text as the comment's anchor
+  (`selected_text` in the tools); `push` posts the agent's reply into the same thread prefixed `[agent] `, and
+  the thread is resolved when the change is accepted (`direct` mode: on push). Follow-ups you write there reopen
+  the comment; resolving or deleting a thread there is mirrored. Enable with `overleaf_project: <id>`;
+  `paper-review overleaf-check` verifies access. Unofficial API and session cookie (kept by olcli, never seen by
+  this tool); every olcli failure is a warning, never fatal.
+- `init` adds `.olauth` to `.gitignore` (olcli's plaintext credentials).
+
 ## 0.3.0
 - **MCP server** (`paper-review mcp`, optional extra `paper-review[mcp]`): tools `pull`, `list_comments`,
   `show_comment`, `read_file`, `list_paper_files`, `address_comment`, `reply_to_comment`, `push`, `build`,
