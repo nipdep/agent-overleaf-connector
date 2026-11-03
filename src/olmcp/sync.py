@@ -14,6 +14,7 @@ from .build import load_text
 from .config import Config
 from .gitutil import rev_parse
 from .markers import scan
+from .modes import parse_mode_tag
 from .store import Store
 
 
@@ -49,7 +50,7 @@ def sync(cfg: Config, author: str = "human") -> SyncResult:
         existing = store.by_external(m.external_id)
         if existing is None:
             c = store.new(
-                body=m.text, author=author, anchor=new_anchor,
+                body=m.text, author=author, anchor=new_anchor, mode=parse_mode_tag(m.text),
                 origin={"type": "marker", "external_id": m.external_id},
             )
             result.created.append(c["id"])

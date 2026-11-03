@@ -191,7 +191,7 @@ def test_the_server_speaks_mcp_over_stdio(world):
 
     names, pulled, listed, done, bad = asyncio.run(session())
     assert {"pull", "list_comments", "show_comment", "read_file", "address_comment",
-            "reply_to_comment", "push", "build", "view_page"} <= names
+            "reply_to_comment", "push", "build", "view_page", "set_mode"} <= names
     assert pulled["comments"]["new"] == ["C-0001", "C-0002"]
     assert not listed.is_error
     assert not done.is_error and "Resolves: C-0002" in head_message(w.repo)

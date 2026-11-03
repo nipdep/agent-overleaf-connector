@@ -83,6 +83,33 @@ that races with the researcher, and no churn on repeated runs. **Not verified ag
 `git.overleaf.com`**: that a clone sees edits you just made in the editor, how quickly the open
 editor refreshes after a push, and whether Overleaf accepts the redline and comment files.
 
+## Direct or suggest: a default, and a choice per comment
+
+- **`direct`** applies an edit to your paper at once (a normal Overleaf edit).
+- **`suggest`** holds the edit for you to accept or reject (see "Deciding in the thread" and "Reading the redline").
+
+**Switch the default** with one command (it is committed; `olmcp push` publishes it), or just tell the agent
+"switch to suggest mode":
+
+```bash
+olmcp mode            # show the default
+olmcp mode suggest    # or: olmcp mode direct
+```
+
+**Choose per comment** by starting the comment with a tag, in an Overleaf comment, a follow-up message or a
+`%% @agent:` marker:
+
+```
+[suggest] make this paragraph shorter        (held for you to accept or reject)
+direct: fix the typo in the caption          (applied at once)
+```
+
+Accepted forms: `[suggest]`, `[direct]`, `suggest:`, `direct:` at the very start (an ordinary sentence such as
+"direct the reader to Figure 2" is not a tag). A tag is your choice and beats the default; the agent cannot
+override it, and may only choose itself for comments without one. Direct and suggest edits mix freely in one
+round: direct ones are live immediately, suggestions wait. The agent's reply in an Overleaf thread says
+"Proposed edit" or "Edit applied" according to that comment's own mode.
+
 ## Reading the redline
 
 Above every change in `redline.tex` a note says where it is, what you asked and what changed:

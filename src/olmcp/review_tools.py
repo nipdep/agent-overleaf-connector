@@ -15,7 +15,8 @@ from . import local
 from .apply import ensure_identity
 from .build import BuildError, build
 from .config import Config, find_root, load_config
-from .gitutil import GitError, commit_paths, current_branch, default_branch, git, is_clean
+from .gitutil import GitError, commit_paths, current_branch, default_branch, git, has_changes_outside, is_clean
+from .modes import MODES, effective_mode, write_default_mode
 from .markers import remove_marker, scan
 from .store import Store
 
@@ -80,6 +81,7 @@ class PaperTools:
             out.append({
                 "id": c["id"], "status": c["status"], "request": c["body"],
                 "selected_text": c["anchor"].get("quote") or None,
+                "mode": effective_mode(self.cfg, c), "mode_chosen_by_researcher": bool(c.get("mode")),
                 "file": src.get("file"), "line": src.get("line"), "page": c["anchor"].get("page"),
                 "thread": [{"author": t["author"], "text": t["body"]} for t in c["thread"]],
             })
@@ -103,6 +105,7 @@ class PaperTools:
         return {
             "id": c["id"], "status": c["status"], "request": c["body"],
             "selected_text": c["anchor"].get("quote") or None,
+            "mode": effective_mode(self.cfg, c), "mode_chosen_by_researcher": bool(c.get("mode")),
             "from": (c.get("origin") or {}).get("type"), "file": src.get("file"),
             "line": src.get("line"), "page": page, "page_image_available": has_image,
             "source_context": context, "source_context_first_line": start,
@@ -129,23 +132,35 @@ class PaperTools:
         if not is_clean(self.cfg.root):
             raise ToolError("the working tree has uncommitted changes; commit or discard them first")
 
-    def _begin_change(self) -> tuple[str, str | None]:
-        """Put the repo on the branch the change belongs on; returns (branch, created_branch)."""
+    def _begin_change(self, mode: str) -> tuple[str, str | None]:
+        """Put the repo on the branch an edit in ``mode`` belongs on; returns (branch, created_branch).
+
+        ``direct`` edits go on the default branch. ``suggest`` edits go on the local round branch, which is
+        first brought up to date with edits that were applied directly in the meantime.
+        """
         cfg, root = self.cfg, self.cfg.root
         ensure_identity(root)
         self._require_clean()
         default = default_branch(root, cfg.default_branch)
         cur = current_branch(root)
-        if cfg.mode == "direct":
+        if mode == "direct":
             if cur != default:
                 git(root, "switch", "-q", default)
             return default, None
-        if cur and cur.startswith("agent/round-"):
-            return cur, None
-        existing = local.agent_branch(cfg)
-        if existing:
-            git(root, "switch", "-q", existing)
-            return existing, None
+        branch = cur if cur and cur.startswith("agent/round-") else local.agent_branch(cfg)
+        if branch:
+            fork = git(root, "merge-base", default, branch).strip()
+            if has_changes_outside(root, fork, default, [cfg.review_dir, cfg.redline_rel]):
+                try:
+                    local._rebase(cfg, default, branch)
+                except GitError as exc:
+                    git(root, "rebase", "--abort", check=False)
+                    git(root, "switch", "-q", default, check=False)
+                    raise ToolError(f"the suggestions branch conflicts with edits applied directly in the meantime; "
+                                    f"resolve that first ({exc})") from exc
+            if current_branch(root) != branch:
+                git(root, "switch", "-q", branch)
+            return branch, None
         name = local.next_round_name(cfg)
         if cur != default:
             git(root, "switch", "-q", default)
@@ -153,7 +168,7 @@ class PaperTools:
         return name, name
 
     def address_comment(self, comment_id: str, edits: list, reply: str,
-                        commit_message: str | None = None) -> dict:
+                        commit_message: str | None = None, mode: str | None = None) -> dict:
         cfg, root = self.cfg, self.cfg.root
         store = Store(cfg)
         try:
@@ -162,6 +177,13 @@ class PaperTools:
             raise ToolError(str(exc)) from exc
         if comment["status"] in {"resolved", "wontfix"}:
             raise ToolError(f"{comment_id} is already {comment['status']}")
+        if mode is not None and mode not in MODES:
+            raise ToolError(f"mode must be one of {', '.join(MODES)}, got {mode!r}")
+        chosen = comment.get("mode")  # the researcher tagged this comment [suggest] / [direct]
+        if chosen and mode and mode != chosen:
+            raise ToolError(f"the researcher asked for '{chosen}' on {comment_id}, so it cannot be addressed in "
+                            f"'{mode}' mode; omit mode to follow their choice")
+        edit_mode = chosen or mode or cfg.mode
         if not (reply or "").strip():
             raise ToolError("a reply is required: say what you changed and why")
         edits = [e if isinstance(e, dict) else e.model_dump() for e in (edits or [])]
@@ -169,7 +191,7 @@ class PaperTools:
             raise ToolError("at least one edit is required; to ask the researcher a question use reply_to_comment")
 
         default = default_branch(root, cfg.default_branch)
-        branch, created = self._begin_change()
+        branch, created = self._begin_change(edit_mode)
         try:
             new_texts: dict[Path, str] = {}
             for e in edits:
@@ -198,7 +220,8 @@ class PaperTools:
             for p, text in new_texts.items():
                 p.write_text(text, encoding="utf-8")
             store.reply(comment_id, "agent", reply.strip(),
-                        edits=[{"file": e["file"], "old": _clip(e["old"]), "new": _clip(e["new"])} for e in edits])
+                        edits=[{"file": e["file"], "old": _clip(e["old"]), "new": _clip(e["new"])} for e in edits],
+                        mode=edit_mode)
             status = "addressed"  # the agent is done; the researcher decides when the thread is closed
             store.set_status(comment_id, status, by="agent", note=reply.strip()[:300])
 
@@ -217,11 +240,22 @@ class PaperTools:
 
         diff = git(root, "show", "--format=", "-U2", sha)
         return {
-            "comment_id": comment_id, "status": status, "mode": cfg.mode, "branch": branch,
+            "comment_id": comment_id, "status": status, "mode": edit_mode, "branch": branch,
             "commit": sha[:10], "files": [p for p in paths if not p.endswith(".json")],
             "diff": diff[:MAX_DIFF_CHARS] + ("\n... (truncated)" if len(diff) > MAX_DIFF_CHARS else ""),
             "next": "Address the remaining open comments, then call push.",
         }
+
+    def set_mode(self, value: str) -> dict:
+        """Change the default mode (comments without a tag follow it). Committed, so it is not lost."""
+        cfg, root = self.cfg, self.cfg.root
+        if value not in MODES:
+            raise ToolError(f"mode must be one of {', '.join(MODES)}, got {value!r}")
+        ensure_identity(root)
+        path = write_default_mode(root, value)
+        commit_paths(root, [path.relative_to(root).as_posix()], f"olmcp: default mode {value}")
+        cfg.mode = value
+        return {"default_mode": value, "note": "comments tagged [suggest] or [direct] keep their own mode"}
 
     def reply_to_comment(self, comment_id: str, text: str) -> dict:
         """Reply without changing the paper (a question or an explanation). The comment stays open."""

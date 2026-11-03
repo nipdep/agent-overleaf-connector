@@ -159,7 +159,7 @@ def pull(cfg: Config) -> dict:
     """Fetch from the remote and report what the researcher did."""
     default, remote, rbranch = _setup(cfg)
     root = cfg.root
-    summary: dict = {"remote": f"{remote}/{rbranch}", "warnings": []}
+    summary: dict = {"remote": f"{remote}/{rbranch}", "warnings": [], "default_mode": cfg.mode}
     summary.update(_integrate(cfg, remote, rbranch))
 
     res = sync(cfg)
@@ -217,6 +217,7 @@ def pull(cfg: Config) -> dict:
         {"id": c["id"], "body": c["body"], "file": (c["anchor"].get("source") or {}).get("file"),
          "line": (c["anchor"].get("source") or {}).get("line"),
          "selected_text": c["anchor"].get("quote") or None,
+         "mode": c.get("mode") or cfg.mode, "mode_chosen": bool(c.get("mode")),
          "from": (c.get("origin") or {}).get("type"),
          "thread": [t["body"] for t in c["thread"]]}
         for c in Store(cfg).all() if c["status"] == "open"

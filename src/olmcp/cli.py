@@ -164,7 +164,8 @@ def cmd_pull(args, cfg):
     lines.append(f"open comments ({len(r['open'])}):")
     for o in r["open"]:
         where = f"{o['file']}:{o['line']}" if o["file"] else "-"
-        lines.append(f"  {o['id']}  {where:<30} {o['body'][:80]}")
+        tag = f" [{o['mode']}]" if o.get("mode_chosen") else ""
+        lines.append(f"  {o['id']}{tag}  {where:<30} {o['body'][:80]}")
         if o.get("selected_text"):
             lines.append(f"      on: \"{' '.join(o['selected_text'].split())[:100]}\"")
         for t in o["thread"]:
@@ -189,10 +190,23 @@ def cmd_address(args, cfg):
     data = json.loads(raw)
     try:
         out = PaperTools(cfg.root).address_comment(args.id, data.get("edits", []), data.get("reply", ""),
-                                                   data.get("commit_message"))
+                                                   data.get("commit_message"), data.get("mode"))
     except ToolError as exc:
         raise ValueError(str(exc)) from None
     print(json.dumps(out, indent=2, ensure_ascii=False))
+
+
+def cmd_mode(args, cfg):
+    from .review_tools import PaperTools, ToolError
+
+    if not args.value:
+        print(f"default mode: {cfg.mode}  (a comment starting with [suggest] or [direct] keeps its own)")
+        return
+    try:
+        PaperTools(cfg.root).set_mode(args.value)
+    except ToolError as exc:
+        raise ValueError(str(exc)) from None
+    print(f"default mode is now {args.value} (committed; run 'olmcp push' to publish it)")
 
 
 def cmd_mcp(args, cfg):
@@ -298,6 +312,8 @@ def main(argv: list[str] | None = None) -> int:
     add("apply", cmd_apply, "apply accept/reject decisions from redline.tex", True)
     add("pull", cmd_pull, "before an agent task: fetch the researcher's edits and report what happened to the comments", True)
     add("push", cmd_push, "after an agent task: refresh the redline and publish the default branch", True)
+    sp = add("mode", cmd_mode, "show or set the default edit mode: direct (apply now) or suggest (hold for review)")
+    sp.add_argument("value", nargs="?", choices=["direct", "suggest"])
     sp = add("address", cmd_address, "address ONE comment atomically (edits + reply + commit) from JSON in a file or stdin")
     sp.add_argument("id")
     sp.add_argument("json_file", nargs="?", default="-", help="JSON file, or - for stdin (default)")

@@ -2,6 +2,15 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.9.0
+- **Switch direct/suggest easily, and per comment.** `olmcp mode [direct|suggest]` shows or sets the default (a
+  committed one-line change; the `set_mode` tool does the same). A comment, follow-up message or `%% @agent:`
+  marker that starts with `[suggest]`, `[direct]`, `suggest:` or `direct:` chooses its own mode; the researcher's
+  tag beats the default and the agent's `mode` argument (agents may choose only for untagged comments).
+  `list_comments` / `show_comment` / `pull` show each comment's mode. Direct and suggest edits mix in one round
+  (the round branch is rebased onto direct edits before a suggest edit). Thread replies say "Proposed edit" or
+  "Edit applied" by each comment's own mode. `address_comment` and `olmcp address` accept `mode`.
+
 ## 0.8.0
 - **The agent no longer approves or closes comments.** Handling a comment (direct or suggest mode) sets its
   status to `addressed` instead of `resolved`, and `push` no longer resolves the Overleaf thread, so the comment

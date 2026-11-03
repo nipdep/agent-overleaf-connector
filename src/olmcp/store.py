@@ -83,7 +83,8 @@ class Store:
                 return c
         return None
 
-    def new(self, *, body: str, author: str, origin: dict, anchor: dict, kind: str = "change-request") -> dict:
+    def new(self, *, body: str, author: str, origin: dict, anchor: dict, kind: str = "change-request",
+            mode: str | None = None) -> dict:
         comment = {
             "schema": SCHEMA,
             "id": self.next_id(),
@@ -97,6 +98,8 @@ class Store:
             "resolution": None,
             "origin": origin,
         }
+        if mode:  # the researcher's per-comment choice ([suggest] / [direct]); absent = use the default
+            comment["mode"] = mode
         self.save(comment)
         return comment
 

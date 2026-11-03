@@ -26,6 +26,13 @@ thread, so write it for the researcher to read there. In `suggest` mode the rese
 thread: resolving it accepts your change, replying rejects or adjusts it (their reply is then the new
 request, visible in the thread). So make your reply a clear, honest summary of exactly what you changed.
 
+**Modes.** `direct` applies an edit to the paper at once; `suggest` holds it for the researcher to accept or
+reject. `list_comments` / `show_comment` show each comment's `mode`. If `mode_chosen_by_researcher` is true
+(they started the comment with `[suggest]` or `[direct]`) that mode is used and cannot be overridden. Otherwise
+the default applies, and you may pass `mode` to `address_comment` if the researcher's instructions tell you
+how to choose. Change the default with `set_mode` only when they ask. Direct and suggest edits can be mixed
+in one round.
+
 You never create branches, resolve comments by hand, write commit trailers, or run `git push`
 yourself: the tools do all of that. In `suggest` mode they keep your work on a local
 `agent/round-N` branch and `push` publishes only the redline; the researcher accepts or rejects

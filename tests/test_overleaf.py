@@ -451,3 +451,32 @@ def test_in_suggest_mode_the_thread_says_proposed_edit_and_how_to_decide(ov):
     msg = w.state_read()[0]["messages"][-1]["content"]
     assert "Proposed edit in sections/results.tex:" in msg and "{+most+}" in msg
     assert "resolve this thread to accept it" in msg
+
+
+@needs_latexdiff
+def test_each_thread_reply_says_proposed_or_applied_by_its_own_mode(ov):
+    """Default direct; the first thread asks for [suggest]: its reply is a proposal, the other's is not."""
+    w = ov
+    w.state_write([thread("T1", "[suggest] make this less absolute", "always outperforms the baselines"),
+                   thread("T2", "reword this", "Another intro paragraph that stays as it is.",
+                          path="/sections/intro.tex", line=5)])
+    pull(w.cfg)
+    assert Store(w.cfg).get("C-0003")["mode"] == "suggest" and "mode" not in Store(w.cfg).get("C-0004")
+    t = PaperTools(w.repo)
+    t.address_comment("C-0003", [SOFTEN], "Softened.")
+    t.address_comment("C-0004", [{"file": "sections/intro.tex", "old": "Another intro paragraph",
+                                  "new": "A second intro paragraph"}], "Reworded.")
+    push(w.cfg)
+    m1, m2 = (w.state_read()[i]["messages"][-1]["content"] for i in (0, 1))
+    assert "Proposed edit in sections/results.tex:" in m1 and "resolve this thread to accept it" in m1
+    assert "Edit applied in sections/intro.tex:" in m2 and "resolve this thread" not in m2
+
+
+def test_a_later_message_can_change_a_comments_mode(ov):
+    w = ov
+    w.state_write([thread("T1", "[suggest] make this less absolute", "always outperforms the baselines")])
+    pull(w.cfg)
+    assert Store(w.cfg).get("C-0003")["mode"] == "suggest"
+    _says(w, "direct: just apply it, I trust you")
+    pull(w.cfg)
+    assert Store(w.cfg).get("C-0003")["mode"] == "direct"

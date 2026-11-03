@@ -26,6 +26,7 @@ from . import anchor as anchor_mod
 from .build import load_text
 from .config import Config
 from .gitutil import git, rev_parse
+from .modes import parse_mode_tag
 from .store import Store
 from .textdiff import word_diff  # noqa: F401  (also used by tests)
 
@@ -228,7 +229,7 @@ def import_comments(cfg: Config) -> OverleafSync:
             first = human[0]
             c = store.new(
                 body=first["text"], author=f"human:{first['author']}", kind="comment",
-                anchor=_build_anchor(cfg, t, pages),
+                anchor=_build_anchor(cfg, t, pages), mode=parse_mode_tag(first["text"]),
                 origin={"type": "overleaf", "external_id": ext, "thread_id": t["thread_id"],
                         "doc_id": t["doc_id"], "messages_seen": [m["id"] for m in human]},
             )
@@ -243,6 +244,9 @@ def import_comments(cfg: Config) -> OverleafSync:
         fresh = [m for m in human if m["id"] not in seen]
         dirty = False
         if fresh:
+            for m in fresh:  # a later message can change the choice for this comment
+                if parse_mode_tag(m["text"]):
+                    existing["mode"] = parse_mode_tag(m["text"])
             existing["thread"].extend(_entry(m) for m in fresh)
             origin["messages_seen"] = sorted(seen | {m["id"] for m in fresh})
             if existing["status"] != "open":
@@ -288,8 +292,8 @@ def edits_block(edits: list[dict], proposed: bool) -> str:
     return "".join(f"\n\n{head} in {e['file']}:\n{word_diff(e['old'], e['new'])}" for e in edits)
 
 
-def _agent_replies(c: dict) -> list[tuple[str, list[dict]]]:
-    return [(t["body"].strip(), t.get("edits") or []) for t in c.get("thread", [])
+def _agent_replies(c: dict) -> list[tuple[str, list[dict], str | None]]:
+    return [(t["body"].strip(), t.get("edits") or [], t.get("mode")) for t in c.get("thread", [])
             if str(t.get("author", "")).startswith("agent") and t.get("body", "").strip()]
 
 
@@ -329,15 +333,17 @@ def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
             continue
         have = [m["text"].strip() for m in t["messages"]]
         stored = store.get(c["id"])
-        proposal = cfg.mode == "suggest" and stored["status"] != "resolved"
-        for text, edits in _agent_replies(c):
+        for text, edits, reply_mode in _agent_replies(c):
             head = (AGENT_PREFIX + text).strip()
             if not any(h.startswith(head) for h in have):  # matches with or without the diff and footer
+                proposal = (reply_mode or cfg.mode) == "suggest" and stored["status"] != "resolved"
                 msg = AGENT_PREFIX + text + edits_block(edits, proposal) + (DECIDE_HINT if proposal else "")
                 reply(cfg, t["thread_id"], msg)
                 have.append(msg.strip())
                 posted.append(c["id"])
-        applied = stored["status"] == "resolved" or (cfg.mode == "direct" and stored["status"] == "addressed")
+        replies = _agent_replies(c)
+        made_in = (replies[-1][2] if replies else None) or cfg.mode
+        applied = stored["status"] == "resolved" or (made_in == "direct" and stored["status"] == "addressed")
         if cfg.auto_resolve_threads and applied and not t["resolved"] \
                 and not stored["origin"].get("resolve_pushed"):
             resolve(cfg, t["thread_id"])

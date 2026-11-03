@@ -42,6 +42,7 @@ marker lines typed in Overleaf, Apache-2.0, Python.
 | Change log from `Resolves:` trailers | **[built]** |
 | MCP server (`olmcp mcp`) and the atomic `olmcp address` for shell agents | **[built]**, tested with the SDK client, not yet inside Claude Code / Codex |
 | ChatGPT web/desktop connector (remote MCP over HTTPS) | **[planned]**, blocked on an authentication decision (19) |
+| Direct vs suggest: one-command default switch, per-comment tags, mixed rounds | **[built]** (24) |
 | Native Overleaf comments via `olcli`: import with selected text, replies and resolve written back, accept/reject by resolving or replying in the thread, project id automatic | **[built]**; import and replies confirmed by the user on a real project, thread decisions tested against a fake olcli only (20) |
 | Optional rendering, `setup`, paper-aware `doctor` | **[planned]** |
 | `--main`, dependency tree | **[planned]** |
@@ -572,3 +573,30 @@ looked approved by the agent. Approving is a human act, so now: the agent's edit
 protocol says never to resolve, close, approve or dismiss a thread. `auto_resolve_threads` (default false)
 is the opt-in for the old behaviour. In `suggest` mode an accepted change also stays open in Overleaf until
 the researcher resolves it.
+
+## 24. Direct vs suggest, per comment  [built]
+
+**Why.** The mode was one setting in a config file: changing it meant editing a file, and a round could not
+mix a trivial typo fix (apply now) with a rewrite (hold for review).
+
+**Mechanism.**
+- Default: `mode:` in `.olmcp.yml`, changed by `olmcp mode [direct|suggest]` (or the `set_mode` tool): it
+  rewrites only that line, keeps the rest of the file and commits.
+- Per comment: a tag at the very start of the comment text, `[suggest]`, `[direct]`, `suggest:` or `direct:`
+  (case-insensitive; an ordinary sentence that merely begins with the word is not a tag because the colon or
+  brackets are required). Read when a comment is created (Overleaf thread or `%%` marker) and updated by a later
+  tagged message in the thread. Stored as `mode` on the comment; absent means "use the default".
+- Resolution: the researcher's tag wins. `address_comment(..., mode=)` / `olmcp address` (`"mode"` in the JSON)
+  may choose only for an untagged comment; asking for a different mode than the tag is refused with a message
+  saying so. `list_comments` / `show_comment` report the comment's mode and whether the researcher chose it.
+  This keeps the connector principle: the tool provides the knob and honours the researcher's explicit
+  choice; how an agent chooses when nobody did stays in its instructions.
+- Mixing: `direct` edits commit on the default branch, `suggest` edits on the local round branch. Before a
+  suggest edit the round branch is rebased onto the default branch if direct edits landed meanwhile (so the
+  agent never edits a stale file); a conflict is reported and nothing is changed. The redline is the difference
+  between the default branch and the round branch, so it shows only the suggestions.
+- Each agent reply records the mode its change was made in, so the Overleaf thread says "Proposed edit" (with
+  the decide-here footer) or "Edit applied" per comment, whatever the current default is.
+
+**Limits.** The tag must be at the start; one mode per comment (not per edit); an existing comment's mode
+changes only through a later tagged message; the redline's decision lines still decide a whole comment.
