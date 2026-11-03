@@ -2,6 +2,13 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.7.1
+- **Every change in `redline.tex` is annotated where it happens.** Above each change a `>>` note gives the
+  comment id, "change 2 of 3", the real file and line (`sections/01_introduction.tex:14`), what you asked
+  (`asked:`) and the edit in words (`edit:  ...compliant [-single-block-] queries...`). Later changes of the same
+  comment say which decision lines cover them, and the decision line states how many changes it decides. The
+  header now points to `olmcp pull` (it still said "push to GitHub").
+
 ## 0.7.0
 - **The change appears in the comment thread.** The agent's reply in the Overleaf thread now includes the edit
   itself as an inline word diff (`kept [-removed-]{+added+} kept`), labelled "Proposed edit" (suggest mode) or

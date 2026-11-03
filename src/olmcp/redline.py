@@ -20,7 +20,8 @@ from pathlib import Path
 
 from .config import Config, detect_main
 from .gitutil import commits_between, export_tree, git, rev_parse
-from .store import now
+from .store import Store, now
+from .textdiff import crop_to_change, word_diff
 
 GRAPHICS_EXT = {".png", ".jpg", ".jpeg", ".pdf", ".eps", ".svg"}
 OTHER_ASSET_EXT = {".bib", ".sty", ".cls", ".bst"}
@@ -99,6 +100,8 @@ class Group:
     end_line: int
     text: str
     key: str | None = None
+    where: str | None = None  # "sections/results.tex:3" in the version where the change lives
+    edit: str = ""  # the change in words: kept [-removed-]{+added+} kept
 
 
 def find_groups(body_lines: list[str]) -> list[Group]:
@@ -134,13 +137,45 @@ def pickaxe(root: Path, base: str, head: str, snippet: str) -> list[str]:
     return out.split()
 
 
-def snippet_for(group_lines: list[str]) -> str | None:
+def snippet_for(group_lines: list[str]) -> tuple[str, str] | None:
+    """A distinctive line of the change and which side ("head" or "base") it comes from."""
     for side in ("head", "base"):
         rendered = [l.strip() for l in view("\n".join(group_lines), side).split("\n")]
         rendered = [l for l in rendered if len(l) >= 6 and not l.startswith("%")]
         if rendered:
-            return max(rendered, key=len)
+            return max(rendered, key=len), side
     return None
+
+
+def _where(root: Path, sha: str, probe: str) -> str | None:
+    """``path:line`` of ``probe`` in the tree at ``sha`` (the real file, even if it is \\input).
+
+    latexdiff leaves doubled spaces where it substitutes text, so whitespace is normalised first; a
+    shorter prefix is tried if the full probe does not match.
+    """
+    text = " ".join(probe.split())
+    for p in (text[:80], text[:40]):
+        if len(p) < 6:
+            continue
+        out = git(root, "grep", "-n", "-F", "-e", p, sha, "--", "*.tex", check=False)
+        for line in out.splitlines():
+            parts = line.split(":", 3)  # sha:path:line:text
+            if len(parts) >= 3 and parts[2].isdigit():
+                return f"{parts[1]}:{parts[2]}"
+    return None
+
+
+def _request(cfg: Config, entry: dict) -> str:
+    """What the researcher asked, in one short line."""
+    store = Store(cfg)
+    for cid in entry["comment_ids"]:
+        try:
+            body = store.get(cid)["body"]
+        except KeyError:
+            continue
+        one = " ".join(body.split())
+        return one if len(one) <= 110 else one[:107] + "..."
+    return " ".join(entry["subject"].split())
 
 
 # -------------------------------------------------------------------- decisions
@@ -247,24 +282,36 @@ def generate(cfg: Config, base: str, head: str | None, branch: str | None = None
     groups = find_groups(body)
     first_group: dict[str, Group] = {}
     for g in groups:
-        snip = snippet_for(body[g.start_line: g.end_line + 1])
+        glines = body[g.start_line: g.end_line + 1]
+        found = snippet_for(glines)
+        snip, side = found if found else (None, None)
         shas = pickaxe(cfg.root, base_sha, head_sha, snip) if snip else []
         keys = [sha_to_key[s] for s in shas if s in sha_to_key]
         g.key = keys[0] if keys else None
         if g.key and g.key not in first_group:
             first_group[g.key] = g
+        gtext = "\n".join(glines)
+        g.edit = crop_to_change(word_diff(view(gtext, "base"), view(gtext, "head")))
+        g.where = _where(cfg.root, head_sha if side == "head" else base_sha, snip) if snip else None
 
+    by_key = {e["key"]: e for e in entries}
+    total = {k: sum(1 for g in groups if g.key == k) for k in by_key}
+    requests = {k: _request(cfg, e) for k, e in by_key.items()}
+    seen: dict[str, int] = {}
     inserts: dict[int, list[str]] = {}
     placed: set[str] = set()
     for g in groups:
         if g.key is None:
-            inserts.setdefault(g.start_line, []).append("%% (change not linked to an agent commit; it cannot be decided separately)")
-        elif g is first_group[g.key]:
-            e = next(x for x in entries if x["key"] == g.key)
-            inserts.setdefault(g.start_line, []).extend(_decision_block(e, previous, prev_entries))
-            placed.add(g.key)
+            block = _annotation(None, 0, 0, g, "")
         else:
-            inserts.setdefault(g.start_line, []).append(f"%% (change continues: {g.key})")
+            seen[g.key] = seen.get(g.key, 0) + 1
+            block = _annotation(g.key, seen[g.key], total[g.key], g, requests[g.key])
+            if g is first_group[g.key]:
+                block += _decision_lines(by_key[g.key], previous, prev_entries, total[g.key])
+                placed.add(g.key)
+            else:
+                block.append(f"%%    (decided by the decision[{g.key}] lines at change 1)")
+        inserts.setdefault(g.start_line, []).extend(block)
     new_body: list[str] = []
     for i, l in enumerate(body):
         new_body.extend(inserts.get(i, []))
@@ -280,7 +327,8 @@ def generate(cfg: Config, base: str, head: str | None, branch: str | None = None
             f"archive/ or sample/), or only comments/whitespace changed. Review the diff with: git show {e['shas'][0][:7]}")
     header = _header(entries, base_sha, head_sha, branch, warnings)
     for e in unplaced:
-        header.extend(_decision_block(e, previous, prev_entries))
+        header.append(f"%% >> {e['key']}: {_request(cfg, e)}  (no visible change in the paper)")
+        header.extend(_decision_lines(e, previous, prev_entries, 0))
     out = "\n".join(header + [""] + lines[:body_start] + new_body)
     tex_path.write_text(out, encoding="utf-8")
     meta = {"version": 1, "base": base_sha, "head": head_sha, "branch": branch, "entries": entries,
@@ -289,15 +337,29 @@ def generate(cfg: Config, base: str, head: str | None, branch: str | None = None
     return meta
 
 
-def _decision_block(entry: dict, previous: dict, prev_entries: dict) -> list[str]:
+def _annotation(key: str | None, i: int, n: int, g: Group, request: str) -> list[str]:
+    """Comment lines placed right above one change: where it is, what was asked, what changed."""
+    where = f", {g.where}" if g.where else ""
+    if key is None:
+        out = [f"%% >> change not linked to an agent commit{where} (it cannot be decided separately)"]
+    else:
+        out = [f"%% >> {key}, change {i} of {n}{where}"]
+        if request:
+            out.append(f"%%    asked: {request}")
+    if g.edit:
+        out.append(f"%%    edit:  {g.edit}")
+    return out
+
+
+def _decision_lines(entry: dict, previous: dict, prev_entries: dict, n: int) -> list[str]:
     key = entry["key"]
     prior = previous.get(key)
     same = prev_entries.get(key, {}).get("shas") == entry["shas"]
     decision = prior["decision"] if prior and same else "pending"
     reason = prior["reason"] if prior and same else ""
+    scope = f"decides all {n} change{'s' if n != 1 else ''} of {key}" if n else f"decides {key}"
     return [
-        f"%% ---- olmcp: {key} - {entry['subject']} ----",
-        f"%% decision[{key}]: {decision}",
+        f"%% decision[{key}]: {decision}   <- accept | reject ({scope})",
         f"%% reason[{key}]: {reason}",
     ]
 
@@ -305,7 +367,8 @@ def _decision_block(entry: dict, previous: dict, prev_entries: dict) -> list[str
 def _header(entries, base, head, branch, warnings) -> list[str]:
     h = [
         "%% olmcp redline (generated). Edit ONLY the 'decision[...]' and 'reason[...]' lines.",
-        "%% Set a decision to: accept | reject  (leave 'pending' to decide later). Then push to GitHub.",
+        "%% Set a decision to: accept | reject  (leave 'pending' to decide later), save, then run: olmcp pull",
+        "%% Each change below has a '>>' note saying where it is, what you asked and what changed.",
         f"%% base {base[:7]}  head {head[:7]}" + (f"  branch {branch}" if branch else ""),
         "%% Changes in this round:",
     ]

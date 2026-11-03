@@ -545,3 +545,18 @@ word diff, so comment and change are together and accept/reject is already in th
 **Experiment that would settle the unknowns** (on a scratch copy of a project, with netique's tool): make a
 suggestion with `edit_file` (`track: on`); look at it in the editor; `git pull` and read the file; push an
 unrelated change and re-check the suggestion and a comment anchor.
+
+## 22. Redline annotations  [built]
+
+`redline.tex` used to put one block ("C-0005 - <commit subject>", the decision lines) above the first change of
+a comment and a bare "change continues" above the others, so the reader could not tell which words a decision
+was about. Every change location now gets a note: the comment id, "change i of n", the real file and line
+(found with `git grep` in the version where the change lives, so it points into the file that is `\\input`,
+not into the flattened redline), `asked:` (the comment's text), and `edit:` (a one-line word diff cropped to
+the changed words plus some context). The decision lines still sit with the first change and say how many
+changes they decide; later changes name the decision that covers them.
+
+The word diff compares words, LaTeX commands and single punctuation marks, never whitespace, and keeps the
+original spacing (an earlier version diffed whitespace tokens and produced scrambled output such as
+`in{+one+} [-a long-]`). latexdiff leaves doubled spaces where it substitutes text, so the file search
+normalises whitespace first. The same helper produces the diff shown in Overleaf comment threads (20).

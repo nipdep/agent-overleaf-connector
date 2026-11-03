@@ -251,3 +251,37 @@ def test_a_decision_on_one_comment_beats_the_star(round1, repo, cfg):
     commit_all(repo, "accept all but one")
     result = apply(cfg)
     assert result["accepted"] == ["C-0002"] and result["rejected"] == ["C-0001"]
+
+
+def test_every_change_says_where_it_is_what_was_asked_and_what_changed(round1, repo, cfg):
+    # a second change under the same comment: C-0002 now has changes in two places
+    sh(repo, "git", "switch", "-q", "agent/round-1")
+    res = repo / "sections" / "results.tex"
+    res.write_text(res.read_text().replace("The ablation study is unchanged.",
+                                           "The ablation study is unchanged in every setting."))
+    commit_all(repo, "Extend the ablation sentence\n\nResolves: C-0002")
+    sh(repo, "git", "switch", "-q", "main")
+    generate(cfg, "main", "agent/round-1", branch="agent/round-1")
+    text = cfg.redline_path.read_text()
+
+    notes = re.findall(r"%% >> C-0002, change (\d+) of (\d+), (sections/results\.tex:\d+)", text)
+    assert [int(i) for i, _, _ in notes] == list(range(1, len(notes) + 1)) and len(notes) >= 2
+    assert all(n == str(len(notes)) for _, n, _ in notes)
+    assert "%%    asked: soften this claim and add a citation" in text
+    assert "[-always-]" in text and "{+most+}" in text  # the edit in words, right above the change
+    assert "{+in every setting+}" in text
+    assert len(re.findall(r"^%% decision\[C-0002\]:", text, re.M)) == 1  # one decision for the comment
+    assert f"decides all {len(notes)} changes of C-0002" in text
+    assert "(decided by the decision[C-0002] lines at change 1)" in text
+    # the decision lines still sit next to the first change, and everything still parses
+    assert parse_decisions(text)["C-0002"] == {"decision": "pending", "reason": ""}
+    # an annotation comes directly before its change, not at the top of the file
+    first = text.index("%% >> C-0002, change 1")
+    assert text.index("\\DIFadd", first) - first < 700 and first > text.index("\\begin{document}")
+
+
+def test_the_location_is_found_even_when_latexdiff_doubles_a_space(round1, cfg):
+    """'in a long sentence' -> 'in one sentence' makes latexdiff leave a double space in its output."""
+    generate(cfg, "main", "agent/round-1", branch="agent/round-1")
+    text = cfg.redline_path.read_text()
+    assert re.search(r"%% >> C-0001, change 1 of 1, sections/intro\.tex:\d+", text), text[:1500]

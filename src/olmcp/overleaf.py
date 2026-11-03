@@ -27,6 +27,7 @@ from .build import load_text
 from .config import Config
 from .gitutil import git, rev_parse
 from .store import Store
+from .textdiff import word_diff  # noqa: F401  (also used by tests)
 
 AGENT_PREFIX = "[agent] "
 DECIDE_HINT = ("\n\n(Proposed change, not applied yet: resolve this thread to accept it, or reply here "
@@ -279,24 +280,6 @@ def import_comments(cfg: Config) -> OverleafSync:
 
 
 # ------------------------------------------------------------------------------ write back
-def word_diff(old: str, new: str) -> str:
-    """Inline word diff: ``kept [-removed-]{+added+} kept``, so a change reads on one line."""
-    import difflib
-
-    a, b = re.findall(r"\S+|\s+", old), re.findall(r"\S+|\s+", new)
-    out = []
-    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
-        if op == "equal":
-            out.append("".join(a[i1:i2]))
-            continue
-        if i2 > i1:
-            out.append("[-" + "".join(a[i1:i2]).strip() + "-]")
-        if j2 > j1:
-            out.append("{+" + "".join(b[j1:j2]).strip() + "+}")
-        out.append(" ")
-    return re.sub(r" {2,}", " ", "".join(out)).strip()
-
-
 def edits_block(edits: list[dict], proposed: bool) -> str:
     """What changed, for the Overleaf thread: the comment and its change in one place."""
     if not edits:

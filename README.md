@@ -83,6 +83,25 @@ that races with the researcher, and no churn on repeated runs. **Not verified ag
 `git.overleaf.com`**: that a clone sees edits you just made in the editor, how quickly the open
 editor refreshes after a push, and whether Overleaf accepts the redline and comment files.
 
+## Reading the redline
+
+Above every change in `redline.tex` a note says where it is, what you asked and what changed:
+
+```
+%% >> C-0005, change 1 of 2, sections/01_introduction.tex:14
+%%    asked: drop the single-block qualifier
+%%    edit:  ...policy-compliant [-single-block-] queries without trusting...
+%% decision[C-0005]: pending   <- accept | reject (decides all 2 changes of C-0005)
+%% reason[C-0005]:
+%% >> C-0005, change 2 of 2, main.tex:92
+%%    asked: drop the single-block qualifier
+%%    edit:  ...is maximal on [-single-block-] queries.
+%%    (decided by the decision[C-0005] lines at change 1)
+```
+
+`[-removed-]` and `{+added+}` show the edit in words, with a little text around it. One decision covers all
+changes of a comment. Edit only the `decision[...]` and `reason[...]` lines.
+
 ## Native Overleaf comments: select text, comment, done
 
 Instead of typing `%%` markers you can use Overleaf's own Review panel: select a range, add a

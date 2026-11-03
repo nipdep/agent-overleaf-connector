@@ -137,3 +137,23 @@ def test_the_old_alias_and_module_name_are_declared(tmp_path):
     meta = tomllib.loads((Path(__file__).parent.parent / "pyproject.toml").read_text())
     assert meta["project"]["name"] == "agent-overleaf-connector"
     assert meta["project"]["scripts"] == {"olmcp": "olmcp.cli:main", "paper-review": "olmcp.cli:main"}
+
+
+def test_crop_to_change_keeps_the_changed_words_and_a_little_context():
+    from olmcp.textdiff import crop_to_change, word_diff
+
+    long = " ".join(f"w{i}" for i in range(60))
+    d = word_diff(long + " old " + long, long + " new " + long)
+    c = crop_to_change(d, context=20)
+    assert "[-old-]{+new+}" in c and c.startswith("...") and c.endswith("...") and len(c) < 120
+    assert crop_to_change("no change here at all") == "no change here at all"
+    assert crop_to_change(word_diff("a b", "a c")) == "a [-b-]{+c+}"
+
+
+def test_word_diff_ignores_whitespace_and_keeps_punctuation_attached():
+    from olmcp.textdiff import word_diff
+
+    assert word_diff("agents in a long sentence.", "agents in one sentence.") == "agents in [-a long-]{+one+} sentence."
+    assert word_diff("is unchanged.", "is unchanged in every setting.") == "is unchanged {+in every setting+}."
+    assert word_diff("  leading  space", "leading space") == "leading space"  # no stray empty insert
+    assert word_diff("use \\emph{old} text", "use \\emph{new} text") == "use \\emph{[-old-]{+new+}} text"
