@@ -88,7 +88,7 @@ editor refreshes after a push, and whether Overleaf accepts the redline and comm
 ### Setup (researcher)
 
 1. In Overleaf: Menu → GitHub, create the repository. (Overleaf's GitHub/Git sync is a
-   premium feature; see [docs/design.md](docs/design.md#10-overleaf-compatibility-notes) for
+   premium feature; see [docs/design.md](docs/design.md#18-overleaf-compatibility-and-plans) for
    free-plan routes.)
 2. On github.com add `.github/workflows/paper-review.yml` (the 10-line file `paper-review init`
    generates, or copy [the template](src/paper_review/templates/workflow.yml)).
