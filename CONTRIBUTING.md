@@ -71,6 +71,9 @@ Automated tests cannot reach the real Overleaf or the real `olcli`, so changes t
 6. `olmcp mode suggest` / `direct` switches the default and `olmcp push` publishes the config line.
 7. Overleaf's History shows the agent's pushes.
 
+For the Node client (`node/`, `olmcp-overleaf`) the checklist is in [docs/overleaf-client.md](docs/overleaf-client.md);
+`cd node && npm test` runs its tests against a fake Overleaf.
+
 Record the result in `docs/status-and-roadmap.md`.
 
 ## Releasing

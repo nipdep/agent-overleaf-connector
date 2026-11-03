@@ -1,0 +1,12 @@
+{
+  "name": "olmcp-overleaf",
+  "version": "0.1.0",
+  "description": "Overleaf comments and tracked-change edits for agent-overleaf-connector (no runtime dependencies)",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": { "olmcp-overleaf": "src/cli.js" },
+  "main": "src/index.js",
+  "engines": { "node": ">=20" },
+  "files": ["src", "THIRD_PARTY_NOTICES.md"],
+  "scripts": { "test": "node --test test/*.test.js" }
+}

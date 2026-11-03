@@ -623,3 +623,24 @@ comment, focus on a few, choose the mode, without editing config or talking to t
 
 **Not done.** A tag cannot be set from the agent side, and there is no per-edit tagging.
 
+## 26. An own Overleaf client, and tracked-change edits  [built, unverified against the real service]
+
+**Why.** `olcli` is a separate command that an agent with a shell can use to resolve threads, and it cannot write
+tracked changes. A client of our own can leave resolve, reopen and delete out entirely and can make edits as
+Overleaf tracked changes ("Reviewing" mode) instead of only through Git.
+
+**What.** `node/` is the package `olmcp-overleaf`: plain JavaScript, no dependencies, Node 20+. It reads comments
+(project socket, `joinDoc`, `/project/<id>/threads`), posts replies, lists tracked changes and applies an edit as
+a tracked change by sending `applyOtUpdate` operations with `meta.tc` set to a fresh 18-hex-character seed, then
+re-reads the document to confirm the changes were recorded. The Python tool uses it as a drop-in for `olcli`
+(`olcli: olmcp-overleaf`). Credit and licence text for the approach taken from olcli are in
+`node/THIRD_PARTY_NOTICES.md`.
+
+**Not claimed.** It does not stop an agent that can read the cookie file from calling Overleaf directly. It is
+only tested against a fake server written from olcli's source; the `meta.tc` behaviour in particular is the
+understanding of how the editor works, not something verified here.
+
+**Not done yet.** The Python tool does not yet have a "reviewing" mode that routes `address_comment` through
+`edit`; how `olmcp pull` should treat pending tracked changes and what Overleaf's Git export contains for them
+must be established on a scratch project first.
+

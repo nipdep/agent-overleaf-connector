@@ -9,6 +9,10 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
   `comment_tags: false` disables them. The 0.9 start-of-comment forms still work.
 
 ## Unreleased
+- **`olmcp-overleaf`** (`node/`): our own Overleaf client in plain Node (credit to olcli, MIT): comments, replies,
+  tracked changes, and edits written as tracked changes (Reviewing mode). No resolve/reopen/delete commands by
+  design. Drop-in for `olcli` (`olcli: olmcp-overleaf`). Tested against a fake Overleaf only; see
+  docs/overleaf-client.md for the scratch-project checklist. A Node job runs its tests in CI.
 - `olmcp guard [--codex]` and `olmcp init` deny agents the `olcli` command (Claude Code `.claude/settings.json`, merged not
   overwritten; Codex rule file in `~/.codex/rules/olmcp.rules`), so an agent cannot resolve threads behind the tool's
   back. `doctor` checks it.

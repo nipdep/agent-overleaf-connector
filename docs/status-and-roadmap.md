@@ -24,6 +24,7 @@ columns.
 | Deciding in the thread (resolve = accept, reply = reject) against real Overleaf | Tested against a fake `olcli` only |
 | The 0.8 behaviour change (agent no longer resolves threads) 0.9 mode tags and 0.10 hashtags (`#agent`, `#no-agent`, `#suggest`, `#direct`) on a real project | New |
 | The exact `olcli comments list --json` output across versions | Undocumented upstream; the parser accepts the documented fields and aliases |
+| `olmcp-overleaf` (Node client: comments, replies, tracked-change edits) against real Overleaf | Tested against a fake server only; checklist in overleaf-client.md |
 | Large projects (many documents) | `olcli` fetches every document; each call re-lists |
 | macOS, Windows | Linux only |
 | Other MCP clients, other agents following `AGENTS.md` | Only Claude Code and Codex used |

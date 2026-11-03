@@ -70,6 +70,7 @@ Details: **[docs/usage.md](docs/usage.md)**.
 | [docs/setup.md](docs/setup.md) | Setting up a new project, credentials, troubleshooting |
 | [docs/usage.md](docs/usage.md) | Comments, modes, deciding, commands, configuration |
 | [docs/agents.md](docs/agents.md) | Claude Code, Codex, other MCP clients, ChatGPT (status) |
+| [docs/overleaf-client.md](docs/overleaf-client.md) | The own Node Overleaf client: comments, tracked-change edits, test checklist |
 | [docs/ci-mode.md](docs/ci-mode.md) | The GitHub-sync alternative (no local machine) |
 | [docs/architecture.md](docs/architecture.md) | How it works, for contributors |
 | [docs/status-and-roadmap.md](docs/status-and-roadmap.md) | What is verified, what is open, what is planned |
