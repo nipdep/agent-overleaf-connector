@@ -4,11 +4,12 @@ import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseTags, skipReasons, stripTags } from './tags.js';
 import { parseProjectRef } from './project.js';
-import { wordDiff } from './textdiff.js';
+import { beforeAfter } from './textdiff.js';
 
 export class ToolError extends Error {}
 export const AGENT_PREFIX = '[agent] ';
-const REVIEW_HINT = "\n\n(Made as a tracked change in this document: accept or reject it in the editor's Review panel; reply here to ask for something different.)";
+const REVIEW_HINT = "\n\nAccept or reject it in the Review panel, or reply here to ask for something different.";
+const DIRECT_HINT = "\n\nThis was applied directly; Overleaf's History can undo it.";
 const MAX_CHARS = 60000;
 
 export function toItem(c, { commentTags = true } = {}) {
@@ -137,8 +138,11 @@ export class Tools {
     } catch (e) {
       throw new ToolError(`Overleaf did not take the edit: ${e.message}`);
     }
-    const diffs = edits.map((e) => `\n\n${tracked ? 'Tracked change' : 'Edit applied'} in ${e.file}:\n${wordDiff(e.old, e.new ?? '')}`).join('');
-    await this.client.reply(this.project, id, AGENT_PREFIX + reply.trim() + diffs + (tracked ? REVIEW_HINT : ''));
+    const changes = edits.map((e) => {
+      const { before, after } = beforeAfter(e.old, e.new ?? '');
+      return `\n\n${edits.length > 1 || e.file !== item.file ? `In ${e.file}:\n` : ''}Before: ${before}\nAfter:  ${after}`;
+    }).join('');
+    await this.client.reply(this.project, id, AGENT_PREFIX + reply.trim() + changes + (tracked ? REVIEW_HINT : DIRECT_HINT));
     return { comment_id: id, status: 'addressed', mode: editMode, files: [...byFile.keys()],
       note: tracked ? 'Written into Overleaf as tracked changes; the researcher accepts or rejects them there.' : 'Applied as a plain edit in Overleaf.' };
   }

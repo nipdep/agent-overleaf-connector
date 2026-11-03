@@ -54,3 +54,28 @@ export function wordDiff(oldText, newText) {
   }
   return out.join('').trim();
 }
+
+const cut = (s, n, fromEnd) => {
+  if (s.length <= n) return s;
+  const piece = fromEnd ? s.slice(s.length - n) : s.slice(0, n);
+  const snapped = fromEnd ? piece.replace(/^\S*\s/, '') : piece.replace(/\s\S*$/, '');
+  return fromEnd ? `\u2026${snapped || piece}` : `${snapped || piece}\u2026`;
+};
+
+/**
+ * The change as two short, plain readings of the same passage: what it said before and what it says now, cropped to
+ * the words that changed plus a little context on each side. Easier to read than inline diff markup.
+ */
+export function beforeAfter(oldText, newText, { context = 70, limit = 360 } = {}) {
+  const a = oldText.replace(/\s+/g, ' ').trim(); const b = newText.replace(/\s+/g, ' ').trim();
+  let p = 0;
+  while (p < a.length && p < b.length && a[p] === b[p]) p++;
+  p = Math.max(a.lastIndexOf(' ', p - 1) + 1, 0); // start the changed part at a word boundary
+  let s = 0;
+  while (s < a.length - p && s < b.length - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+  const tail = a.length - s;
+  s = a.length - (tail < a.length && a[tail] !== ' ' ? (a.indexOf(' ', tail) === -1 ? a.length : a.indexOf(' ', tail)) : tail);
+  const head = cut(a.slice(0, p), context, true); const rest = cut(a.slice(a.length - s), context, false);
+  const mid = (t, from, to) => { const m = t.slice(from, t.length - to); return m.length > limit ? `${m.slice(0, limit / 2).trimEnd()} \u2026 ${m.slice(-limit / 2).trimStart()}` : m; };
+  return { before: `${head}${mid(a, p, s)}${rest}`, after: `${head}${mid(b, p, s)}${rest}` };
+}

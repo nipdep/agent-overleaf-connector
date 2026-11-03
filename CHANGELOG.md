@@ -3,6 +3,12 @@
 Bump `version` in `package.json` for every change that users can notice, and add a line here.
 
 
+## 0.6.0
+- **Clearer agent replies.** The thread reply is the agent's one-to-three plain sentences, then **Before / After** of the
+  changed passage (cropped to the changed words plus context) and one line on what to do next. The `[-old-]{+new+}`
+  diff markup and the long footer are gone. The tool description and `AGENTS.md` tell the agent to write short, plain
+  replies and not to paste diffs.
+
 ## 0.5.0
 - **No clone or per-folder setup.** Every tool takes an optional `project` argument (an id, a project URL or a git
   URL), so the server can be registered once for all folders and the agent told which project to work on; the

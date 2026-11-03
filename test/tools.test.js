@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { OverleafClient } from '../src/client.js';
 import { parseTags, skipReasons, stripTags } from '../src/tags.js';
-import { wordDiff } from '../src/textdiff.js';
+import { beforeAfter, wordDiff } from '../src/textdiff.js';
 import { Tools, ToolError } from '../src/tools.js';
 import { startFake } from './fake-overleaf.js';
 
@@ -77,8 +77,7 @@ test('address_comment in review mode makes tracked changes and posts the reply w
   assert.deepEqual(kinds, ['d', 'i']);
   const last = fake.state.posted.at(-1);
   assert.equal(last.thread, 'T1');
-  assert.match(last.content, /^\[agent\] Softened the claim\.\n\nTracked change in main\.tex:\n.*\[-always-\]/s);
-  assert.match(last.content, /Review panel/);
+  assert.equal(last.content, '[agent] Softened the claim.\n\nBefore: always outperforms the baselines\nAfter:  outperforms most baselines\n\nAccept or reject it in the Review panel, or reply here to ask for something different.');
   const [t1] = await tools.listComments({ status: 'addressed' });
   assert.equal(t1.status, 'addressed');
   assert.equal((await tools.listComments()).some((c) => c.id === 'T1'), false);
@@ -161,4 +160,15 @@ test('MCP without a configured project: the agent passes the project (id, projec
   const tools = (await s.call('tools/list', {})).result.tools;
   assert.ok(tools.every((x) => x.inputSchema.properties.project));
   await s.close();
+});
+
+test('before/after shows the changed passage with a little context, in plain words', () => {
+  assert.deepEqual(beforeAfter('always outperforms the baselines', 'outperforms most baselines'),
+    { before: 'always outperforms the baselines', after: 'outperforms most baselines' });
+  const long = `${'Lead words. '.repeat(20)}We ran it twice on all benchmarks. ${'Trailing words. '.repeat(20)}`;
+  const r = beforeAfter(long, long.replace('twice', 'three times'));
+  assert.match(r.before, /^\u2026.*We ran it twice on all benchmarks\..*\u2026$/);
+  assert.match(r.after, /We ran it three times on all benchmarks\./);
+  assert.ok(r.before.length < 260, 'cropped');
+  assert.deepEqual(beforeAfter('same', 'same'), { before: 'same', after: 'same' });
 });

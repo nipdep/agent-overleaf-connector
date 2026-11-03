@@ -49,15 +49,19 @@ everything works as usual; `.olmcp.json` with `"commentTags": false` turns tag r
 ## What the agent's reply shows
 
 ```
-[agent] Softened the claim.
+[agent] Shortened the sentence and dropped the repeated claim.
 
-Tracked change in sections/results.tex:
-Our method [-always-] outperforms [-the-]{+most+} baselines
-(Made as a tracked change in this document: accept or reject it in the editor's Review panel; ...)
+Before: …Our method always outperforms the baselines on all tasks.
+After:  …Our method outperforms most baselines on all tasks.
+
+Accept or reject it in the Review panel, or reply here to ask for something different.
 ```
 
-`[-removed-]{+added+}` is an inline word diff. The agent never resolves a thread: **a handled comment stays open
-until you resolve it**.
+The agent writes one to three plain sentences (what it did and why). The tool adds **Before / After** of the changed
+passage, cropped to the changed words plus a little context (`…` marks the crop), and one line saying what to do next.
+When the edit touches a different file than the comment, or several files, the file name is shown. A `direct` edit
+ends with a note that it was applied directly and that Overleaf's History can undo it. The agent never resolves a
+thread: **a handled comment stays open until you resolve it**.
 
 ## The tools (MCP) and the CLI
 
