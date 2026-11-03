@@ -1,6 +1,17 @@
 # Changelog (the tool, not your paper's change log)
 
-Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
+Bump `version` in `package.json` for every change that users can notice, and add a line here.
+
+
+## 0.3.0 (Node-only)
+- **The tool is now only the Node program `olmcp-overleaf`.** Install with `npm install -g github:nipdep/agent-overleaf-connector`.
+  It works on the live Overleaf project: comments (selected text, threads), edits as **tracked changes** (`review`,
+  default) or plain edits (`direct`), replies with a word diff, PDF from Overleaf's compiler, tags (`#agent`,
+  `#no-agent`, `#review`/`#suggest`, `#direct`), an MCP server and a CLI, `init` and `doctor`. No Git integration or
+  paid Overleaf plan is needed; no local state (a comment's status comes from its thread).
+- **Removed** (still on the `python-legacy` branch): the Python tool, Git sync, `%% @agent:` markers, `redline.tex`,
+  the branch-based suggest mode, GitHub CI mode.
+- Earlier entries below describe the Python version (0.1.0 to 0.12.0) and the `olmcp-overleaf` client builds.
 
 ## 0.10.0
 - **Optional hashtags in comments.** `#agent` (focus), `#no-agent` (hands off, enforced by the tools),
@@ -19,16 +30,6 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
 - **`auto_resolve_threads` is removed**: the tool never resolves, reopens or deletes a thread (the client has no such
   command). The key is ignored and `doctor` says so.
 - `olmcp guard` now denies `olmcp-overleaf` and the legacy `olcli` for agents.
-
-## 0.3.0 (Node-only)
-- **The tool is now only the Node program `olmcp-overleaf`.** Install with `npm install -g github:nipdep/agent-overleaf-connector`.
-  It works on the live Overleaf project: comments (selected text, threads), edits as **tracked changes** (`review`,
-  default) or plain edits (`direct`), replies with a word diff, PDF from Overleaf's compiler, tags (`#agent`,
-  `#no-agent`, `#review`/`#suggest`, `#direct`), an MCP server and a CLI, `init` and `doctor`. No Git integration or
-  paid Overleaf plan is needed; no local state (a comment's status comes from its thread).
-- **Removed** (still on the `python-legacy` branch): the Python tool, Git sync, `%% @agent:` markers, `redline.tex`,
-  the branch-based suggest mode, GitHub CI mode.
-- Earlier entries below describe the Python version (0.1.0 to 0.12.0) and the `olmcp-overleaf` client builds.
 
 ## Node client history (before 0.3.0)
 - **`olmcp-overleaf` 0.2.0 is a Node-only tool of its own**: an MCP server (`olmcp-overleaf mcp`) and CLI with
