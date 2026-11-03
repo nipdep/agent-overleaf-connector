@@ -42,7 +42,7 @@ marker lines typed in Overleaf, Apache-2.0, Python.
 | Change log from `Resolves:` trailers | **[built]** |
 | MCP server (`paper-review mcp`) and the atomic `paper-review address` for shell agents | **[built]**, tested with the SDK client, not yet inside Claude Code / Codex |
 | ChatGPT web/desktop connector (remote MCP over HTTPS) | **[planned]**, blocked on an authentication decision (19) |
-| Native Overleaf comments via `olcli`: import with selected text, replies and resolve written back | **[built]**, tested against a fake olcli only (20) |
+| Native Overleaf comments via `olcli`: import with selected text, replies and resolve written back, accept/reject by resolving or replying in the thread, project id automatic | **[built]**; import and replies confirmed by the user on a real project, thread decisions tested against a fake olcli only (20) |
 | Optional rendering, `setup`, paper-aware `doctor` | **[planned]** |
 | `--main`, dependency tree | **[planned]** |
 | Diff-based changes, hunk ids, `REVIEW.md`, typed thread, reply gate | **[planned]** |
@@ -475,6 +475,27 @@ tool never reads, stores or logs the cookie.
   the agent branch's copy of the comment, so the researcher sees the reply before deciding; the thread is
   resolved only after the change is accepted.
 - No marker exists for these comments, so there is nothing to remove from the source.
+
+**Deciding in the thread [built].** The Review panel is also the accept/reject interface. When a change
+for a comment is pending (it is in `redline.json`, and the agent has answered in the thread):
+resolving the thread is an **accept**; a reply after the agent's message is a **reject**, and its text is
+the instruction for the next attempt, unless it reads as an acceptance ("accept", "ok", "lgtm", a
+thumbs-up; "reject: reason" gives an explicit reason). Resolving a thread when nothing is pending still just
+closes the comment, and a thread resolved before the agent has answered counts for nothing. These decisions
+are fed to the same `apply` as the `decision[...]` lines in `redline.tex`; a typed decision wins. The agent's
+reply carries a one-line footer saying how to decide. Replies typed in Overleaf are not echoed back as
+"Rejected: ..." entries (they are already in the thread).
+
+**Merging comment files.** A researcher's reply (stored in the comment's JSON on the default branch) and the
+agent's reply (stored in the same JSON on the agent branch) both edit one file, so accepting used to hit a
+cherry-pick conflict. Conflicts confined to comment files are now merged (both conversations kept, the
+agent's status wins because the acceptance follows, bookkeeping unioned); a conflict in the paper still
+aborts and rolls back. The same applies when the agent branch is rebased onto the researcher's edits.
+
+**Project id.** Read from the clone's remote URL (the host must mention overleaf, so a GitHub URL is never
+mistaken for it; local paths are matched on the whole string for mirrors and tests). `overleaf_project`
+overrides, `overleaf_comments: false` disables. With an auto-detected id and no `olcli` installed, `pull`
+prints one line and carries on; an explicit id with a missing `olcli` is a warning.
 
 **Failure handling.** Every olcli problem (missing binary, expired cookie, API change, timeout) becomes
 a warning in `pull`/`push` and never blocks the git side. `overleaf-check` verifies access;

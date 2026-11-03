@@ -97,10 +97,21 @@ Overleaf has no public API for comments and they are not in git.
    `olcli auth --cookie "<value>"` (or set `OVERLEAF_SESSION`). Never paste it into a chat. It gives full
    access to your account, `olcli` stores it in plain text, and it expires after a few days (repeat this
    step when `pull` warns about a session).
-3. In `.paper-review.yml` add `overleaf_project: <the 24-character id in your project's URL>`.
+3. That's all the setup. The project id is read from your clone's Overleaf URL automatically (override
+   with `overleaf_project:`, turn the feature off with `overleaf_comments: false`).
 4. Check it: `paper-review overleaf-check` should print `ok: project …: N thread(s) …`.
 
 Then comment in Overleaf as usual and run `pull`; the comments appear with their selected text.
+
+**Deciding in the thread.** In `suggest` mode the agent's reply in the thread says the change is only
+proposed. Then, right in the Review panel:
+
+- **Resolve the thread (the check mark): accept.** The change is applied to your paper.
+- **Reply: reject or adjust.** Your reply is the instruction for the agent's next attempt. A reply that
+  says "accept", "ok", "lgtm" or gives a thumbs-up accepts instead; "reject: reason" rejects with that reason.
+
+Typing `accept` / `reject` on the `decision[...]` lines in `redline.tex` still works and wins if the two
+disagree. `redline.tex` remains the place to see the change as a typeset redline.
 `%%` markers keep working alongside. Resolving or deleting a thread in Overleaf is mirrored, and a
 follow-up you write there reopens the comment for the agent.
 
@@ -184,7 +195,7 @@ toolchain as CI. Offline use is just `paper-review build` on a clone.
 
 ## What is verified
 
-Unit and integration tests (`pytest`, 61 tests, real git and real TeX Live): marker parsing,
+Unit and integration tests (`pytest`, 89 tests, real git and real TeX Live): marker parsing,
 comment lifecycle, build outputs (PDF, page PNGs, text boxes), redline generation and that it
 **compiles to a PDF**, change attribution to commits, accept / reject / pending, conflict
 rollback, stale-redline refusal, asset handling, change log, and the CI entry points against a
