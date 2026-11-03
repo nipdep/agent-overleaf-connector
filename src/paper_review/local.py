@@ -10,7 +10,7 @@ where the agent runs. Two explicit steps wrap an agent task:
           update the change log, and publish the default branch to the remote.
 
 The agent branch (``agent/round-N``) stays local; only the default branch is
-pushed, which also suits Overleaf's single-branch (``master``) Git server.
+pushed, which also suits Overleaf's single-branch Git server.
 History on the default branch is kept linear (fast-forward or rebase, never a
 merge commit).
 """

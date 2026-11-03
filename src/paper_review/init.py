@@ -45,9 +45,8 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
     data = {"mode": mode, "engine": engine}
     if main:
         data["main"] = main
-    if local:  # Overleaf's Git server has one branch, called master
+    if local:  # the remote branch name is detected (Overleaf's docs say master; one project showed main)
         data["remote"] = cfg.remote
-        data["remote_branch"] = "master"
     body = (
         "# paper-review configuration (https://github.com/nipdep/agent-overleaf-connector)\n"
         "# mode: direct = agent commits on the current branch; suggest = agent pushes agent/round-N\n"

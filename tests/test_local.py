@@ -190,7 +190,7 @@ def test_researcher_edits_during_a_round_do_not_pollute_the_redline(world):
 def test_init_local_writes_remote_config_and_no_workflow(repo, cli):
     cli("init", "--local")
     cfg_text = (repo / ".paper-review.yml").read_text()
-    assert "remote: origin" in cfg_text and "remote_branch: master" in cfg_text
+    assert "remote: origin" in cfg_text and "remote_branch" not in cfg_text  # branch name is detected
     assert not (repo / ".github").exists()
 
 

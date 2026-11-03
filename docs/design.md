@@ -88,7 +88,7 @@ Non-goals
 ## 4. Architecture
 
 ```
- Overleaf  ◄─── git.overleaf.com (one branch: master) ───►  local clone  ◄──►  agent
+ Overleaf  ◄─── git.overleaf.com (one branch) ───►  local clone  ◄──►  agent
                                                                 │  paper-review pull / push
                                          optional render layers │
                        none | local TeX | CI mirror (GitHub) | Docker
@@ -106,7 +106,7 @@ Transports
 
 Overleaf's Git facts (from its [docs](https://docs.overleaf.com/integrations-and-add-ons/git-integration-and-github-synchronization/git)):
 premium feature, token authentication, URL `https://git.overleaf.com/<project-id>`, one branch
-named `master`, commits created just-in-time. **[unverified]** that a fetch sees text you just
+named `master` in its docs (**observed `main` on a real project**), commits created just-in-time. The tool detects the branch name and never hard-codes it. **[unverified]** that a fetch sees text you just
 typed in the editor, and how fast an open editor refreshes after a push.
 
 ## 5. The paper: `--main` and the dependency tree  [planned]
@@ -244,7 +244,7 @@ counterparts under `review/redline/` (no flattening) are still **[planned]**.
 ```
 paper-review pull    # fetch the researcher's edits; sync markers; apply decisions; report
    agent: edit, reply on the comment, commit "Resolves: C-NNNN" (one comment per commit)
-paper-review push    # refresh REVIEW.md (and optional redline), change log; publish master
+paper-review push    # refresh REVIEW.md (and optional redline), change log; publish the branch
 ```
 `pull` reports what happened to every comment: new, reopened, removed by the researcher,
 accepted, rejected with a reason. Both commands are idempotent and refuse a dirty tree. If the

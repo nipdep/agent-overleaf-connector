@@ -54,7 +54,7 @@ no daemon and no polling; the agent wraps its task in two commands:
 ```
 paper-review pull   # before: fetch the researcher's edits and report what happened to the comments
    ... agent edits, commits on a local agent/round-N branch ...
-paper-review push   # after: refresh redline.tex + change log, publish master to Overleaf
+paper-review push   # after: refresh redline.tex + change log, publish the branch to Overleaf
 ```
 
 1. In Overleaf: Menu → Sync → Git shows the clone URL (`https://git.overleaf.com/<project-id>`);
@@ -69,7 +69,7 @@ paper-review push   # after: refresh redline.tex + change log, publish master to
    applies your decisions and reports them.
 
 Behaviour worth knowing:
-- Only the default branch is pushed (Overleaf's Git has a single branch, `master`); the
+- Only the default branch is pushed (Overleaf's Git has a single branch; its docs call it `master`, your project may show `main`); the
   `agent/round-N` branch stays local, as do the rollback tags.
 - History stays linear (fast-forward or rebase, never a merge commit). If the researcher edited
   the same lines as a local unpushed commit, `pull` stops and changes nothing.
@@ -77,7 +77,7 @@ Behaviour worth knowing:
   onto your edits and regenerates the redline so it only shows the agent's changes.
 - `pull` / `push` are idempotent: repeated runs create no new commits.
 
-Verified here against a bare git repository that imitates Overleaf's remote (single `master`
+Verified here against a bare git repository that imitates Overleaf's remote (a single
 branch, a second clone playing the researcher): the full round without CI, conflicts, a push
 that races with the researcher, and no churn on repeated runs. **Not verified against the real
 `git.overleaf.com`**: that a clone sees edits you just made in the editor, how quickly the open

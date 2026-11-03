@@ -2,6 +2,10 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.2.2
+- `init --local` no longer writes `remote_branch: master`. A real Overleaf project exposed `main`, so the
+  hard-coded name made `push` target the wrong branch. The branch is detected from the clone.
+
 ## 0.2.1
 - A commit whose change cannot appear in the redline (it touches files `main.tex` does not input, or only
   comments/whitespace) is now flagged with a warning in `redline.tex`, in `redline.json`, and in the
