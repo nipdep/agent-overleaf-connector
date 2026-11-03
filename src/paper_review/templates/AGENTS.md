@@ -32,13 +32,13 @@ If `.paper-review.yml` has a `remote:` entry you are working in a clone of the r
 Overleaf project. There is no CI and no watcher; two commands wrap your task:
 
 1. **Before anything else:** `paper-review pull`. It fetches the researcher's edits, turns their
-   markers into comments, applies any accept/reject lines they typed in `review/redline.tex`, and
+   markers into comments, applies any accept/reject lines they typed in `redline.tex` (next to the main file), and
    prints what happened to the comments (new, reopened, removed by the researcher, rejected with
    a reason). Read that output; `paper-review pull --json` gives the same data for parsing.
 2. Do the task below (the loop). Keep your work on the local `agent/round-N` branch in `suggest`
    mode, or on the default branch in `direct` mode. Never push the agent branch.
 3. **When done:** switch back to the default branch and run `paper-review push`. It refreshes
-   `review/redline.tex` and the change log and publishes the default branch to Overleaf.
+   `redline.tex` and the change log and publishes the default branch to Overleaf.
 
 If `pull` or `push` reports a conflict or a warning, stop and tell the researcher; do not
 force anything. Never push with plain `git push` in this mode.
@@ -63,7 +63,7 @@ force anything. Never push with plain `git push` in this mode.
 
       Resolves: C-NNNN
       ```
-4. Push. In `suggest` mode CI builds `review/redline.tex` for the researcher.
+4. Push. In `suggest` mode CI builds `redline.tex` for the researcher.
 5. Run `paper-review changelog` if CI has not already.
 
 ## Rules
@@ -71,7 +71,7 @@ force anything. Never push with plain `git push` in this mode.
 - One comment, one commit (several commits for one comment are fine; one commit for several
   comments is not, because they cannot be accepted or rejected separately).
 - Edit only what the comment asks for. Do not reformat unrelated text.
-- Do not edit `review/redline.tex`, `review/redline.json` or anything under `build/`.
+- Do not edit `redline.tex`, `review/redline.json` or anything under `build/`.
 - Never force-push the default branch.
 - A rejected change reopens its comment with the reason as a reply. Read the reply and try again.
 

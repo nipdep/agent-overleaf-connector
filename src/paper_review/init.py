@@ -51,7 +51,7 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
     body = (
         "# paper-review configuration (https://github.com/nipdep/agent-overleaf-connector)\n"
         "# mode: direct = agent commits on the current branch; suggest = agent pushes agent/round-N\n"
-        "# and you accept/reject changes in review/redline.tex.\n"
+        "# and you accept/reject changes in redline.tex.\n"
         "# engine: Overleaf's compiler setting is not stored in git, so check it matches yours.\n"
     ) + yaml.safe_dump(data, sort_keys=False)
     _write(root / CONFIG_NAME, body, actions, force, CONFIG_NAME)

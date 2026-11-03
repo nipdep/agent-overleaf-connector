@@ -56,10 +56,10 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     return subprocess.run(["git", "merge-base", "--is-ancestor", ancestor, descendant], cwd=root).returncode == 0
 
 
-def has_changes_outside(root: Path, a: str, b: str, excluded_dir: str) -> bool:
-    """True if ``a`` and ``b`` differ anywhere except under ``excluded_dir``."""
-    return subprocess.run(["git", "diff", "--quiet", a, b, "--", ".", f":(exclude){excluded_dir}"],
-                          cwd=root).returncode != 0
+def has_changes_outside(root: Path, a: str, b: str, excluded: list[str]) -> bool:
+    """True if ``a`` and ``b`` differ anywhere except under the ``excluded`` paths."""
+    spec = [".", *[f":(exclude){e}" for e in excluded]]
+    return subprocess.run(["git", "diff", "--quiet", a, b, "--", *spec], cwd=root).returncode != 0
 
 
 def resolve_ref(root: Path, name: str) -> str | None:
@@ -114,9 +114,8 @@ def export_tree(root: Path, ref: str, dest: Path) -> None:
 
 def commit_paths(root: Path, paths: list[str], message: str) -> str | None:
     """Stage ``paths`` and commit if anything changed. Returns the new sha or None."""
-    for p in paths:
-        if (root / p).exists():
-            git(root, "add", "-A", "--", p)
+    for p in paths:  # `add -A` also stages deletions of tracked files; unknown paths are ignored
+        git(root, "add", "-A", "--", p, check=False)
     if git(root, "diff", "--cached", "--name-only").strip() == "":
         return None
     git(root, "commit", "-q", "-m", message)

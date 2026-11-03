@@ -1,4 +1,4 @@
-"""Apply the human's accept/reject decisions from ``review/redline.tex``.
+"""Apply the human's accept/reject decisions from ``redline.tex``.
 
 * accepted commits are cherry-picked onto the default branch (in order);
 * rejected commits are dropped and their comments reopened with the reason;
@@ -32,7 +32,7 @@ def ensure_identity(root) -> None:
 
 def pending_decisions(cfg: Config) -> bool:
     """True if redline.tex holds at least one accept/reject decision."""
-    tex = cfg.review_path / "redline.tex"
+    tex = cfg.redline_path
     if not tex.exists() or not (cfg.review_path / "redline.json").exists():
         return False
     return any(d["decision"] != "pending" for d in parse_decisions(tex.read_text(encoding="utf-8")).values())
@@ -68,7 +68,7 @@ def apply(cfg: Config, message_suffix: str = "") -> dict:
     if tip != meta.get("head"):
         raise ApplyError("the agent branch moved since this redline was generated; regenerate it first")
 
-    decisions = parse_decisions((cfg.review_path / "redline.tex").read_text(encoding="utf-8"))
+    decisions = parse_decisions(cfg.redline_path.read_text(encoding="utf-8"))
     star = decisions.get("*", {}).get("decision")
     accepted, rejected, pending = [], [], []
     for e in entries:
@@ -118,7 +118,7 @@ def apply(cfg: Config, message_suffix: str = "") -> dict:
 
     new_head = branch if branch_action != "deleted" else None
     generate(cfg, default, new_head, branch=branch if new_head else None)
-    commit_paths(root, [f"{cfg.review_dir}/redline.tex", f"{cfg.review_dir}/redline.json", f"{cfg.review_dir}/assets"],
+    commit_paths(root, cfg.redline_files,
                  f"paper-review: update redline{message_suffix}")
     return {
         "status": "applied",

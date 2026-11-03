@@ -92,3 +92,28 @@ def test_init_never_overwrites_existing_agents_md(repo, cli):
     wf = (repo / ".github" / "workflows" / "paper-review.yml").read_text()
     assert 'branches: ["main", "agent/**"]' in wf
     sh(repo, "git", "status", "--short")
+
+
+def test_generated_redline_is_neither_the_main_file_nor_scanned_for_markers(repo):
+    # a main file whose name sorts AFTER "redline.tex", so a naive detector would pick the redline
+    (repo / "main.tex").rename(repo / "zeta.tex")
+    (repo / "redline.tex").write_text(
+        "%% paper-review redline (generated). Edit ONLY the decision lines.\n"
+        "%% @agent: this must not become a comment\n"
+        "\\documentclass{article}\n\\begin{document}x\\end{document}\n")
+    cfg = load_config(repo)
+    assert detect_main(cfg) == "zeta.tex"
+    assert all(c["body"] != "this must not become a comment" for c in
+               (Store(cfg).all() + [{"body": m.text} for m in __import__("paper_review.markers", fromlist=["scan"]).scan(cfg)]))
+    # but a user's own file that happens to be called redline.tex is still scanned
+    (repo / "redline.tex").write_text("%% @agent: mine\nMy text.\n")
+    from paper_review.markers import scan
+    assert [m.text for m in scan(load_config(repo))].count("mine") == 1
+
+
+def test_redline_sits_beside_the_main_file(repo):
+    cfg = load_config(repo)
+    assert cfg.redline_path == repo / "redline.tex" and cfg.redline_rel == "redline.tex"
+    cfg2 = load_config(repo)
+    cfg2.main = "paper/main.tex"
+    assert cfg2.redline_rel == "paper/redline.tex"  # same folder as the real main (paper-root handling comes with --main)

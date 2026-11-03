@@ -33,8 +33,8 @@ Overleaf ──push──► GitHub repo ──► CI: build PDF, sync comments,
 3. **The agent** (given the repo and `AGENTS.md`) builds the paper, looks at the page images,
    edits the .tex, and commits one comment per commit with a `Resolves: C-0001` trailer.
    - `mode: direct` commits on your branch.
-   - `mode: suggest` pushes `agent/round-N`; CI writes **`review/redline.tex`**.
-4. **Review the redline inside Overleaf**: set `review/redline.tex` as the main document.
+   - `mode: suggest` pushes `agent/round-N`; CI writes **`redline.tex`** next to `main.tex`.
+4. **Review the redline inside Overleaf**: set `redline.tex` as the main document (Menu → Settings → Main document).
    Next to each change are lines like
    ```
    %% decision[C-0001]: pending      <- type accept or reject
@@ -54,7 +54,7 @@ no daemon and no polling; the agent wraps its task in two commands:
 ```
 paper-review pull   # before: fetch the researcher's edits and report what happened to the comments
    ... agent edits, commits on a local agent/round-N branch ...
-paper-review push   # after: refresh review/redline.tex + change log, publish master to Overleaf
+paper-review push   # after: refresh redline.tex + change log, publish master to Overleaf
 ```
 
 1. In Overleaf: Menu → Sync → Git shows the clone URL (`https://git.overleaf.com/<project-id>`);
@@ -64,7 +64,7 @@ paper-review push   # after: refresh review/redline.tex + change log, publish ma
 3. `paper-review init --local --mode suggest`, review the files, commit, then `paper-review push`.
 4. Per round: you type `%% @agent: ...` markers in Overleaf (nothing to press: Overleaf's Git
    server creates a commit from your latest edits when the clone fetches). The agent runs `pull`,
-   works, and runs `push`. In Overleaf you open `review/redline.tex` (set it as main document),
+   works, and runs `push`. In Overleaf you open `redline.tex` (set it as main document),
    type `accept` / `reject` on the `%% decision[...]` lines, and carry on. The next `pull`
    applies your decisions and reports them.
 
@@ -107,7 +107,7 @@ paper-review build                   PDF + build/pages/*.png + build/text.json +
 paper-review sync                    markers -> comments
 paper-review list|show|reply|resolve comment operations (all support --json)
 paper-review round                   next agent/round-N name
-paper-review redline <branch>        write review/redline.tex
+paper-review redline <branch>        write redline.tex (beside the main file)
 paper-review apply                   apply accept/reject decisions
 paper-review changelog               write review/CHANGELOG.md
 paper-review pull / push             local mode: wrap an agent task (see above)
@@ -121,7 +121,7 @@ toolchain as CI. Offline use is just `paper-review build` on a clone.
 
 ## What is verified
 
-Unit and integration tests (`pytest`, 27 tests, real git and real TeX Live): marker parsing,
+Unit and integration tests (`pytest`, 30 tests, real git and real TeX Live): marker parsing,
 comment lifecycle, build outputs (PDF, page PNGs, text boxes), redline generation and that it
 **compiles to a PDF**, change attribution to commits, accept / reject / pending, conflict
 rollback, stale-redline refusal, asset handling, change log, and the CI entry points against a
@@ -131,13 +131,14 @@ real bare remote.
 resolves from another branch; the `texlive/texlive` image runs the install, build and artifact
 upload; the bot pushes sync / redline / decision / change-log commits with `[skip ci]` and does
 not re-trigger itself; a full round works: markers become comments, an `agent/round-N` push
-produces `review/redline.tex`, and `accept` / `reject` (with a reason) pushed back are applied,
+produces `redline.tex`, and `accept` / `reject` (with a reason) pushed back are applied,
 the rejected comment reopens, the agent branch is deleted and the pre-apply rollback tag is
 pushed. A run takes about 1.5 to 2 minutes, mostly pulling the TeX Live image.
 
 **Not verified**, so treat as unproven until tried on a scratch project:
 - Overleaf compiling `redline.tex` as a main document and syncing the generated files back
-  (the redline does compile with a plain TeX Live);
+  (it compiles with a plain TeX Live on the real 31-page paper, figures and bibliography
+  included; it sits beside `main.tex`, so Overleaf resolves its paths as it does the paper's);
 - whether Overleaf's GitHub sync follows only the default branch;
 - agent behaviour with `AGENTS.md` across vendors;
 - private repositories (Actions minutes) and branch protection on the default branch.

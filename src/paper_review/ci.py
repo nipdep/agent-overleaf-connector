@@ -3,7 +3,7 @@
 * push to the default branch: bootstrap files on first run, sync markers into
   comments, apply accept/reject decisions if the researcher made any, refresh the
   change log;
-* push to ``agent/*``: regenerate ``review/redline.tex`` on the default branch.
+* push to ``agent/*``: regenerate ``redline.tex`` on the default branch.
 
 Bot commits carry ``[skip ci]``. With ``push=True`` the results are pushed.
 """
@@ -79,7 +79,7 @@ def run(cfg: Config, branch: str | None = None, push: bool = False) -> dict:
         target = f"origin/{default}" if remote and rev_parse(root, f"origin/{default}") else default
         git(root, "checkout", "-q", "-B", default, target)
         meta = generate(cfg, default, head_sha, branch=branch)
-        commit_paths(root, [f"{cfg.review_dir}/redline.tex", f"{cfg.review_dir}/redline.json", f"{cfg.review_dir}/assets"],
+        commit_paths(root, cfg.redline_files,
                      f"paper-review: redline for {branch} ({len(meta['entries'])} change(s)){SUFFIX}")
         log.append(f"redline: {len(meta['entries'])} change(s) from {branch}")
         if push and remote:

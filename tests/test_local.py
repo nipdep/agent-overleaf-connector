@@ -127,13 +127,13 @@ def test_full_local_round_without_ci_or_polling(world):
 
     # the agent branch never leaves the machine; only master (with the redline) is published
     assert "agent/round-1" not in sh(w.bare.parent, "git", "--git-dir", str(w.bare), "branch", "--list")
-    redline = w.remote_file("review/redline.tex")
+    redline = w.remote_file("redline.tex")
     assert "decision[C-0001]: pending" in redline and "decision[C-0002]: pending" in redline
     assert "outperforms the baselines" in w.remote_file("sections/results.tex")  # not applied yet
 
     # --- researcher in Overleaf: accept C-0002, reject C-0001 with a reason
     sh(w.user, "git", "pull", "-q", "--rebase", "origin", "master")
-    tex = w.user / "review" / "redline.tex"
+    tex = w.user / "redline.tex"
     s = tex.read_text().replace("decision[C-0002]: pending", "decision[C-0002]: accept") \
         .replace("decision[C-0001]: pending", "decision[C-0001]: reject") \
         .replace("reason[C-0001]: ", "reason[C-0001]: keep my wording", 1)
@@ -152,7 +152,7 @@ def test_full_local_round_without_ci_or_polling(world):
     out = push(w.cfg)
     assert "outperforms most baselines" in w.remote_file("sections/results.tex")  # accepted change published
     assert "long sentence" in w.remote_file("sections/intro.tex")  # rejected change never published
-    assert "No pending agent changes" in w.remote_file("review/redline.tex")
+    assert "No pending agent changes" in w.remote_file("redline.tex")
     assert "C-0002" in w.remote_file("review/CHANGELOG.md")
     assert git(repo, "tag", "--list").count("paper-review/pre-apply-") == 1  # local rollback point
     assert "paper-review/pre-apply" not in sh(w.bare.parent, "git", "--git-dir", str(w.bare), "tag", "--list")
@@ -174,7 +174,7 @@ def test_researcher_edits_during_a_round_do_not_pollute_the_redline(world):
     assert out["warnings"] == [] and out["redline"].startswith("1 change(s)")
     meta = json.loads((w.cfg.review_path / "redline.json").read_text())
     assert [e["key"] for e in meta["entries"]] == ["C-0002"]  # only the agent's change
-    redline = (w.cfg.review_path / "redline.tex").read_text()
+    redline = (w.cfg.redline_path).read_text()
     assert "A second intro paragraph" in redline and "\\DIFdel{A second" not in redline  # not shown as reverted
     sh(repo, "git", "merge-base", "--is-ancestor", user_sha, "agent/round-1")  # agent branch rebased onto it
 
@@ -192,3 +192,21 @@ def test_init_local_writes_remote_config_and_no_workflow(repo, cli):
     cfg_text = (repo / ".paper-review.yml").read_text()
     assert "remote: origin" in cfg_text and "remote_branch: master" in cfg_text
     assert not (repo / ".github").exists()
+
+
+@needs_latexdiff
+def test_push_migrates_a_legacy_review_redline(world):
+    """A repo that still has the pre-move review/redline.tex ends up with only the new file,
+    even when the redline itself is already current."""
+    w, repo = world, world.repo
+    pull(w.cfg)
+    sh(repo, "git", "switch", "-q", "-c", "agent/round-1")
+    agent_commit(repo, "sections/results.tex", "always outperforms", "outperforms", "Soften\n\nResolves: C-0002")
+    sh(repo, "git", "switch", "-q", "master")
+    push(w.cfg)  # redline is now current at the new location
+    (repo / "review" / "redline.tex").write_text("%% paper-review redline (generated)\n%% decision[C-0002]: pending\n")
+    sh(repo, "git", "add", "-A")
+    sh(repo, "git", "commit", "-qm", "legacy redline from an older version")
+    assert push(w.cfg)["redline"] != "unchanged"
+    tree = sh(w.bare.parent, "git", "--git-dir", str(w.bare), "ls-tree", "-r", "--name-only", "master").split()
+    assert "redline.tex" in tree and "review/redline.tex" not in tree

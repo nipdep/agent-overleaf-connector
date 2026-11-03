@@ -50,7 +50,7 @@ def round1(repo, cfg):
 def test_redline_has_decision_lines_next_to_changes(round1, cfg):
     meta = generate(cfg, "main", "agent/round-1", branch="agent/round-1")
     assert [e["key"] for e in meta["entries"]] == ["C-0002", "C-0001"]
-    text = (cfg.review_path / "redline.tex").read_text()
+    text = (cfg.redline_path).read_text()
     assert parse_decisions(text) == {"C-0002": {"decision": "pending", "reason": ""},
                                      "C-0001": {"decision": "pending", "reason": ""}}
     # the decision block sits immediately above its own change
@@ -65,7 +65,7 @@ def test_redline_has_decision_lines_next_to_changes(round1, cfg):
 
 def test_accept_one_reject_one(round1, repo, cfg):
     generate(cfg, "main", "agent/round-1", branch="agent/round-1")
-    tex = cfg.review_path / "redline.tex"
+    tex = cfg.redline_path
     s = tex.read_text()
     s = s.replace("decision[C-0002]: pending", "decision[C-0002]: accept")
     s = s.replace("decision[C-0001]: pending", "decision[C-0001]: reject")
@@ -96,7 +96,7 @@ def test_accept_one_reject_one(round1, repo, cfg):
 
 def test_pending_commits_survive_on_a_recreated_branch(round1, repo, cfg):
     generate(cfg, "main", "agent/round-1", branch="agent/round-1")
-    tex = cfg.review_path / "redline.tex"
+    tex = cfg.redline_path
     tex.write_text(tex.read_text().replace("decision[C-0002]: pending", "decision[C-0002]: accept"))
     commit_all(repo, "accept one")
     result = apply(cfg)
@@ -110,7 +110,7 @@ def test_pending_commits_survive_on_a_recreated_branch(round1, repo, cfg):
 
 def test_stale_redline_is_refused(round1, repo, cfg):
     generate(cfg, "main", "agent/round-1", branch="agent/round-1")
-    tex = cfg.review_path / "redline.tex"
+    tex = cfg.redline_path
     tex.write_text(tex.read_text().replace("decision[C-0002]: pending", "decision[C-0002]: accept"))
     commit_all(repo, "decide")
     sh(repo, "git", "switch", "-q", "agent/round-1")
@@ -123,7 +123,7 @@ def test_stale_redline_is_refused(round1, repo, cfg):
 
 def test_conflict_rolls_back_everything(round1, repo, cfg):
     generate(cfg, "main", "agent/round-1", branch="agent/round-1")
-    tex = cfg.review_path / "redline.tex"
+    tex = cfg.redline_path
     tex.write_text(tex.read_text().replace("decision[C-0002]: pending", "decision[C-0002]: accept"))
     # a concurrent edit on main touches the same line the accepted commit changed
     res = repo / "sections" / "results.tex"
@@ -141,10 +141,10 @@ def test_ci_agent_branch_then_default_applies_decisions(round1, repo, cfg):
     sh(repo, "git", "switch", "-q", "agent/round-1")
     assert ci_run(cfg, branch="agent/round-1")["ok"]
     assert git(repo, "branch", "--show-current").strip() == "main"
-    assert (cfg.review_path / "redline.tex").exists()
+    assert (cfg.redline_path).exists()
     assert "[skip ci]" in git(repo, "log", "-1", "--format=%s")
 
-    tex = cfg.review_path / "redline.tex"
+    tex = cfg.redline_path
     tex.write_text(tex.read_text().replace("decision[C-0001]: pending", "decision[C-0001]: accept"))
     commit_all(repo, "overleaf: decisions")
     out = ci_run(cfg, branch="main")
@@ -167,7 +167,7 @@ def test_dependent_assets_copied_for_redline(round1, repo, cfg):
     sh(repo, "git", "switch", "-q", "main")
     generate(cfg, "main", "agent/round-1", branch="agent/round-1")
     assert (cfg.review_path / "assets" / "figures" / "fig1.png").exists()
-    assert "review/assets/figures/fig1" in (cfg.review_path / "redline.tex").read_text()
+    assert "review/assets/figures/fig1" in (cfg.redline_path).read_text()
 
 
 def test_redline_compiles_to_pdf(round1, repo, cfg):
@@ -180,7 +180,7 @@ def test_redline_compiles_to_pdf(round1, repo, cfg):
         pytest.skip("latexmk not installed")
     generate(cfg, "main", "agent/round-1", branch="agent/round-1")
     proc = subprocess.run(["latexmk", "-pdf", "-interaction=nonstopmode", "-halt-on-error",
-                           "-outdir=build", "review/redline.tex"], cwd=repo, capture_output=True, text=True)
+                           "-outdir=build", "redline.tex"], cwd=repo, capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout[-800:]
     import pymupdf
 
@@ -203,7 +203,7 @@ def test_ci_pushes_to_a_real_remote(round1, repo, cfg, tmp_path):
     assert "redline.tex" in sh(tmp_path, "git", "--git-dir", str(remote), "ls-tree", "-r", "--name-only", "main")
 
     # researcher (Overleaf) accepts one and rejects one, CI applies and pushes
-    tex = cfg.review_path / "redline.tex"
+    tex = cfg.redline_path
     tex.write_text(tex.read_text().replace("decision[C-0002]: pending", "decision[C-0002]: accept")
                    .replace("decision[C-0001]: pending", "decision[C-0001]: reject"))
     commit_all(repo, "overleaf: decisions")

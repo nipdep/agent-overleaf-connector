@@ -111,7 +111,7 @@ def cmd_round(args, cfg):
 def cmd_redline(args, cfg):
     base = args.base or default_branch(cfg.root, cfg.default_branch)
     meta = generate(cfg, base, args.head, branch=args.head)
-    _emit(args, meta, f"{len(meta['entries'])} change(s) -> {cfg.review_dir}/redline.tex"
+    _emit(args, meta, f"{len(meta['entries'])} change(s) -> {cfg.redline_rel}"
                       + "".join(f"\n  warning: {w}" for w in meta.get("warnings", [])))
 
 
@@ -231,10 +231,10 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--commit")
     sp.add_argument("--author", default="agent")
     add("round", cmd_round, "print the next agent branch name, e.g. agent/round-3").set_defaults(fn=cmd_round)
-    sp = add("redline", cmd_redline, "generate review/redline.tex for an agent branch", True)
+    sp = add("redline", cmd_redline, "generate redline.tex (beside the main file) for an agent branch", True)
     sp.add_argument("head", help="agent branch or commit")
     sp.add_argument("--base", help="base ref (default: the default branch)")
-    add("apply", cmd_apply, "apply accept/reject decisions from review/redline.tex", True)
+    add("apply", cmd_apply, "apply accept/reject decisions from redline.tex", True)
     add("pull", cmd_pull, "before an agent task: fetch the researcher's edits and report what happened to the comments", True)
     add("push", cmd_push, "after an agent task: refresh the redline and publish the default branch", True)
     add("changelog", cmd_changelog, "regenerate review/CHANGELOG.md")

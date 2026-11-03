@@ -48,6 +48,27 @@ class Config:
     def comments_path(self) -> Path:
         return self.review_path / "comments"
 
+    @property
+    def redline_path(self) -> Path:
+        """The redline main file lives in the same folder as the real main file, so Overleaf
+        resolves its relative paths exactly as it does for the paper itself."""
+        try:
+            main = self.main or detect_main(self)
+        except FileNotFoundError:
+            main = "main.tex"
+        return self.root / Path(main).parent / "redline.tex"
+
+    @property
+    def redline_rel(self) -> str:
+        return self.redline_path.relative_to(self.root).as_posix()
+
+    @property
+    def redline_files(self) -> list[str]:
+        """Everything the redline step writes, for committing. Includes the pre-v0.2 location
+        (``review/redline.tex``) so a stale copy is removed when the new one is written."""
+        return [self.redline_rel, f"{self.review_dir}/redline.json", f"{self.review_dir}/assets",
+                f"{self.review_dir}/redline.tex"]
+
 
 def find_root(start: Path | None = None) -> Path:
     """Repository root: nearest ancestor holding a config file or ``.git``."""
@@ -74,12 +95,24 @@ def load_config(root: Path) -> Config:
     return cfg
 
 
+def _is_generated_redline(p: Path) -> bool:
+    if p.name != "redline.tex":
+        return False
+    try:
+        return "paper-review" in p.read_text(encoding="utf-8", errors="replace")[:300]
+    except OSError:
+        return False
+
+
 def iter_tex_files(cfg: Config):
-    """All .tex files in the project, skipping hidden dirs, build and review dirs."""
+    """All .tex files in the project, skipping hidden dirs, build and review dirs and the
+    generated redline (it is not the paper and its markup must not be scanned)."""
     skip = SKIP_DIRS | {cfg.build_dir, cfg.review_dir}
     for p in sorted(cfg.root.rglob("*.tex")):
         rel = p.relative_to(cfg.root)
         if any(part in skip or part.startswith(".") for part in rel.parts[:-1]):
+            continue
+        if _is_generated_redline(p):
             continue
         yield p
 

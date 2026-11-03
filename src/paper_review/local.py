@@ -6,7 +6,7 @@ where the agent runs. Two explicit steps wrap an agent task:
 ``pull``  before the task: fetch what the researcher did in Overleaf, turn their
           ``%% @agent:`` markers into comments, apply their accept/reject lines,
           and report what happened to the comments.
-``push``  after the task: refresh ``review/redline.tex`` from the agent branch,
+``push``  after the task: refresh ``redline.tex`` from the agent branch,
           update the change log, and publish the default branch to the remote.
 
 The agent branch (``agent/round-N``) stays local; only the default branch is
@@ -88,13 +88,14 @@ def _refresh_agent(cfg: Config, default: str) -> dict:
     branch = agent_branch(cfg)
     meta_path = cfg.review_path / "redline.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else None
-    paths = [f"{cfg.review_dir}/redline.tex", f"{cfg.review_dir}/redline.json", f"{cfg.review_dir}/assets"]
+    paths = cfg.redline_files
+    generated = [cfg.review_dir, cfg.redline_rel]  # files we commit ourselves do not count as paper changes
 
     if branch and commits_between(root, default, branch):
         # Rebase only if the default branch moved in the paper itself (the redline files
         # we commit to it do not count, or every pull would rebase again).
         fork = git(root, "merge-base", default, branch).strip()
-        if has_changes_outside(root, fork, default, cfg.review_dir):
+        if has_changes_outside(root, fork, default, generated):
             try:
                 git(root, "rebase", "-q", default, branch)
             except GitError as exc:
@@ -106,8 +107,9 @@ def _refresh_agent(cfg: Config, default: str) -> dict:
             else:
                 git(root, "switch", "-q", default)
         head = rev_parse(root, branch)
-        if meta and meta.get("head") == head and meta.get("base") \
-                and not has_changes_outside(root, meta["base"], default, cfg.review_dir):
+        legacy = (cfg.review_path / "redline.tex").exists()  # pre-move location: regenerate to migrate
+        if meta and meta.get("head") == head and meta.get("base") and cfg.redline_path.exists() and not legacy \
+                and not has_changes_outside(root, meta["base"], default, generated):
             return out  # redline already current
         try:
             m = generate(cfg, default, branch, branch=branch)

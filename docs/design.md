@@ -34,7 +34,7 @@ marker lines typed in Overleaf, Apache-2.0, Python.
 |---|---|
 | Build (`latexmk`, page PNGs, `text.json`), comment store, markers, `sync` | **[built]** |
 | `direct` / `suggest` modes, `apply` (per comment), rollback tag, conflict rollback | **[built]** |
-| Flattened latexdiff `review/redline.tex` with `decision[...]` lines | **[built]** (becomes optional, see 7) |
+| Flattened latexdiff `redline.tex` (beside the main file) with `decision[...]` lines | **[built]** (becomes optional, see 8) |
 | CI mode (reusable workflow, verified on real GitHub Actions) | **[built]** |
 | Local mode: `pull` / `push`, `init --local` (tested against a bare repo imitating Overleaf) | **[built]** |
 | Change log from `Resolves:` trailers | **[built]** |
@@ -214,8 +214,8 @@ reason[C-0001]:
 ```
 No TeX, no Perl, no compile: works anywhere git works.
 
-### 8.2 Typeset redline  [built as `review/redline.tex`, later optional]
-Today: flattened `latexdiff` of base vs agent branch with the same decision lines (needs
+### 8.2 Typeset redline  [built as `redline.tex`, later optional]
+Today: flattened `latexdiff` of base vs agent branch, written to `redline.tex` **beside the real main file**, with the same decision lines (needs
 `latexdiff`; Overleaf compiles it). It stays as an optional layer.
 
 Planned replacement, built on one invariant: **the redline's main file lives in the same folder
@@ -229,10 +229,12 @@ references use. No flattening, no copy of unchanged files or assets, and **no as
 Overleaf's path resolution**, so no probe is needed. Each counterpart starts with a visible stamp
 as a cheap guard against compiling an unmarked original by mistake.
 
-Known gap in what is built today: `review/redline.tex` sits in a subfolder and rewrites paths of
-newly added figures to `review/assets/...`, which assumes Overleaf resolves from the project
-root. Compiling that file in Overleaf, especially its figures and bibliography, is
-**[unverified]**; moving the redline main beside the real main removes the question.
+Status: the **invariant is built** for the flattened redline: `redline.tex` is written beside the
+main file, new figures referenced as `review/assets/...` use the same base as the paper's own
+references, and a pre-move `review/redline.tex` is removed on the next refresh (decisions typed
+in it are carried over). Verified: it compiles from the repository root on the real 31-page
+paper, figures and bibliography resolved. **[unverified]** inside Overleaf itself. The per-file
+counterparts under `review/redline/` (no flattening) are still **[planned]**.
 
 ## 9. Modes and the loop
 
@@ -305,7 +307,8 @@ review/
   comments/C-0001.json   the conversation
   changes/C-0001/…diff   patches, same relative paths as the source          [planned]
   redline/               counterparts of changed files (typeset redline)    [planned]
-  redline.tex, redline.json   current flattened redline                     [built]
+  redline.json           machine file for the redline                        [built]
+<paper-root>/redline.tex   the flattened redline, beside the real main file        [built]
   CHANGELOG.md
 build/                   generated renders (gitignored)
 ```
@@ -337,14 +340,14 @@ The tool never moves or rewrites the researcher's files except by an accepted ch
 
 ## 15. Verification status
 
-Verified here (27 tests, real git and TeX Live): markers, comment lifecycle, build outputs,
+Verified here (30 tests, real git and TeX Live): markers, comment lifecycle, build outputs,
 flattened redline compiles, accept/reject/pending, conflict rollback, stale-redline refusal,
 local-mode round without CI against a bare repo imitating Overleaf, linear history, no churn on
 repeated runs, CI entry points against a bare remote. On real GitHub Actions: full round,
 mixed accept/reject, bot commits not re-triggering, rollback tag pushed. On the real 31-page
 TGDK paper: build, redline generation and compile, `pull` (0.5 s) and `push` (1.3 s).
 
-**Not verified:** anything against the real `git.overleaf.com`;
+**Not verified:** anything against the real `git.overleaf.com`; Overleaf compiling `redline.tex` (it does compile locally on the real paper);
 Overleaf compiling the redline (the built flat redline sits in `review/`, so its figure and bibliography paths are unverified); agent behaviour with `AGENTS.md` across vendors; macOS; Windows;
 private repositories and protected branches.
 

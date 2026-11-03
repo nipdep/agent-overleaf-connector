@@ -1,4 +1,4 @@
-"""Generate ``review/redline.tex``: a latexdiff of base vs the agent branch, with a
+"""Generate ``redline.tex`` (next to the real main file): a latexdiff of base vs the agent branch, with a
 decision line per agent commit that the human edits in place (inside Overleaf)::
 
     %% decision[C-0042]: pending      <- change to: accept | reject
@@ -179,9 +179,14 @@ No pending agent changes to review.
 
 
 def generate(cfg: Config, base: str, head: str | None, branch: str | None = None) -> dict:
-    """Write review/redline.tex and review/redline.json. ``head=None`` writes a stub."""
+    """Write redline.tex (beside the main file) and review/redline.json. ``head=None`` writes a stub."""
     cfg.review_path.mkdir(parents=True, exist_ok=True)
-    tex_path, json_path = cfg.review_path / "redline.tex", cfg.review_path / "redline.json"
+    tex_path, json_path = cfg.redline_path, cfg.review_path / "redline.json"
+    legacy = cfg.review_path / "redline.tex"  # location used before the redline moved beside the main file
+    if legacy.exists() and legacy != tex_path and "paper-review" in legacy.read_text(encoding="utf-8")[:300]:
+        if not tex_path.exists():
+            tex_path.write_text(legacy.read_text(encoding="utf-8"), encoding="utf-8")  # keep typed decisions
+        legacy.unlink()
     previous = parse_decisions(tex_path.read_text(encoding="utf-8")) if tex_path.exists() else {}
     prev_entries = {}
     if json_path.exists():
