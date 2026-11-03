@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "paper-review"
-version = "0.5.0"
-description = "Review-and-revise loop for LaTeX papers: comments, agent edits, redlines, accept/reject, change log."
+name = "agent-overleaf-connector"
+version = "0.6.0"
+description = "AI-agent review loop for Overleaf/LaTeX papers: native comments, agent edits, redlines, accept or reject, MCP server (command: olmcp)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -20,13 +20,14 @@ mcp = ["mcp>=2,<3"]
 dev = ["pytest>=8", "mcp>=2,<3"]
 
 [project.scripts]
-paper-review = "paper_review.cli:main"
+olmcp = "olmcp.cli:main"
+paper-review = "olmcp.cli:main"  # deprecated alias of olmcp
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-paper_review = ["templates/*"]
+olmcp = ["templates/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

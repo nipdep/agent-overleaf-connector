@@ -4,4 +4,4 @@ __pycache__/
 build/
 dist/
 .venv/
-!src/paper_review/templates/CLAUDE.md
+!src/olmcp/templates/CLAUDE.md

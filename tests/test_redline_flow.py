@@ -5,13 +5,13 @@ import re
 
 import pytest
 
-from paper_review.apply import ApplyError, apply
-from paper_review.ci import run as ci_run
-from paper_review.config import load_config
-from paper_review.gitutil import git
-from paper_review.redline import generate, parse_decisions
-from paper_review.store import Store
-from paper_review.sync import sync
+from olmcp.apply import ApplyError, apply
+from olmcp.ci import run as ci_run
+from olmcp.config import load_config
+from olmcp.gitutil import git
+from olmcp.redline import generate, parse_decisions
+from olmcp.store import Store
+from olmcp.sync import sync
 
 from conftest import needs_latexdiff, sh
 
@@ -215,7 +215,7 @@ def test_ci_pushes_to_a_real_remote(round1, repo, cfg, tmp_path):
     branches = sh(tmp_path, "git", "--git-dir", str(remote), "branch", "--list")
     assert "agent/round-1" not in branches  # all decided -> remote branch deleted
     tags = sh(tmp_path, "git", "--git-dir", str(remote), "tag", "--list")
-    assert "paper-review/pre-apply-" in tags  # rollback point survives the CI runner
+    assert "olmcp/pre-apply-" in tags  # rollback point survives the CI runner
     assert sh(repo, "git", "status", "--porcelain").strip() == ""
 
 

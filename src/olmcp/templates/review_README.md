@@ -1,6 +1,6 @@
 # review/
 
-Managed by paper-review. You can ignore everything here. The redline is `redline.tex` next to your main file.
+Managed by olmcp. You can ignore everything here. The redline is `redline.tex` next to your main file.
 
 - **`../redline.tex`** (next to `main.tex`): the agent's pending changes, shown as a redline. In
   Overleaf choose *Menu → Settings → Main document → `redline.tex`* to see it in the PDF preview. To decide, edit

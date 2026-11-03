@@ -9,9 +9,9 @@ import pytest
 
 pytest.importorskip("mcp")
 
-from paper_review.gitutil import git  # noqa: E402
-from paper_review.review_tools import PaperTools, ToolError  # noqa: E402
-from paper_review.store import Store  # noqa: E402
+from olmcp.gitutil import git  # noqa: E402
+from olmcp.review_tools import PaperTools, ToolError  # noqa: E402
+from olmcp.store import Store  # noqa: E402
 
 from conftest import needs_latexdiff, sh  # noqa: E402
 
@@ -44,7 +44,7 @@ def test_address_comment_is_one_atomic_commit_in_direct_mode(world):
 @needs_latexdiff
 def test_suggest_mode_uses_a_local_round_branch_and_never_touches_master(world):
     w, repo = world, world.repo
-    (repo / ".paper-review.yml").write_text("mode: suggest\n")
+    (repo / ".olmcp.yml").write_text("mode: suggest\n")
     sh(repo, "git", "add", "-A")
     sh(repo, "git", "commit", "-qm", "suggest mode")
     t = PaperTools(repo)
@@ -89,7 +89,7 @@ def test_bad_edits_change_nothing(world, bad_edit, why):
 @needs_latexdiff
 def test_failed_edit_in_suggest_mode_leaves_no_empty_branch(world):
     w, repo = world, world.repo
-    (repo / ".paper-review.yml").write_text("mode: suggest\n")
+    (repo / ".olmcp.yml").write_text("mode: suggest\n")
     sh(repo, "git", "add", "-A")
     sh(repo, "git", "commit", "-qm", "suggest mode")
     t = PaperTools(repo)
@@ -176,7 +176,7 @@ def test_the_server_speaks_mcp_over_stdio(world):
 
     w = world
     params = StdioServerParameters(command=sys.executable,
-                                   args=["-m", "paper_review.cli", "--root", str(w.repo), "mcp"])
+                                   args=["-m", "olmcp.cli", "--root", str(w.repo), "mcp"])
 
     async def session():
         async with Client(params) as client:

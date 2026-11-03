@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from paper_review import overleaf
-from paper_review.config import load_config
-from paper_review.gitutil import git
-from paper_review.local import agent_branch, pull, push
-from paper_review.review_tools import PaperTools
-from paper_review.store import Store
+from olmcp import overleaf
+from olmcp.config import load_config
+from olmcp.gitutil import git
+from olmcp.local import agent_branch, pull, push
+from olmcp.review_tools import PaperTools
+from olmcp.store import Store
 
 from conftest import needs_latexdiff, sh
 
@@ -37,7 +37,7 @@ def ov(world, tmp_path, monkeypatch):
     state.write_text(json.dumps({"threads": []}))
     monkeypatch.setenv("FAKE_OLCLI_STATE", str(state))
     w = world
-    (w.repo / ".paper-review.yml").write_text(
+    (w.repo / ".olmcp.yml").write_text(
         f"overleaf_project: {PROJECT}\nolcli: {json.dumps(shlex.join([sys.executable, str(FAKE)]))}\n")
     sh(w.repo, "git", "add", "-A")
     sh(w.repo, "git", "commit", "-qm", "enable Overleaf comments")
@@ -145,7 +145,7 @@ def test_agent_reply_lands_in_the_overleaf_thread_once_and_thread_is_resolved_in
 @needs_latexdiff
 def test_suggest_mode_replies_now_and_resolves_the_thread_only_after_you_accept(ov):
     w, repo = ov, ov.repo
-    (repo / ".paper-review.yml").write_text(repo.joinpath(".paper-review.yml").read_text() + "mode: suggest\n")
+    (repo / ".olmcp.yml").write_text(repo.joinpath(".olmcp.yml").read_text() + "mode: suggest\n")
     sh(repo, "git", "commit", "-qam", "suggest mode")
     w.cfg = load_config(repo)
     w.state_write([thread("T1", "make this less absolute", "always outperforms the baselines")])
@@ -181,7 +181,7 @@ def test_a_broken_or_missing_olcli_is_a_warning_not_a_crash(ov, monkeypatch):
     assert any("session" in x or "expired" in x for x in out["warnings"]), out["warnings"]
     assert [c["id"] for c in Store(w.cfg).all()] == ["C-0001", "C-0002"]  # the %% markers still work
     assert push(w.cfg)["warnings"]
-    (w.repo / ".paper-review.yml").write_text(f"overleaf_project: {PROJECT}\nolcli: definitely-not-installed-xyz\n")
+    (w.repo / ".olmcp.yml").write_text(f"overleaf_project: {PROJECT}\nolcli: definitely-not-installed-xyz\n")
     sh(w.repo, "git", "commit", "-qam", "bad olcli")
     out = pull(load_config(w.repo))
     assert any("olcli not found" in x for x in out["warnings"])
@@ -202,18 +202,18 @@ def test_parse_threads_accepts_the_documented_shapes():
 
 
 def test_overleaf_check_command(ov, capsys):
-    from paper_review.cli import main
+    from olmcp.cli import main
 
     ov.state_write([thread("T1", "x", "always outperforms the baselines"),
                     thread("T2", "y", "", resolved=True)])
     assert main(["--root", str(ov.repo), "overleaf-check"]) == 0
     assert "2 thread(s), 1 open, 1 with selected text" in capsys.readouterr().out
-    (ov.repo / ".paper-review.yml").write_text("mode: direct\n")
+    (ov.repo / ".olmcp.yml").write_text("mode: direct\n")
     assert main(["--root", str(ov.repo), "overleaf-check"]) == 1
 
 
 def test_pull_says_whether_overleaf_comments_are_on_and_what_it_found(ov, world, capsys):
-    from paper_review.cli import main
+    from olmcp.cli import main
 
     ov.state_write([thread("T1", "x", "always outperforms the baselines")])
     assert main(["--root", str(ov.repo), "pull"]) == 0
@@ -221,7 +221,7 @@ def test_pull_says_whether_overleaf_comments_are_on_and_what_it_found(ov, world,
     assert "Overleaf comments: 1 thread(s) checked: 1 created (C-0003)" in out and 'on: "always outperforms' in out
     assert main(["--root", str(ov.repo), "pull"]) == 0
     assert "Overleaf comments: 1 thread(s) checked, nothing new" in capsys.readouterr().out
-    (ov.repo / ".paper-review.yml").write_text("mode: direct\n")
+    (ov.repo / ".olmcp.yml").write_text("mode: direct\n")
     sh(ov.repo, "git", "commit", "-qam", "turn Overleaf comments off")
     assert main(["--root", str(ov.repo), "pull"]) == 0
     assert "Overleaf comments: off (this clone's remote is not an Overleaf Git URL" in capsys.readouterr().out
@@ -229,7 +229,7 @@ def test_pull_says_whether_overleaf_comments_are_on_and_what_it_found(ov, world,
 
 # ------------------------------------------------------------------ decisions made in the thread
 def _suggest(w):
-    cfgfile = w.repo / ".paper-review.yml"
+    cfgfile = w.repo / ".olmcp.yml"
     cfgfile.write_text(cfgfile.read_text() + "mode: suggest\n")
     sh(w.repo, "git", "commit", "-qam", "suggest mode")
     w.cfg = load_config(w.repo)
@@ -351,16 +351,16 @@ def test_the_project_id_is_read_from_the_remote_url(repo, url, expected):
 
 def test_an_explicit_project_id_overrides_the_remote(repo):
     sh(repo, "git", "remote", "add", "origin", "https://git.overleaf.com/6ae8eca020f2e6cc79d3e5a2")
-    (repo / ".paper-review.yml").write_text("overleaf_project: aaaaaaaaaaaaaaaaaaaaaaaa\n")
+    (repo / ".olmcp.yml").write_text("overleaf_project: aaaaaaaaaaaaaaaaaaaaaaaa\n")
     assert overleaf.project_id(load_config(repo)) == "aaaaaaaaaaaaaaaaaaaaaaaa"
 
 
 def test_comments_can_be_turned_off_and_a_missing_olcli_is_a_quiet_note_when_auto_detected(repo, tmp_path):
     sh(repo, "git", "remote", "add", "origin", "https://git.overleaf.com/6ae8eca020f2e6cc79d3e5a2")
-    (repo / ".paper-review.yml").write_text("olcli: definitely-not-installed-xyz\n")
+    (repo / ".olmcp.yml").write_text("olcli: definitely-not-installed-xyz\n")
     st, why = overleaf.state(load_config(repo))
     assert st == "off" and "olcli is not installed" in why
-    (repo / ".paper-review.yml").write_text("overleaf_comments: false\n")
+    (repo / ".olmcp.yml").write_text("overleaf_comments: false\n")
     assert overleaf.state(load_config(repo)) == ("off", "turned off (overleaf_comments: false)")
 
 
@@ -376,7 +376,7 @@ def test_comments_work_with_no_configuration_when_the_clone_is_an_overleaf_clone
     moved.parent.mkdir()
     shutil.move(str(w.bare), str(moved))
     sh(w.repo, "git", "remote", "set-url", "origin", str(moved))
-    (w.repo / ".paper-review.yml").write_text(f"olcli: {json.dumps(shlex.join([sys.executable, str(FAKE)]))}\n")  # no project id
+    (w.repo / ".olmcp.yml").write_text(f"olcli: {json.dumps(shlex.join([sys.executable, str(FAKE)]))}\n")  # no project id
     sh(w.repo, "git", "add", "-A")
     sh(w.repo, "git", "commit", "-qm", "only the olcli command")
     out = pull(load_config(w.repo))
@@ -384,7 +384,7 @@ def test_comments_work_with_no_configuration_when_the_clone_is_an_overleaf_clone
 
 
 def test_two_edits_of_one_comment_file_merge_without_losing_either_conversation():
-    from paper_review.store import merge_comments
+    from olmcp.store import merge_comments
 
     ours = {"status": "open", "resolution": None, "thread": [{"author": "human:a", "body": "accept"}],
             "origin": {"type": "overleaf", "messages_seen": ["m1", "m9"], "thread_id": "T1"}}

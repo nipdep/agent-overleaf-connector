@@ -2,6 +2,16 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.6.0
+- **Renamed.** The command is now **`olmcp`** (Overleaf + MCP: short to type); the installable package and
+  repository are **`agent-overleaf-connector`**; the Python module is `olmcp`. `paper-review` still works as a
+  deprecated alias (it prints a note on stderr). Install:
+  `pipx install "agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"`.
+- Config file is now `.olmcp.yml`; `.paper-review.yml` is still read, and `olmcp init` renames it (keeping its
+  settings). Generated redlines from before the rename are still recognised. The MCP server is named `olmcp`;
+  bot commits and rollback tags read `olmcp: ...` / `olmcp/pre-apply-...` (older ones keep the old prefix).
+- Uninstall the old package first: `pipx uninstall paper-review` (both would provide a `paper-review` command).
+
 ## 0.5.0
 - **Decide in the Overleaf thread.** When the agent has proposed a change (`suggest` mode) its reply in the
   thread says so; **resolving the thread accepts the change** and **replying rejects or adjusts it** (a reply

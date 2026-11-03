@@ -6,10 +6,10 @@ import json
 
 import pytest
 
-from paper_review.config import load_config
-from paper_review.gitutil import git
-from paper_review.local import LocalError, agent_branch, pull, push
-from paper_review.store import Store
+from olmcp.config import load_config
+from olmcp.gitutil import git
+from olmcp.local import LocalError, agent_branch, pull, push
+from olmcp.store import Store
 
 from conftest import agent_commit, needs_latexdiff, sh
 
@@ -115,8 +115,8 @@ def test_full_local_round_without_ci_or_polling(world):
     assert "long sentence" in w.remote_file("sections/intro.tex")  # rejected change never published
     assert "No pending agent changes" in w.remote_file("redline.tex")
     assert "C-0002" in w.remote_file("review/CHANGELOG.md")
-    assert git(repo, "tag", "--list").count("paper-review/pre-apply-") == 1  # local rollback point
-    assert "paper-review/pre-apply" not in sh(w.bare.parent, "git", "--git-dir", str(w.bare), "tag", "--list")
+    assert git(repo, "tag", "--list").count("olmcp/pre-apply-") == 1  # local rollback point
+    assert "olmcp/pre-apply" not in sh(w.bare.parent, "git", "--git-dir", str(w.bare), "tag", "--list")
 
 
 @needs_latexdiff
@@ -150,7 +150,7 @@ def test_researcher_edits_during_a_round_do_not_pollute_the_redline(world):
 
 def test_init_local_writes_remote_config_and_no_workflow(repo, cli):
     cli("init", "--local")
-    cfg_text = (repo / ".paper-review.yml").read_text()
+    cfg_text = (repo / ".olmcp.yml").read_text()
     assert "remote: origin" in cfg_text and "remote_branch" not in cfg_text  # branch name is detected
     assert not (repo / ".github").exists()
 
@@ -165,7 +165,7 @@ def test_push_migrates_a_legacy_review_redline(world):
     agent_commit(repo, "sections/results.tex", "always outperforms", "outperforms", "Soften\n\nResolves: C-0002")
     sh(repo, "git", "switch", "-q", "master")
     push(w.cfg)  # redline is now current at the new location
-    (repo / "review" / "redline.tex").write_text("%% paper-review redline (generated)\n%% decision[C-0002]: pending\n")
+    (repo / "review" / "redline.tex").write_text("%% olmcp redline (generated)\n%% decision[C-0002]: pending\n")
     sh(repo, "git", "add", "-A")
     sh(repo, "git", "commit", "-qm", "legacy redline from an older version")
     assert push(w.cfg)["redline"] != "unchanged"
@@ -174,7 +174,7 @@ def test_push_migrates_a_legacy_review_redline(world):
 
 
 def test_address_cli_is_atomic_and_reads_json_from_a_file(world, tmp_path):
-    from paper_review.cli import main as cli_main
+    from olmcp.cli import main as cli_main
 
     w = world
     pull(w.cfg)
@@ -196,9 +196,9 @@ def test_address_cli_is_atomic_and_reads_json_from_a_file(world, tmp_path):
 
 def test_init_writes_the_claude_code_wiring(repo, cli):
     cli("init", "--local")
-    assert json.loads((repo / ".mcp.json").read_text())["mcpServers"]["paper-review"]["args"] == ["mcp"]
+    assert json.loads((repo / ".mcp.json").read_text())["mcpServers"]["olmcp"]["args"] == ["mcp"]
     assert "Address the open review comments" in (repo / ".claude" / "commands" / "address-comments.md").read_text()
     claude = " ".join((repo / "CLAUDE.md").read_text().split())  # ignore line wrapping
     assert "@AGENTS.md" in claude and "Never push a branch to Overleaf" in claude
     agents = (repo / "AGENTS.md").read_text()
-    assert "address_comment" in agents and "paper-review address" in agents and "Never push a branch" in agents
+    assert "address_comment" in agents and "olmcp address" in agents and "Never push a branch" in agents

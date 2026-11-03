@@ -57,7 +57,7 @@ def sync(cfg: Config, author: str = "human") -> SyncResult:
         if existing["status"] != "open":
             existing["status"] = "open"
             existing["resolution"] = None
-            existing["thread"].append({"author": "paper-review", "at": _now(), "body": "Marker present again; reopened."})
+            existing["thread"].append({"author": "olmcp", "at": _now(), "body": "Marker present again; reopened."})
             result.reopened.append(existing["id"])
         if existing["anchor"].get("source") != new_anchor["source"] or (page and existing["anchor"].get("page") != new_anchor["page"]):
             existing["anchor"] = {**existing["anchor"], **{k: v for k, v in new_anchor.items() if v is not None}}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "olmcp": {
+      "command": "olmcp",
+      "args": ["mcp"]
+    }
+  }
+}

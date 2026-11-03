@@ -1,8 +1,8 @@
 """MCP server: the review loop as tools for Claude Code, Claude Desktop, Codex and any other
 MCP client that can start a local (stdio) server.
 
-    claude mcp add paper-review -- paper-review mcp          # Claude Code
-    codex mcp add paper-review -- paper-review mcp           # Codex
+    claude mcp add olmcp -- olmcp mcp          # Claude Code
+    codex mcp add olmcp -- olmcp mcp           # Codex
 
 Note: no ``from __future__ import annotations`` here; the SDK reads the real annotations.
 """
@@ -53,7 +53,7 @@ class Edit(BaseModel):
 
 def create_server(root: Optional[Path] = None) -> MCPServer:
     tools = PaperTools(root)
-    server = MCPServer("paper-review", instructions=INSTRUCTIONS)
+    server = MCPServer("olmcp", instructions=INSTRUCTIONS)
 
     @server.tool()
     @expose

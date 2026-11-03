@@ -1,4 +1,4 @@
-"""What the GitHub workflow runs after the paper is built (``paper-review ci``).
+"""What the GitHub workflow runs after the paper is built (``olmcp ci``).
 
 * push to the default branch: bootstrap files on first run, sync markers into
   comments, apply accept/reject decisions if the researcher made any, refresh the
@@ -43,11 +43,11 @@ def run(cfg: Config, branch: str | None = None, push: bool = False) -> dict:
     if branch == default:
         if not (root / CONFIG_NAME).exists():
             log += init(cfg, workflow=False)
-            commit_paths(root, init_paths(cfg), f"paper-review: add configuration and agent instructions{SUFFIX}")
+            commit_paths(root, init_paths(cfg), f"olmcp: add configuration and agent instructions{SUFFIX}")
         res = sync(cfg)
         if res.changed:
             commit_paths(root, [f"{cfg.review_dir}/comments"],
-                         f"paper-review: sync comments (+{len(res.created)} new, {len(res.addressed)} addressed){SUFFIX}")
+                         f"olmcp: sync comments (+{len(res.created)} new, {len(res.addressed)} addressed){SUFFIX}")
             log.append(f"sync: {len(res.created)} created, {len(res.reopened)} reopened, {len(res.addressed)} addressed")
         if pending_decisions(cfg):
             try:
@@ -66,7 +66,7 @@ def run(cfg: Config, branch: str | None = None, push: bool = False) -> dict:
                 log.append(f"apply FAILED: {exc}")
                 return {"ok": False, "log": log}
         if write_changelog(cfg):
-            commit_paths(root, [f"{cfg.review_dir}/CHANGELOG.md"], f"paper-review: update change log{SUFFIX}")
+            commit_paths(root, [f"{cfg.review_dir}/CHANGELOG.md"], f"olmcp: update change log{SUFFIX}")
         if push and remote:
             _push(root, default, remote)
         return {"ok": True, "log": log}
@@ -79,7 +79,7 @@ def run(cfg: Config, branch: str | None = None, push: bool = False) -> dict:
         git(root, "checkout", "-q", "-B", default, target)
         meta = generate(cfg, default, head_sha, branch=branch)
         commit_paths(root, cfg.redline_files,
-                     f"paper-review: redline for {branch} ({len(meta['entries'])} change(s)){SUFFIX}")
+                     f"olmcp: redline for {branch} ({len(meta['entries'])} change(s)){SUFFIX}")
         log.append(f"redline: {len(meta['entries'])} change(s) from {branch}")
         if push and remote:
             _push(root, default, remote)

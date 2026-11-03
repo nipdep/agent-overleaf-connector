@@ -2,7 +2,7 @@
 
 The repository layout is dictated by Overleaf, so nothing here assumes a shape:
 the main file and engine are detected, and everything can be overridden in
-``.paper-review.yml``.
+``.olmcp.yml``.
 """
 
 from __future__ import annotations
@@ -13,7 +13,8 @@ from pathlib import Path
 
 import yaml
 
-CONFIG_NAME = ".paper-review.yml"
+CONFIG_NAME = ".olmcp.yml"
+LEGACY_CONFIG_NAME = ".paper-review.yml"  # the tool's first name; still read, `init` migrates it
 SKIP_DIRS = {".git", "node_modules", "__pycache__"}
 
 _DOCCLASS = re.compile(r"^[^%\n]*\\documentclass", re.M)
@@ -77,7 +78,7 @@ def find_root(start: Path | None = None) -> Path:
     """Repository root: nearest ancestor holding a config file or ``.git``."""
     start = (start or Path.cwd()).resolve()
     for d in [start, *start.parents]:
-        if (d / CONFIG_NAME).exists() or (d / ".git").exists():
+        if (d / CONFIG_NAME).exists() or (d / LEGACY_CONFIG_NAME).exists() or (d / ".git").exists():
             return d
     return start
 
@@ -86,6 +87,8 @@ def load_config(root: Path) -> Config:
     root = root.resolve()
     cfg = Config(root=root)
     path = root / CONFIG_NAME
+    if not path.exists() and (root / LEGACY_CONFIG_NAME).exists():
+        path = root / LEGACY_CONFIG_NAME
     if path.exists():
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for key, value in data.items():
@@ -102,7 +105,8 @@ def _is_generated_redline(p: Path) -> bool:
     if p.name != "redline.tex":
         return False
     try:
-        return "paper-review" in p.read_text(encoding="utf-8", errors="replace")[:300]
+        head = p.read_text(encoding="utf-8", errors="replace")[:300]
+        return "olmcp" in head or "paper-review" in head  # files generated before the rename
     except OSError:
         return False
 

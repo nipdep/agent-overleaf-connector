@@ -1,10 +1,10 @@
 import json
 
-from paper_review import anchor
-from paper_review.config import detect_engine, detect_main, load_config
-from paper_review.markers import parse_markers, strip_marker_lines
-from paper_review.store import Store
-from paper_review.sync import sync
+from olmcp import anchor
+from olmcp.config import detect_engine, detect_main, load_config
+from olmcp.markers import parse_markers, strip_marker_lines
+from olmcp.store import Store
+from olmcp.sync import sync
 
 from conftest import sh
 
@@ -87,9 +87,9 @@ def test_init_never_overwrites_existing_agents_md(repo, cli):
     cli("init")
     assert (repo / "AGENTS.md").read_text() == "mine\n"
     assert (repo / "review" / "AGENTS.md").exists()
-    assert (repo / ".paper-review.yml").exists()
+    assert (repo / ".olmcp.yml").exists()
     assert "build/" in (repo / ".gitignore").read_text()
-    wf = (repo / ".github" / "workflows" / "paper-review.yml").read_text()
+    wf = (repo / ".github" / "workflows" / "olmcp.yml").read_text()
     assert 'branches: ["main", "agent/**"]' in wf
     sh(repo, "git", "status", "--short")
 
@@ -98,16 +98,16 @@ def test_generated_redline_is_neither_the_main_file_nor_scanned_for_markers(repo
     # a main file whose name sorts AFTER "redline.tex", so a naive detector would pick the redline
     (repo / "main.tex").rename(repo / "zeta.tex")
     (repo / "redline.tex").write_text(
-        "%% paper-review redline (generated). Edit ONLY the decision lines.\n"
+        "%% olmcp redline (generated). Edit ONLY the decision lines.\n"
         "%% @agent: this must not become a comment\n"
         "\\documentclass{article}\n\\begin{document}x\\end{document}\n")
     cfg = load_config(repo)
     assert detect_main(cfg) == "zeta.tex"
     assert all(c["body"] != "this must not become a comment" for c in
-               (Store(cfg).all() + [{"body": m.text} for m in __import__("paper_review.markers", fromlist=["scan"]).scan(cfg)]))
+               (Store(cfg).all() + [{"body": m.text} for m in __import__("olmcp.markers", fromlist=["scan"]).scan(cfg)]))
     # but a user's own file that happens to be called redline.tex is still scanned
     (repo / "redline.tex").write_text("%% @agent: mine\nMy text.\n")
-    from paper_review.markers import scan
+    from olmcp.markers import scan
     assert [m.text for m in scan(load_config(repo))].count("mine") == 1
 
 
@@ -117,3 +117,23 @@ def test_redline_sits_beside_the_main_file(repo):
     cfg2 = load_config(repo)
     cfg2.main = "paper/main.tex"
     assert cfg2.redline_rel == "paper/redline.tex"  # same folder as the real main (paper-root handling comes with --main)
+
+
+def test_the_old_config_name_still_works_and_init_migrates_it(repo, cli):
+    (repo / ".paper-review.yml").write_text("mode: suggest\nengine: lualatex\n")
+    cfg = load_config(repo)
+    assert cfg.mode == "suggest" and cfg.engine == "lualatex"  # read from the old name
+    cli("init", "--local")
+    assert not (repo / ".paper-review.yml").exists()
+    new = (repo / ".olmcp.yml").read_text()
+    assert "mode: suggest" in new and "engine: lualatex" in new  # settings kept
+    assert load_config(repo).mode == "suggest"
+
+
+def test_the_old_alias_and_module_name_are_declared(tmp_path):
+    import tomllib
+    from pathlib import Path
+
+    meta = tomllib.loads((Path(__file__).parent.parent / "pyproject.toml").read_text())
+    assert meta["project"]["name"] == "agent-overleaf-connector"
+    assert meta["project"]["scripts"] == {"olmcp": "olmcp.cli:main", "paper-review": "olmcp.cli:main"}

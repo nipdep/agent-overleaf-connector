@@ -170,7 +170,7 @@ def _entries(commits) -> list[dict]:
     return list(entries.values())
 
 
-STUB = r"""%% paper-review: no pending changes.
+STUB = r"""%% olmcp: no pending changes.
 \documentclass{article}
 \begin{document}
 No pending agent changes to review.
@@ -183,7 +183,7 @@ def generate(cfg: Config, base: str, head: str | None, branch: str | None = None
     cfg.review_path.mkdir(parents=True, exist_ok=True)
     tex_path, json_path = cfg.redline_path, cfg.review_path / "redline.json"
     legacy = cfg.review_path / "redline.tex"  # location used before the redline moved beside the main file
-    if legacy.exists() and legacy != tex_path and "paper-review" in legacy.read_text(encoding="utf-8")[:300]:
+    if legacy.exists() and legacy != tex_path and ("olmcp" in legacy.read_text(encoding="utf-8")[:300] or "paper-review" in legacy.read_text(encoding="utf-8")[:300]):
         if not tex_path.exists():
             tex_path.write_text(legacy.read_text(encoding="utf-8"), encoding="utf-8")  # keep typed decisions
         legacy.unlink()
@@ -296,7 +296,7 @@ def _decision_block(entry: dict, previous: dict, prev_entries: dict) -> list[str
     decision = prior["decision"] if prior and same else "pending"
     reason = prior["reason"] if prior and same else ""
     return [
-        f"%% ---- paper-review: {key} - {entry['subject']} ----",
+        f"%% ---- olmcp: {key} - {entry['subject']} ----",
         f"%% decision[{key}]: {decision}",
         f"%% reason[{key}]: {reason}",
     ]
@@ -304,7 +304,7 @@ def _decision_block(entry: dict, previous: dict, prev_entries: dict) -> list[str
 
 def _header(entries, base, head, branch, warnings) -> list[str]:
     h = [
-        "%% paper-review redline (generated). Edit ONLY the 'decision[...]' and 'reason[...]' lines.",
+        "%% olmcp redline (generated). Edit ONLY the 'decision[...]' and 'reason[...]' lines.",
         "%% Set a decision to: accept | reject  (leave 'pending' to decide later). Then push to GitHub.",
         f"%% base {base[:7]}  head {head[:7]}" + (f"  branch {branch}" if branch else ""),
         "%% Changes in this round:",

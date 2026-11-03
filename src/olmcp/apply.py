@@ -25,9 +25,9 @@ class ApplyError(RuntimeError):
 
 def ensure_identity(root) -> None:
     if not git(root, "config", "user.email", check=False).strip():
-        git(root, "config", "user.email", "paper-review[bot]@users.noreply.github.com")
+        git(root, "config", "user.email", "olmcp[bot]@users.noreply.github.com")
     if not git(root, "config", "user.name", check=False).strip():
-        git(root, "config", "user.name", "paper-review[bot]")
+        git(root, "config", "user.name", "olmcp[bot]")
 
 
 def pending_decisions(cfg: Config) -> bool:
@@ -99,7 +99,7 @@ def apply(cfg: Config, message_suffix: str = "", extra_decisions: dict | None = 
         return {"status": "nothing-to-do", "pending": [e["key"] for e in pending]}
 
     pre = rev_parse(root, "HEAD")
-    tag = "paper-review/pre-apply-" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    tag = "olmcp/pre-apply-" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     git(root, "tag", tag, pre)
 
     for e in accepted:
@@ -123,7 +123,7 @@ def apply(cfg: Config, message_suffix: str = "", extra_decisions: dict | None = 
                 pass
     names = lambda items: ", ".join(i["key"] if isinstance(i, dict) else i[0]["key"] for i in items) or "none"  # noqa: E731
     commit_paths(root, [f"{cfg.review_dir}/comments"],
-                 f"paper-review: record decisions (accepted: {names(accepted)}; rejected: {names(rejected)}){message_suffix}")
+                 f"olmcp: record decisions (accepted: {names(accepted)}; rejected: {names(rejected)}){message_suffix}")
 
     branch_action = "deleted"
     if pending:
@@ -135,7 +135,7 @@ def apply(cfg: Config, message_suffix: str = "", extra_decisions: dict | None = 
     new_head = branch if branch_action != "deleted" else None
     generate(cfg, default, new_head, branch=branch if new_head else None)
     commit_paths(root, cfg.redline_files,
-                 f"paper-review: update redline{message_suffix}")
+                 f"olmcp: update redline{message_suffix}")
     return {
         "status": "applied",
         "tag": tag,
@@ -149,7 +149,7 @@ def apply(cfg: Config, message_suffix: str = "", extra_decisions: dict | None = 
 
 def _recreate_branch(root, default: str, branch: str, shas: list[str], review_dir: str = "review") -> str:
     base = rev_parse(root, "HEAD")
-    tmp = "paper-review-tmp"
+    tmp = "olmcp-tmp"
     git(root, "checkout", "-q", "-B", tmp, base)
     try:
         _cherry_pick(root, shas, base, review_dir)

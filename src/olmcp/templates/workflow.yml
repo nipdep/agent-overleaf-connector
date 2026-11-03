@@ -1,5 +1,5 @@
-# Added by paper-review. All logic lives in the reusable workflow; bump the tag to upgrade.
-name: paper-review
+# Added by olmcp. All logic lives in the reusable workflow; bump the tag to upgrade.
+name: olmcp
 on:
   push:
     branches: ["{default_branch}", "agent/**"]

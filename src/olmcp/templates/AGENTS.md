@@ -31,7 +31,7 @@ yourself: the tools do all of that. In `suggest` mode they keep your work on a l
 `agent/round-N` branch and `push` publishes only the redline; the researcher accepts or rejects
 each change in `redline.tex`. In `direct` mode they commit on the default branch.
 
-## Preferred: the paper-review MCP tools
+## Preferred: the olmcp MCP tools
 
 If tools named `pull`, `list_comments`, `show_comment`, `read_file`, `address_comment`,
 `reply_to_comment` and `push` are available, use them and never run git:
@@ -47,12 +47,12 @@ If tools named `pull`, `list_comments`, `show_comment`, `read_file`, `address_co
 ## Otherwise: the CLI
 
 ```bash
-paper-review pull                    # first; prints what happened to every comment
-paper-review list                    # open comments
-paper-review show C-0001             # request, source lines, thread
-paper-review address C-0001 edit.json    # one comment: edits + reply + commit, atomically
-paper-review reply C-0001 "question"     # ask without editing
-paper-review push                    # last
+olmcp pull                    # first; prints what happened to every comment
+olmcp list                    # open comments
+olmcp show C-0001             # request, source lines, thread
+olmcp address C-0001 edit.json    # one comment: edits + reply + commit, atomically
+olmcp reply C-0001 "question"     # ask without editing
+olmcp push                    # last
 ```
 
 `edit.json` (or `-` for standard input):
@@ -63,7 +63,7 @@ paper-review push                    # last
  "commit_message": "Tighten related work"}
 ```
 
-Install if `paper-review` is missing: `pipx install "paper-review[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"`.
+Install if `olmcp` is missing: `pipx install "agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"`.
 If you cannot install it and have no MCP tools, stop and tell the researcher; do not improvise.
 
 ## Rules
@@ -72,13 +72,13 @@ If you cannot install it and have no MCP tools, stop and tell the researcher; do
 - Do not edit `redline.tex`, `review/` or anything under `build/` by hand.
 - **Never push a branch to Overleaf.** Its Git server accepts only the default branch (a push
   of `agent/round-N` is rejected as "wrong branch"). Never force-push. Never use plain `git push`
-  in this repository unless `.paper-review.yml` has no `remote:` entry and you were told to.
+  in this repository unless `.olmcp.yml` has no `remote:` entry and you were told to.
 - If `pull` or `push` reports a conflict or warning, stop and tell the researcher.
 - A rejected change reopens its comment with the reason as a reply. Read it and try again.
 - If you have no tools at all: edit the files, commit locally with a `Resolves: C-NNNN` line
   (ids come from `review/comments/`), do not push, and tell the researcher exactly what is left.
 
-## CI mode (GitHub sync, no `remote:` in `.paper-review.yml`)
+## CI mode (GitHub sync, no `remote:` in `.olmcp.yml`)
 
 Here GitHub, not Overleaf, is the remote and a workflow builds the redline. `address` still
 commits for you; after it, push the round branch to GitHub: `git push origin agent/round-N`

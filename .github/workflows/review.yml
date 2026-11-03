@@ -1,6 +1,6 @@
-# Reusable workflow. Callers add a ~10 line file (see `paper-review init`):
+# Reusable workflow. Callers add a ~10 line file (see `olmcp init`):
 #   jobs: { review: { uses: nipdep/agent-overleaf-connector/.github/workflows/review.yml@main } }
-name: paper-review (reusable)
+name: olmcp (reusable)
 on:
   workflow_call:
     inputs:
@@ -12,7 +12,7 @@ on:
         default: "git+https://github.com/nipdep/agent-overleaf-connector@main"   # pin a tag or commit for reproducible runs
 
 concurrency:
-  group: paper-review-${{ github.repository }}
+  group: olmcp-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install paper-review
+      - name: Install olmcp
         run: |
           apt-get update -qq
           apt-get install -y -qq python3-venv git > /dev/null
@@ -38,7 +38,7 @@ jobs:
       - name: Build PDF and page images
         id: build
         continue-on-error: true
-        run: paper-review build
+        run: olmcp build
 
       - name: Upload build artifacts
         if: steps.build.outcome == 'success'
@@ -52,7 +52,7 @@ jobs:
 
       # sync markers, apply accept/reject decisions, redline for agent/* pushes, change log
       - name: Review step
-        run: paper-review ci --push
+        run: olmcp ci --push
 
       - name: Fail if the paper did not build
         if: steps.build.outcome == 'failure'

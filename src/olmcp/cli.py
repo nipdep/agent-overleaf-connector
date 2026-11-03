@@ -1,4 +1,4 @@
-"""paper-review command line. Every listing command supports ``--json``."""
+"""olmcp command line. Every listing command supports ``--json``."""
 
 from __future__ import annotations
 
@@ -200,7 +200,7 @@ def cmd_mcp(args, cfg):
         from .mcp_server import main as serve
     except ModuleNotFoundError as exc:
         print("error: the MCP server needs the optional 'mcp' extra. Reinstall with:\n"
-              '  pipx install --force "paper-review[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"\n'
+              '  pipx install --force "agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"\n'
               f"({exc})", file=sys.stderr)
         return 1
     serve(cfg.root)  # speaks MCP on stdin/stdout: print nothing else
@@ -246,7 +246,7 @@ def cmd_doctor(args, cfg):
                   f"Set 'engine' in {CONFIG_NAME} if your project does not use pdflatex.")
     except FileNotFoundError as exc:
         check("main file", False, str(exc))
-    check("config", (cfg.root / CONFIG_NAME).exists(), "" if (cfg.root / CONFIG_NAME).exists() else "(run: paper-review init)")
+    check("config", (cfg.root / CONFIG_NAME).exists(), "" if (cfg.root / CONFIG_NAME).exists() else "(run: olmcp init)")
     from . import overleaf
 
     st, detail = overleaf.state(cfg)
@@ -257,7 +257,7 @@ def cmd_doctor(args, cfg):
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="paper-review", description=__doc__)
+    p = argparse.ArgumentParser(prog="olmcp", description=__doc__)
     p.add_argument("--root", help="repository root (default: auto-detect)")
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -311,6 +311,8 @@ def main(argv: list[str] | None = None) -> int:
     add("doctor", cmd_doctor, "check the environment and configuration")
 
     args = p.parse_args(argv)
+    if Path(sys.argv[0]).name == "paper-review":  # stderr only: stdout belongs to the MCP protocol
+        print("note: 'paper-review' is now called 'olmcp'; the old name still works for now.", file=sys.stderr)
     try:
         return args.fn(args, _cfg(args)) or 0
     except (BuildError, RedlineError, ApplyError, LocalError, GitError, KeyError, FileNotFoundError, ValueError) as exc:

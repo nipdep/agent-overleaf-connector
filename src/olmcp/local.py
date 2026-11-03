@@ -43,7 +43,7 @@ def _setup(cfg: Config) -> tuple[str, str, str]:
     remote = cfg.remote
     if remote not in git(root, "remote").split():
         raise LocalError(f"git remote {remote!r} not found; clone your Overleaf project "
-                         f"or set 'remote' in .paper-review.yml")
+                         f"or set 'remote' in .olmcp.yml")
     default = default_branch(root, cfg.default_branch)
     if not is_clean(root):
         raise LocalError("working tree has uncommitted changes; commit or stash them first")
@@ -151,7 +151,7 @@ def _refresh_agent(cfg: Config, default: str) -> dict:
         out["redline"] = "reset (no pending agent changes)"
     else:
         return out
-    commit_paths(root, paths, "paper-review: update redline")
+    commit_paths(root, paths, "olmcp: update redline")
     return out
 
 
@@ -165,7 +165,7 @@ def pull(cfg: Config) -> dict:
     res = sync(cfg)
     if res.changed:
         commit_paths(root, [f"{cfg.review_dir}/comments"],
-                     f"paper-review: sync comments (+{len(res.created)} new, {len(res.addressed)} addressed)")
+                     f"olmcp: sync comments (+{len(res.created)} new, {len(res.addressed)} addressed)")
     summary["comments"] = {"new": res.created, "reopened": res.reopened,
                            "markers_removed": res.addressed, "updated": res.updated}
 
@@ -179,7 +179,7 @@ def pull(cfg: Config) -> dict:
             ov = overleaf.import_comments(cfg)
             if ov.changed:
                 commit_paths(root, [f"{cfg.review_dir}/comments"],
-                             f"paper-review: sync Overleaf comments (+{len(ov.created)} new)")
+                             f"olmcp: sync Overleaf comments (+{len(ov.created)} new)")
             summary["overleaf"] = {k: v for k, v in asdict(ov).items() if k not in ("changed", "threads")}
             meta_path = cfg.review_path / "redline.json"
             if meta_path.exists():
@@ -233,7 +233,7 @@ def _overleaf_back(cfg: Config, warnings: list[str]) -> dict | None:
     except overleaf.OverleafError as exc:
         warnings.append(f"Overleaf threads were not updated: {exc}")
         return None
-    commit_paths(cfg.root, [f"{cfg.review_dir}/comments"], "paper-review: sync Overleaf thread state")
+    commit_paths(cfg.root, [f"{cfg.review_dir}/comments"], "olmcp: sync Overleaf thread state")
     return done
 
 
@@ -248,7 +248,7 @@ def push(cfg: Config) -> dict:
         out["redline"] = agent["redline"]
         out["warnings"] += agent["warnings"]
         if write_changelog(cfg):
-            commit_paths(root, [f"{cfg.review_dir}/CHANGELOG.md"], "paper-review: update change log")
+            commit_paths(root, [f"{cfg.review_dir}/CHANGELOG.md"], "olmcp: update change log")
         git(root, "fetch", "-q", remote, check=False)
         known = rev_parse(root, f"{remote}/{rbranch}")
         out["pushed_commits"] = int(git(root, "rev-list", "--count", f"{known}..HEAD").strip()) if known else None

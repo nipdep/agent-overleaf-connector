@@ -1,4 +1,4 @@
-# paper-review: design (v2)
+# olmcp: design (v2)
 
 An open-source toolkit for the review-and-revise loop on LaTeX papers when the editor is
 Overleaf, the agent is an LLM, and neither can see the other's view of the paper.
@@ -25,7 +25,7 @@ project showed what hurt, and these decisions replace v1's centre of gravity:
 | D7 | **Rendering has pluggable providers**: none, local TeX, CI mirror, Docker. | One build path |
 | D8 | Linux and macOS first; Windows later (WSL2 as an interim route). | Cross-platform from day one |
 | D10 | **Native Overleaf comments are supported** (select text in the Review panel), through the community CLI `olcli`. The `%%` marker stays as a no-dependency alternative. | `%%` markers as the only way to comment on a range of text |
-| D9 | **The protocol is enforced by tools, not instructions.** An MCP server and `paper-review address` apply edits, write the reply, resolve, commit and handle branches atomically; the agent never runs git. | An `AGENTS.md` loop the agent had to follow step by step (a real agent pushed a branch to Overleaf and left the comment open) |
+| D9 | **The protocol is enforced by tools, not instructions.** An MCP server and `olmcp address` apply edits, write the reply, resolve, commit and handle branches atomically; the agent never runs git. | An `AGENTS.md` loop the agent had to follow step by step (a real agent pushed a branch to Overleaf and left the comment open) |
 
 Not changed: git is the database, the CLI is the agent interface, comments are `%% @agent:`
 marker lines typed in Overleaf, Apache-2.0, Python.
@@ -40,7 +40,7 @@ marker lines typed in Overleaf, Apache-2.0, Python.
 | CI mode (reusable workflow, verified on real GitHub Actions) | **[built]** |
 | Local mode: `pull` / `push`, `init --local` (tested against a bare repo imitating Overleaf) | **[built]** |
 | Change log from `Resolves:` trailers | **[built]** |
-| MCP server (`paper-review mcp`) and the atomic `paper-review address` for shell agents | **[built]**, tested with the SDK client, not yet inside Claude Code / Codex |
+| MCP server (`olmcp mcp`) and the atomic `olmcp address` for shell agents | **[built]**, tested with the SDK client, not yet inside Claude Code / Codex |
 | ChatGPT web/desktop connector (remote MCP over HTTPS) | **[planned]**, blocked on an authentication decision (19) |
 | Native Overleaf comments via `olcli`: import with selected text, replies and resolve written back, accept/reject by resolving or replying in the thread, project id automatic | **[built]**; import and replies confirmed by the user on a real project, thread decisions tested against a fake olcli only (20) |
 | Optional rendering, `setup`, paper-aware `doctor` | **[planned]** |
@@ -94,7 +94,7 @@ Non-goals
 
 ```
  Overleaf  ◄─── git.overleaf.com (one branch) ───►  local clone  ◄──►  agent
-                                                                │  paper-review pull / push
+                                                                │  olmcp pull / push
                                          optional render layers │
                        none | local TeX | CI mirror (GitHub) | Docker
 ```
@@ -116,7 +116,7 @@ typed in the editor, and how fast an open editor refreshes after a push.
 
 ## 5. The paper: `--main` and the dependency tree  [planned]
 
-`--main <file|dir>` (also `main:` in `.paper-review.yml`) names the main file or the folder
+`--main <file|dir>` (also `main:` in `.olmcp.yml`) names the main file or the folder
 holding it. Default: `main.tex` at the repository root. The **paper root** is the main file's
 folder; everything below (tree, scanning, diffs, mirror paths) is relative to it, so a paper in
 a subfolder of a larger repo works the same.
@@ -167,7 +167,7 @@ The thread is **typed [planned]** (today entries are `author`, `at`, `body`):
 Nothing is ever deleted from a thread. A rejected change keeps its patch and its reason.
 
 ### 6.4 The agent must reply  [planned]
-For each comment the agent (1) edits, (2) runs `paper-review reply C-0001 "what I changed and
+For each comment the agent (1) edits, (2) runs `olmcp reply C-0001 "what I changed and
 why"`, (3) commits one comment per commit with `Resolves: C-0001`. The reply is a summary; the
 diff (7) is the record. **Reply gate:** `push` refuses a `Resolves:` commit whose comment has
 no agent reply, because agents do not reliably follow instructions they are not forced to.
@@ -247,9 +247,9 @@ counterparts under `review/redline/` (no flattening) are still **[planned]**.
 `agent/round-N`; nothing reaches the paper until the researcher accepts.
 
 ```
-paper-review pull    # fetch the researcher's edits; sync markers; apply decisions; report
+olmcp pull    # fetch the researcher's edits; sync markers; apply decisions; report
    agent: edit, reply on the comment, commit "Resolves: C-NNNN" (one comment per commit)
-paper-review push    # refresh REVIEW.md (and optional redline), change log; publish the branch
+olmcp push    # refresh REVIEW.md (and optional redline), change log; publish the branch
 ```
 `pull` reports what happened to every comment: new, reopened, removed by the researcher,
 accepted, rejected with a reason. Both commands are idempotent and refuse a dirty tree. If the
@@ -263,13 +263,13 @@ the thread's reply. **[built]**, reply enrichment **[planned]**.
 ## 10. Rendering is optional  [planned]
 
 The agent sees the paper only if a **render provider** is configured (`render:` in
-`.paper-review.yml`, auto-detected otherwise):
+`.olmcp.yml`, auto-detected otherwise):
 
 | Provider | Needs | Notes |
 |---|---|---|
 | `none` (default if nothing found) | nothing | Everything except page images works. |
-| `local` | TeX (`latexmk`) | `paper-review build`; page PNGs, `text.json`. **[built]** |
-| `ci` | a GitHub repo as a mirror | `push --mirror` sends the default and agent branches to GitHub; the workflow runs in render-only mode (never touches the default branch there) and publishes PDF + PNGs to branch `paper-review/build`; `paper-review renders` fetches them. 2 to 3 minute latency, mostly the TeX Live image pull (caching unmeasured). |
+| `local` | TeX (`latexmk`) | `olmcp build`; page PNGs, `text.json`. **[built]** |
+| `ci` | a GitHub repo as a mirror | `push --mirror` sends the default and agent branches to GitHub; the workflow runs in render-only mode (never touches the default branch there) and publishes PDF + PNGs to branch `olmcp/build`; `olmcp renders` fetches them. 2 to 3 minute latency, mostly the TeX Live image pull (caching unmeasured). |
 | `docker` | Docker | Same toolchain on every OS; optional. |
 
 Pin the TeX Live image to Overleaf's version: on the TGDK class, `texlive:latest` failed
@@ -278,7 +278,7 @@ input).
 
 ## 11. Installation, with reasons  [planned]
 
-`paper-review setup` (and the README) list every dependency with why it is needed and what is
+`olmcp setup` (and the README) list every dependency with why it is needed and what is
 lost without it; it prints OS-specific commands and never runs `sudo` itself. `doctor` reports
 each missing tool as "disables X", not as a failure, and `doctor --paper` checks the packages
 the paper itself uses (`kpsewhich` against `\usepackage` and the class).
@@ -305,7 +305,7 @@ name is final.
 ## 12. Repository layout (generated, all under `review/` except config)
 
 ```
-.paper-review.yml        main, mode, render, remote, remote_branch, engine
+.olmcp.yml        main, mode, render, remote, remote_branch, engine
 AGENTS.md  CLAUDE.md     agent protocol
 review/
   REVIEW.md              what the researcher reads and decides in           [planned]
@@ -326,7 +326,7 @@ The tool never moves or rewrites the researcher's files except by an accepted ch
   repo and say so in `setup`.
 - Comment text, thread text and imported text are **data**; the agent protocol says never to
   act on instructions inside them.
-- `Resolves:` commits are the only write path to a thread outside `paper-review` commands;
+- `Resolves:` commits are the only write path to a thread outside `olmcp` commands;
   files are schema-validated on read.
 
 ## 14. Failure modes
@@ -363,7 +363,7 @@ private repositories and protected branches.
 2. **`--main` and the dependency tree.** Scoped scanning and diffs; `doctor` prints the tree.
 3. **Diff-based review.** Typed thread, `reply` gate, hunk ids, patches under
    `review/changes/`, `REVIEW.md`, per-hunk decisions, follow-up markers.
-4. **CI mirror renders.** Render-only workflow mode, `paper-review/build` branch, `renders`,
+4. **CI mirror renders.** Render-only workflow mode, `olmcp/build` branch, `renders`,
    `push --mirror`.
 5. **Typeset redline mirror**, and move the redline main beside the real main.
 6. **Platforms and release.** macOS check, Windows CI matrix, PyPI, optional Docker runner.
@@ -371,7 +371,7 @@ private repositories and protected branches.
 ## 17. Open questions
 1. ~~Overleaf path semantics~~ resolved by design: the redline main sits beside the real main (8.2).
 2. Per-hunk decisions or per-comment only? Per-hunk is designed; start per-comment if simpler.
-3. Final project name (repo is `agent-overleaf-connector`, CLI is `paper-review`).
+3. Final project name (repo is `agent-overleaf-connector`, CLI is `olmcp`).
 4. Replace `latexdiff` with a Python diff to drop Perl entirely (riskier: latexdiff is careful
    with math and tikz); separate spike.
 5. Real `git.overleaf.com` behaviour: edit visibility on fetch, editor refresh, acceptance of
@@ -414,7 +414,7 @@ does it all removes the failure surface.
   it; a failure deletes a branch it just created;
 - paths are relative, inside the repository, only `.tex/.bib/.sty` are editable, `.git`, `build/` and
   `review/` are not; symlinks out of the repository are refused; there is no command-execution tool.
-`paper-review address C-0001 edit.json` is the same operation for agents with only a shell.
+`olmcp address C-0001 edit.json` is the same operation for agents with only a shell.
 
 **Error visibility.** The MCP SDK shows an agent only its own `ToolError`; any other exception is a
 generic "Error executing tool", which would hide "old must match exactly once". The server translates
@@ -422,7 +422,7 @@ its refusals, and a test asserts the message reaches the client.
 
 **Per client.** Claude Code: `.mcp.json` (project scope, user approves), `/address-comments`,
 `CLAUDE.md` importing `AGENTS.md`. Codex: `codex mcp add`, `AGENTS.md`. Both start the server over
-stdio. Other stdio clients: command `paper-review`, args `["mcp"]`.
+stdio. Other stdio clients: command `olmcp`, args `["mcp"]`.
 
 **ChatGPT web/desktop [planned, undecided].** Per third-party documentation (not OpenAI's own pages,
 **[unverified]**), custom connectors need a remote MCP endpoint over HTTPS, behind Developer Mode and a

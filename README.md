@@ -1,4 +1,4 @@
-# paper-review
+# agent-overleaf-connector (`olmcp`)
 
 A review-and-revise loop for LaTeX papers written in **Overleaf**, edited by an **AI agent**
 (Claude, ChatGPT/Codex, anything that can use git), with a **redline** you can accept or
@@ -52,16 +52,16 @@ of it on the machine where the agent runs removes the CI wait and the manual but
 no daemon and no polling; the agent wraps its task in two commands:
 
 ```
-paper-review pull   # before: fetch the researcher's edits and report what happened to the comments
+olmcp pull   # before: fetch the researcher's edits and report what happened to the comments
    ... agent edits, commits on a local agent/round-N branch ...
-paper-review push   # after: refresh redline.tex + change log, publish the branch to Overleaf
+olmcp push   # after: refresh redline.tex + change log, publish the branch to Overleaf
 ```
 
 1. In Overleaf: Menu → Sync → Git shows the clone URL (`https://git.overleaf.com/<project-id>`);
    create a Git token in your Overleaf account settings. Let your git credential helper store
    it; never paste it into a chat or commit it.
 2. `git clone https://git.overleaf.com/<project-id> paper && cd paper`
-3. `paper-review init --local --mode suggest`, review the files, commit, then `paper-review push`.
+3. `olmcp init --local --mode suggest`, review the files, commit, then `olmcp push`.
 4. Per round: you type `%% @agent: ...` markers in Overleaf (nothing to press: Overleaf's Git
    server creates a commit from your latest edits when the clone fetches). The agent runs `pull`,
    works, and runs `push`. In Overleaf you open `redline.tex` (set it as main document),
@@ -99,7 +99,7 @@ Overleaf has no public API for comments and they are not in git.
    step when `pull` warns about a session).
 3. That's all the setup. The project id is read from your clone's Overleaf URL automatically (override
    with `overleaf_project:`, turn the feature off with `overleaf_comments: false`).
-4. Check it: `paper-review overleaf-check` should print `ok: project …: N thread(s) …`.
+4. Check it: `olmcp overleaf-check` should print `ok: project …: N thread(s) …`.
 
 Then comment in Overleaf as usual and run `pull`; the comments appear with their selected text.
 
@@ -119,7 +119,7 @@ Verified here against a **fake `olcli`** that follows the documented command sha
 text, follow-ups, replies, resolving in both edit modes, failures as warnings). **Not verified against
 the real `olcli` and Overleaf yet**: its exact JSON for `comments list --json` is undocumented, so the
 parser accepts the documented field names and aliases; if `overleaf-check` fails, run
-`paper-review overleaf-check --raw` and send me the output with the names and emails removed.
+`olmcp overleaf-check --raw` and send me the output with the names and emails removed.
 
 ## Use it from Claude Code, Codex and other AI tools
 
@@ -129,17 +129,17 @@ the agent never creates branches, writes commit trailers or pushes anything itse
 Install with the MCP extra:
 
 ```bash
-pipx install --force "paper-review[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"
+pipx install --force "agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"
 ```
 
-- **Claude Code:** `claude mcp add paper-review -- paper-review mcp` (or approve the project's
+- **Claude Code:** `claude mcp add olmcp -- olmcp mcp` (or approve the project's
   `.mcp.json` when asked), then say "address the review comments" or type `/address-comments`.
   `CLAUDE.md` imports `AGENTS.md`, so the protocol is always loaded.
-- **Codex** (CLI, IDE, app): `codex mcp add paper-review -- paper-review mcp`. It reads `AGENTS.md`.
+- **Codex** (CLI, IDE, app): `codex mcp add olmcp -- olmcp mcp`. It reads `AGENTS.md`.
 - **Other clients that start local MCP servers** (Claude Desktop, Cursor, ...): command
-  `paper-review`, args `["mcp"]`, run from the clone (or pass `--root <clone>`).
-- **No MCP?** Shell agents use `paper-review pull`, `paper-review address C-0001 edit.json`
-  (edits + reply + commit in one atomic step, branches handled for you) and `paper-review push`.
+  `olmcp`, args `["mcp"]`, run from the clone (or pass `--root <clone>`).
+- **No MCP?** Shell agents use `olmcp pull`, `olmcp address C-0001 edit.json`
+  (edits + reply + commit in one atomic step, branches handled for you) and `olmcp push`.
 
 The tools: `pull`, `list_comments`, `show_comment`, `read_file`, `address_comment`,
 `reply_to_comment`, `push`, plus optional `build` / `view_page`. `address_comment` applies your edits
@@ -164,9 +164,9 @@ or Codex themselves.
 1. In Overleaf: Menu → GitHub, create the repository. (Overleaf's GitHub/Git sync is a
    premium feature; see [docs/design.md](docs/design.md#18-overleaf-compatibility-and-plans) for
    free-plan routes.)
-2. On github.com add `.github/workflows/paper-review.yml` (the 10-line file `paper-review init`
-   generates, or copy [the template](src/paper_review/templates/workflow.yml)).
-   On its first run CI adds `.paper-review.yml`, `AGENTS.md`, `CLAUDE.md` and `review/`.
+2. On github.com add `.github/workflows/olmcp.yml` (the 10-line file `olmcp init`
+   generates, or copy [the template](src/olmcp/templates/workflow.yml)).
+   On its first run CI adds `.olmcp.yml`, `AGENTS.md`, `CLAUDE.md` and `review/`.
 3. In Overleaf click *Pull from GitHub* once.
 4. Give your agent the repository; it reads `AGENTS.md` / `CLAUDE.md`. It needs push access to
    create `agent/round-N` branches.
@@ -176,22 +176,22 @@ You never need to run the CLI yourself.
 ## CLI (agents, CI, offline use)
 
 ```
-paper-review init [--mode suggest]   add config, workflow, agent instructions
-paper-review build                   PDF + build/pages/*.png + build/text.json + synctex
-paper-review sync                    markers -> comments
-paper-review list|show|reply|resolve comment operations (all support --json)
-paper-review round                   next agent/round-N name
-paper-review redline <branch>        write redline.tex (beside the main file)
-paper-review apply                   apply accept/reject decisions
-paper-review changelog               write review/CHANGELOG.md
-paper-review pull / push             local mode: wrap an agent task (see above)
-paper-review ci [--push]             what the workflow runs (CI mode)
-paper-review doctor                  check environment
+olmcp init [--mode suggest]   add config, workflow, agent instructions
+olmcp build                   PDF + build/pages/*.png + build/text.json + synctex
+olmcp sync                    markers -> comments
+olmcp list|show|reply|resolve comment operations (all support --json)
+olmcp round                   next agent/round-N name
+olmcp redline <branch>        write redline.tex (beside the main file)
+olmcp apply                   apply accept/reject decisions
+olmcp changelog               write review/CHANGELOG.md
+olmcp pull / push             local mode: wrap an agent task (see above)
+olmcp ci [--push]             what the workflow runs (CI mode)
+olmcp doctor                  check environment
 ```
 
-Install: `pipx install "git+https://github.com/nipdep/agent-overleaf-connector@main"` (from a checkout: `pip install -e .`; not on PyPI yet). It needs
+Install: `pipx install "agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"` (from a checkout: `pip install -e .[mcp]`; not on PyPI yet; if you had the old `paper-review` install, run `pipx uninstall paper-review` first). It needs
 `latexmk` and `latexdiff` (TeX Live) on the PATH, or use `docker/Dockerfile`, the same
-toolchain as CI. Offline use is just `paper-review build` on a clone.
+toolchain as CI. Offline use is just `olmcp build` on a clone.
 
 ## What is verified
 
@@ -235,7 +235,7 @@ jobs:
 ## Known limits
 
 - Overleaf's compiler and TeX Live version are project settings that are not in git; set
-  `engine` in `.paper-review.yml` if you don't use pdfLaTeX (`doctor` warns).
+  `engine` in `.olmcp.yml` if you don't use pdfLaTeX (`doctor` warns).
 - Change attribution to commits is heuristic (matches each changed line to the commit that
   produced it); unattributed changes are labelled and can't be decided separately.
 - Decisions are per commit (per comment), not per hunk.

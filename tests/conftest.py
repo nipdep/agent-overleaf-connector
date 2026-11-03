@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from paper_review.cli import main as cli_main
-from paper_review.config import load_config
+from olmcp.cli import main as cli_main
+from olmcp.config import load_config
 
 MAIN = r"""\documentclass{article}
 \begin{document}

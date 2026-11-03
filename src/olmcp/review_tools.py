@@ -233,7 +233,7 @@ class PaperTools:
             store.reply(comment_id, "agent", text.strip())
         except KeyError as exc:
             raise ToolError(str(exc)) from exc
-        commit_paths(root, [f"{cfg.review_dir}/comments/{comment_id}.json"], f"paper-review: reply on {comment_id}")
+        commit_paths(root, [f"{cfg.review_dir}/comments/{comment_id}.json"], f"olmcp: reply on {comment_id}")
         return {"comment_id": comment_id, "status": store.get(comment_id)["status"], "branch": default,
                 "next": "The reply is published by push."}
 

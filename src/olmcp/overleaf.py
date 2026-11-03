@@ -270,7 +270,7 @@ def import_comments(cfg: Config) -> OverleafSync:
         if origin.get("type") == "overleaf" and origin["external_id"] not in present \
                 and c["status"] in {"open", "addressed"}:
             c["status"] = "wontfix"
-            c["resolution"] = {"by": "paper-review", "note": "Thread deleted in Overleaf.", "at": ""}
+            c["resolution"] = {"by": "olmcp", "note": "Thread deleted in Overleaf.", "at": ""}
             store.save(c)
             result.deleted_in_overleaf.append(c["id"])
     result.changed = bool(result.created or result.followups or result.resolved_in_overleaf
