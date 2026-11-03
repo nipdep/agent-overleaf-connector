@@ -24,6 +24,7 @@ project showed what hurt, and these decisions replace v1's centre of gravity:
 | D6 | **Local mode** is the primary transport: a clone of Overleaf's Git remote, `pull` before and `push` after an agent task. No daemon, no polling, no CI, no push/pull buttons. | CI + GitHub sync as the primary path |
 | D7 | **Rendering has pluggable providers**: none, local TeX, CI mirror, Docker. | One build path |
 | D8 | Linux and macOS first; Windows later (WSL2 as an interim route). | Cross-platform from day one |
+| D9 | **The protocol is enforced by tools, not instructions.** An MCP server and `paper-review address` apply edits, write the reply, resolve, commit and handle branches atomically; the agent never runs git. | An `AGENTS.md` loop the agent had to follow step by step (a real agent pushed a branch to Overleaf and left the comment open) |
 
 Not changed: git is the database, the CLI is the agent interface, comments are `%% @agent:`
 marker lines typed in Overleaf, Apache-2.0, Python.
@@ -38,6 +39,8 @@ marker lines typed in Overleaf, Apache-2.0, Python.
 | CI mode (reusable workflow, verified on real GitHub Actions) | **[built]** |
 | Local mode: `pull` / `push`, `init --local` (tested against a bare repo imitating Overleaf) | **[built]** |
 | Change log from `Resolves:` trailers | **[built]** |
+| MCP server (`paper-review mcp`) and the atomic `paper-review address` for shell agents | **[built]**, tested with the SDK client, not yet inside Claude Code / Codex |
+| ChatGPT web/desktop connector (remote MCP over HTTPS) | **[planned]**, blocked on an authentication decision (19) |
 | Optional rendering, `setup`, paper-aware `doctor` | **[planned]** |
 | `--main`, dependency tree | **[planned]** |
 | Diff-based changes, hunk ids, `REVIEW.md`, typed thread, reply gate | **[planned]** |
@@ -390,3 +393,44 @@ private repositories and protected branches.
 - **GitHub sync is manual** in both directions (Overleaf's push/pull buttons) and, as far as
   known, follows only the default branch **[unverified]**. Overleaf's Git has one branch,
   `master`, and no tags.
+
+## 19. Agent connectors
+
+**Why tools.** A real Claude Code run on the test project, without the CLI available, created
+`agent/round-1`, edited the abstract, tried `git push origin agent/round-1` (Overleaf accepts only the
+default branch: "wrong branch"), left the comment unresolved and asked what to do. Each step was
+reasonable given the instructions, and all of it is mechanical. Handing the agent one operation that
+does it all removes the failure surface.
+
+**Tools [built].** `pull`, `list_comments`, `show_comment`, `read_file`, `list_paper_files`,
+`address_comment(comment_id, edits[{file, old, new}], reply, commit_message?)`, `reply_to_comment`,
+`push`, optional `build` and `view_page`. `address_comment` is all-or-nothing:
+- every `old` must match exactly once (otherwise nothing is written; the message says how to retry);
+- the comment's marker is removed, the reply recorded, status set (`resolved` in `direct`,
+  `addressed` in `suggest`), and one commit created with the `Resolves:` trailer;
+- in `suggest` mode the first call creates the local `agent/round-N` branch and later calls continue
+  it; a failure deletes a branch it just created;
+- paths are relative, inside the repository, only `.tex/.bib/.sty` are editable, `.git`, `build/` and
+  `review/` are not; symlinks out of the repository are refused; there is no command-execution tool.
+`paper-review address C-0001 edit.json` is the same operation for agents with only a shell.
+
+**Error visibility.** The MCP SDK shows an agent only its own `ToolError`; any other exception is a
+generic "Error executing tool", which would hide "old must match exactly once". The server translates
+its refusals, and a test asserts the message reaches the client.
+
+**Per client.** Claude Code: `.mcp.json` (project scope, user approves), `/address-comments`,
+`CLAUDE.md` importing `AGENTS.md`. Codex: `codex mcp add`, `AGENTS.md`. Both start the server over
+stdio. Other stdio clients: command `paper-review`, args `["mcp"]`.
+
+**ChatGPT web/desktop [planned, undecided].** Per third-party documentation (not OpenAI's own pages,
+**[unverified]**), custom connectors need a remote MCP endpoint over HTTPS, behind Developer Mode and a
+plan that allows it, with OAuth or no authentication; they do not start local servers. Supporting it
+means an HTTP transport plus making the local server reachable (a tunnel the user runs; the project
+hosts nothing). The blocker is authentication: an unauthenticated public URL would give anyone write
+access to the paper and, through `push`, the Overleaf credential in the credential helper. Options:
+(a) implement a minimal single-user OAuth flow in the server (strongest, largest); (b) a
+secret-in-URL path (simple, weak: URLs leak); (c) restrict to read-only tools for this client.
+None is built. Until one is chosen, ChatGPT users use Codex.
+
+**Not verified.** Behaviour inside Claude Code and Codex themselves (only the SDK's own client has
+driven the server); whether agents reliably choose the tools over improvised git.

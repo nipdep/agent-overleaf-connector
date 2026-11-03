@@ -32,6 +32,11 @@ def _write(path: Path, content: str, actions: list[str], force: bool, label: str
     return True
 
 
+def init_paths(cfg: Config) -> list[str]:
+    """Every path ``init`` can write, so callers (the CI bootstrap) commit exactly those."""
+    return [CONFIG_NAME, "AGENTS.md", "CLAUDE.md", ".gitignore", ".mcp.json", ".claude", cfg.review_dir]
+
+
 def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflow: bool = True,
          force: bool = False, local: bool = False) -> list[str]:
     root = cfg.root
@@ -66,6 +71,12 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
     else:
         _write(root / "AGENTS.md", protocol, actions, force, "AGENTS.md")
     _write(root / "CLAUDE.md", _template("CLAUDE.md"), actions, force, "CLAUDE.md")
+    _write(root / ".mcp.json", _template("mcp.json"), actions, force, ".mcp.json (Claude Code project MCP server)")
+    _write(root / ".claude" / "commands" / "address-comments.md", _template("address-comments.md"), actions, force,
+           ".claude/commands/address-comments.md (/address-comments)")
+    actions.append("note: the MCP server needs the extra: pipx install --force "
+                   '"paper-review[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"; '
+                   "Codex: codex mcp add paper-review -- paper-review mcp")
     _write(cfg.review_path / "README.md", _template("review_README.md"), actions, force, f"{cfg.review_dir}/README.md")
 
     gi = root / ".gitignore"

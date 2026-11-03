@@ -60,3 +60,42 @@ def cli(repo):
 @pytest.fixture
 def cfg(repo):
     return load_config(repo)
+
+
+@pytest.fixture
+def world(repo, tmp_path):
+    """repo = the agent machine's clone; ``overleaf`` = bare remote; ``user`` = Overleaf editing."""
+    sh(repo, "git", "branch", "-M", "master")
+    bare = tmp_path / "overleaf.git"
+    sh(tmp_path, "git", "init", "-q", "--bare", "-b", "master", str(bare))
+    sh(repo, "git", "remote", "add", "origin", str(bare))
+    sh(repo, "git", "push", "-q", "-u", "origin", "master")
+    user = tmp_path / "user"
+    sh(tmp_path, "git", "clone", "-q", str(bare), str(user))
+    sh(user, "git", "config", "user.email", "researcher@example.com")
+    sh(user, "git", "config", "user.name", "Researcher")
+
+    class W:
+        pass
+
+    w = W()
+    w.repo, w.bare, w.user, w.cfg = repo, bare, user, load_config(repo)
+
+    def user_edit(path, old, new, msg):
+        sh(user, "git", "pull", "-q", "--rebase", "origin", "master")
+        p = user / path
+        p.write_text(p.read_text().replace(old, new))
+        sh(user, "git", "commit", "-qam", msg)
+        sh(user, "git", "push", "-q", "origin", "master")
+
+    def remote_file(path):
+        return sh(tmp_path, "git", "--git-dir", str(bare), "show", f"master:{path}")
+
+    w.user_edit, w.remote_file = user_edit, remote_file
+    return w
+
+
+def agent_commit(repo, path, old, new, msg):
+    p = repo / path
+    p.write_text(p.read_text().replace(old, new))
+    sh(repo, "git", "commit", "-qam", msg)

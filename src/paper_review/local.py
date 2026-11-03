@@ -57,6 +57,13 @@ def agent_branch(cfg: Config) -> str | None:
     return max(nums)[1] if nums else None
 
 
+def next_round_name(cfg: Config) -> str:
+    """``agent/round-N`` with N one above the highest local or remote round."""
+    out = git(cfg.root, "branch", "-a", "--format=%(refname:short)", check=False)
+    nums = [int(m.group(1)) for line in out.split() if (m := re.search(r"agent/round-(\d+)$", line))]
+    return f"agent/round-{max(nums) + 1 if nums else 1}"
+
+
 def _integrate(cfg: Config, remote: str, rbranch: str) -> dict:
     """Fetch and bring the default branch up to date, keeping history linear."""
     root = cfg.root

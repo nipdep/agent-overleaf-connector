@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "paper-review": {
+      "command": "paper-review",
+      "args": ["mcp"]
+    }
+  }
+}

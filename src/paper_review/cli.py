@@ -103,9 +103,9 @@ def cmd_resolve(args, cfg):
 
 
 def cmd_round(args, cfg):
-    out = git(cfg.root, "branch", "-a", "--format=%(refname:short)", check=False)
-    nums = [int(m.group(1)) for l in out.split() if (m := re.search(r"agent/round-(\d+)$", l))]
-    print(f"agent/round-{max(nums) + 1 if nums else 1}")
+    from .local import next_round_name
+
+    print(next_round_name(cfg))
 
 
 def cmd_redline(args, cfg):
@@ -167,6 +167,30 @@ def cmd_push(args, cfg):
     print(f"pushed to {r['remote']} (redline: {r['redline']})")
     for w in r["warnings"]:
         print(f"WARNING: {w}")
+
+
+def cmd_address(args, cfg):
+    from .review_tools import PaperTools, ToolError
+
+    raw = sys.stdin.read() if args.json_file == "-" else Path(args.json_file).read_text(encoding="utf-8")
+    data = json.loads(raw)
+    try:
+        out = PaperTools(cfg.root).address_comment(args.id, data.get("edits", []), data.get("reply", ""),
+                                                   data.get("commit_message"))
+    except ToolError as exc:
+        raise ValueError(str(exc)) from None
+    print(json.dumps(out, indent=2, ensure_ascii=False))
+
+
+def cmd_mcp(args, cfg):
+    try:
+        from .mcp_server import main as serve
+    except ModuleNotFoundError as exc:
+        print("error: the MCP server needs the optional 'mcp' extra. Reinstall with:\n"
+              '  pipx install --force "paper-review[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"\n'
+              f"({exc})", file=sys.stderr)
+        return 1
+    serve(cfg.root)  # speaks MCP on stdin/stdout: print nothing else
 
 
 def cmd_doctor(args, cfg):
@@ -237,6 +261,10 @@ def main(argv: list[str] | None = None) -> int:
     add("apply", cmd_apply, "apply accept/reject decisions from redline.tex", True)
     add("pull", cmd_pull, "before an agent task: fetch the researcher's edits and report what happened to the comments", True)
     add("push", cmd_push, "after an agent task: refresh the redline and publish the default branch", True)
+    sp = add("address", cmd_address, "address ONE comment atomically (edits + reply + commit) from JSON in a file or stdin")
+    sp.add_argument("id")
+    sp.add_argument("json_file", nargs="?", default="-", help="JSON file, or - for stdin (default)")
+    add("mcp", cmd_mcp, "run the MCP server (stdio) so Claude Code, Codex and other MCP clients can use the tools")
     add("changelog", cmd_changelog, "regenerate review/CHANGELOG.md")
     sp = add("ci", cmd_ci, "run the CI steps for the current branch")
     sp.add_argument("--branch")

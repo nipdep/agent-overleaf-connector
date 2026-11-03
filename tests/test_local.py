@@ -11,46 +11,7 @@ from paper_review.gitutil import git
 from paper_review.local import LocalError, agent_branch, pull, push
 from paper_review.store import Store
 
-from conftest import needs_latexdiff, sh
-
-
-@pytest.fixture
-def world(repo, tmp_path):
-    """repo = the agent machine's clone; ``overleaf`` = bare remote; ``user`` = Overleaf editing."""
-    sh(repo, "git", "branch", "-M", "master")
-    bare = tmp_path / "overleaf.git"
-    sh(tmp_path, "git", "init", "-q", "--bare", "-b", "master", str(bare))
-    sh(repo, "git", "remote", "add", "origin", str(bare))
-    sh(repo, "git", "push", "-q", "-u", "origin", "master")
-    user = tmp_path / "user"
-    sh(tmp_path, "git", "clone", "-q", str(bare), str(user))
-    sh(user, "git", "config", "user.email", "researcher@example.com")
-    sh(user, "git", "config", "user.name", "Researcher")
-
-    class W:
-        pass
-
-    w = W()
-    w.repo, w.bare, w.user, w.cfg = repo, bare, user, load_config(repo)
-
-    def user_edit(path, old, new, msg):
-        sh(user, "git", "pull", "-q", "--rebase", "origin", "master")
-        p = user / path
-        p.write_text(p.read_text().replace(old, new))
-        sh(user, "git", "commit", "-qam", msg)
-        sh(user, "git", "push", "-q", "origin", "master")
-
-    def remote_file(path):
-        return sh(tmp_path, "git", "--git-dir", str(bare), "show", f"master:{path}")
-
-    w.user_edit, w.remote_file = user_edit, remote_file
-    return w
-
-
-def agent_commit(repo, path, old, new, msg):
-    p = repo / path
-    p.write_text(p.read_text().replace(old, new))
-    sh(repo, "git", "commit", "-qam", msg)
+from conftest import agent_commit, needs_latexdiff, sh
 
 
 def test_pull_reports_what_the_researcher_did(world):
@@ -210,3 +171,34 @@ def test_push_migrates_a_legacy_review_redline(world):
     assert push(w.cfg)["redline"] != "unchanged"
     tree = sh(w.bare.parent, "git", "--git-dir", str(w.bare), "ls-tree", "-r", "--name-only", "master").split()
     assert "redline.tex" in tree and "review/redline.tex" not in tree
+
+
+def test_address_cli_is_atomic_and_reads_json_from_a_file(world, tmp_path):
+    from paper_review.cli import main as cli_main
+
+    w = world
+    pull(w.cfg)
+    spec = tmp_path / "edit.json"
+    spec.write_text(json.dumps({
+        "edits": [{"file": "sections/results.tex", "old": "always outperforms the baselines",
+                   "new": "outperforms most baselines"}],
+        "reply": "Softened the claim.", "commit_message": "Soften claim"}))
+    assert cli_main(["--root", str(w.repo), "address", "C-0002", str(spec)]) == 0
+    msg = git(w.repo, "log", "-1", "--format=%B")
+    assert msg.startswith("Soften claim") and "Resolves: C-0002" in msg
+    assert Store(w.cfg).get("C-0002")["thread"][-1]["body"] == "Softened the claim."
+    # a bad edit exits non-zero and changes nothing
+    spec.write_text(json.dumps({"edits": [{"file": "sections/intro.tex", "old": "nope", "new": "x"}], "reply": "r"}))
+    head = git(w.repo, "rev-parse", "HEAD")
+    assert cli_main(["--root", str(w.repo), "address", "C-0001", str(spec)]) == 1
+    assert git(w.repo, "rev-parse", "HEAD") == head and sh(w.repo, "git", "status", "--porcelain").strip() == ""
+
+
+def test_init_writes_the_claude_code_wiring(repo, cli):
+    cli("init", "--local")
+    assert json.loads((repo / ".mcp.json").read_text())["mcpServers"]["paper-review"]["args"] == ["mcp"]
+    assert "Address the open review comments" in (repo / ".claude" / "commands" / "address-comments.md").read_text()
+    claude = " ".join((repo / "CLAUDE.md").read_text().split())  # ignore line wrapping
+    assert "@AGENTS.md" in claude and "Never push a branch to Overleaf" in claude
+    agents = (repo / "AGENTS.md").read_text()
+    assert "address_comment" in agents and "paper-review address" in agents and "Never push a branch" in agents

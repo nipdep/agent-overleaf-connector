@@ -83,6 +83,42 @@ that races with the researcher, and no churn on repeated runs. **Not verified ag
 `git.overleaf.com`**: that a clone sees edits you just made in the editor, how quickly the open
 editor refreshes after a push, and whether Overleaf accepts the redline and comment files.
 
+## Use it from Claude Code, Codex and other AI tools
+
+You should only have to say **"address the review comments"**. The tool does the git work, so
+the agent never creates branches, writes commit trailers or pushes anything itself.
+
+Install with the MCP extra:
+
+```bash
+pipx install --force "paper-review[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"
+```
+
+- **Claude Code:** `claude mcp add paper-review -- paper-review mcp` (or approve the project's
+  `.mcp.json` when asked), then say "address the review comments" or type `/address-comments`.
+  `CLAUDE.md` imports `AGENTS.md`, so the protocol is always loaded.
+- **Codex** (CLI, IDE, app): `codex mcp add paper-review -- paper-review mcp`. It reads `AGENTS.md`.
+- **Other clients that start local MCP servers** (Claude Desktop, Cursor, ...): command
+  `paper-review`, args `["mcp"]`, run from the clone (or pass `--root <clone>`).
+- **No MCP?** Shell agents use `paper-review pull`, `paper-review address C-0001 edit.json`
+  (edits + reply + commit in one atomic step, branches handled for you) and `paper-review push`.
+
+The tools: `pull`, `list_comments`, `show_comment`, `read_file`, `address_comment`,
+`reply_to_comment`, `push`, plus optional `build` / `view_page`. `address_comment` applies your edits
+(each `old` text must match exactly once), removes the comment's marker, records the reply,
+resolves the comment and commits with the `Resolves:` trailer, all or nothing. Paths are confined to
+the repository; there is no tool that runs arbitrary commands.
+
+**ChatGPT chat (web/desktop connectors) is not supported yet.** Per third-party documentation,
+ChatGPT's custom connectors need a remote HTTPS MCP server (Developer Mode, plan-dependent, OAuth or
+no auth) and cannot start a local one. Exposing this server would put write access to your paper
+and your Overleaf credentials behind a public URL, so it needs an authentication design first.
+Codex, OpenAI's coding agent, works today through the same MCP server and `AGENTS.md`.
+
+Verified: the real server driven over stdio by the MCP SDK's own client (tool list, a full
+address-and-push round, error messages reaching the agent). **Not yet verified:** inside Claude Code
+or Codex themselves.
+
 ## CI mode: GitHub sync (no local machine needed)
 
 ### Setup (researcher)
@@ -121,7 +157,7 @@ toolchain as CI. Offline use is just `paper-review build` on a clone.
 
 ## What is verified
 
-Unit and integration tests (`pytest`, 30 tests, real git and real TeX Live): marker parsing,
+Unit and integration tests (`pytest`, 52 tests, real git and real TeX Live): marker parsing,
 comment lifecycle, build outputs (PDF, page PNGs, text boxes), redline generation and that it
 **compiles to a PDF**, change attribution to commits, accept / reject / pending, conflict
 rollback, stale-redline refusal, asset handling, change log, and the CI entry points against a

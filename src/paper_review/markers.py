@@ -76,6 +76,16 @@ def scan(cfg: Config) -> list[Marker]:
     return found
 
 
+def remove_marker(text: str, rel: str, external_id: str, tag: str = "agent") -> tuple[str, bool]:
+    """Remove the marker block whose ``external_id`` matches; returns ``(new_text, removed)``."""
+    for m in parse_markers(text, rel, tag):
+        if m.external_id == external_id:
+            lines = text.splitlines(keepends=True)
+            del lines[m.line - 1: m.end_line]
+            return "".join(lines), True
+    return text, False
+
+
 def strip_marker_lines(text: str, tag: str = "agent") -> str:
     """Remove marker blocks from source (used by the agent when it resolves one)."""
     start, cont = _patterns(tag)

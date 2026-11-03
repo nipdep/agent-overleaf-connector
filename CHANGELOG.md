@@ -2,6 +2,19 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.3.0
+- **MCP server** (`paper-review mcp`, optional extra `paper-review[mcp]`): tools `pull`, `list_comments`,
+  `show_comment`, `read_file`, `list_paper_files`, `address_comment`, `reply_to_comment`, `push`, `build`,
+  `view_page` for Claude Code, Codex and other MCP clients that start a local (stdio) server. The protocol is
+  enforced in code: `address_comment` applies the edits (each `old` must match exactly once), removes the
+  marker, records the reply, resolves the comment and commits with the `Resolves:` trailer, all or nothing;
+  branches, pushes and ids are never the agent's job; paths are confined to the repository.
+- `paper-review address C-0001 edit.json`: the same atomic operation for agents that only have a shell.
+- `init` writes `.mcp.json` and `.claude/commands/address-comments.md`; `CLAUDE.md` imports `AGENTS.md`;
+  `AGENTS.md` rewritten around "address the comments": pull, one call per comment, push; never push a branch to
+  Overleaf.
+- Tool errors reach the agent with their message (the SDK hides all other exceptions).
+
 ## 0.2.2
 - `init --local` no longer writes `remote_branch: master`. A real Overleaf project exposed `main`, so the
   hard-coded name made `push` target the wrong branch. The branch is detected from the clone.

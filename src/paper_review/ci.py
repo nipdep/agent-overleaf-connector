@@ -16,7 +16,7 @@ from .apply import ApplyError, apply, ensure_identity, pending_decisions
 from .changelog import write_changelog
 from .config import CONFIG_NAME, Config
 from .gitutil import commit_paths, current_branch, default_branch, git, rev_parse
-from .init import init
+from .init import init, init_paths
 from .redline import generate
 from .sync import sync
 
@@ -43,8 +43,7 @@ def run(cfg: Config, branch: str | None = None, push: bool = False) -> dict:
     if branch == default:
         if not (root / CONFIG_NAME).exists():
             log += init(cfg, workflow=False)
-            commit_paths(root, [CONFIG_NAME, "AGENTS.md", "CLAUDE.md", ".gitignore", cfg.review_dir],
-                         f"paper-review: add configuration and agent instructions{SUFFIX}")
+            commit_paths(root, init_paths(cfg), f"paper-review: add configuration and agent instructions{SUFFIX}")
         res = sync(cfg)
         if res.changed:
             commit_paths(root, [f"{cfg.review_dir}/comments"],
