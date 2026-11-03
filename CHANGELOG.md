@@ -20,7 +20,17 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
   command). The key is ignored and `doctor` says so.
 - `olmcp guard` now denies `olmcp-overleaf` and the legacy `olcli` for agents.
 
-## Unreleased
+## 0.3.0 (Node-only)
+- **The tool is now only the Node program `olmcp-overleaf`.** Install with `npm install -g github:nipdep/agent-overleaf-connector`.
+  It works on the live Overleaf project: comments (selected text, threads), edits as **tracked changes** (`review`,
+  default) or plain edits (`direct`), replies with a word diff, PDF from Overleaf's compiler, tags (`#agent`,
+  `#no-agent`, `#review`/`#suggest`, `#direct`), an MCP server and a CLI, `init` and `doctor`. No Git integration or
+  paid Overleaf plan is needed; no local state (a comment's status comes from its thread).
+- **Removed** (still on the `python-legacy` branch): the Python tool, Git sync, `%% @agent:` markers, `redline.tex`,
+  the branch-based suggest mode, GitHub CI mode.
+- Earlier entries below describe the Python version (0.1.0 to 0.12.0) and the `olmcp-overleaf` client builds.
+
+## Node client history (before 0.3.0)
 - **`olmcp-overleaf` 0.2.0 is a Node-only tool of its own**: an MCP server (`olmcp-overleaf mcp`) and CLI with
   `list_comments`, `show_comment`, `read_file`, `list_files`, `address_comment` (tracked changes or plain edits plus the
   thread reply), `reply_to_comment`, `list_tracked_changes`, `render_pdf`; `#agent` / `#no-agent` / `#review` /

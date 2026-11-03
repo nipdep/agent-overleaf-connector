@@ -57,3 +57,10 @@ test('pdf saves the compiled file', async () => {
   assert.equal(r.code, 0, r.err);
   assert.equal(readFileSync(out, 'utf-8'), '%PDF-1.5 fake');
 });
+
+test('doctor reports the cookie, project and comment access', async () => {
+  const r = await run(['doctor', '--project', 'p1']);
+  assert.equal(r.code, 0, r.err + r.out);
+  assert.match(r.out, /\[ok\] session cookie present/);
+  assert.match(r.out, /\[ok\] Overleaf reachable, 1 comment thread\(s\) readable/);
+});

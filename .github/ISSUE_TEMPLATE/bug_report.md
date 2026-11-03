@@ -13,15 +13,15 @@ labels: bug
 2.
 
 **Environment**
-- `olmcp --version`:
+- `olmcp-overleaf` version (`npm ls -g olmcp-overleaf`):
 - OS:
 - Agent (Claude Code / Codex / other, and its version):
-- Mode (`olmcp mode`):
-- Native comments (`olmcp overleaf-check`) or `%%` markers:
+- Mode (review or direct):
+- Output of `olmcp-overleaf doctor`:
 
 **Output**
 
-<details><summary>olmcp doctor</summary>
+<details><summary>olmcp-overleaf doctor</summary>
 
 ```
 ```

@@ -1,84 +1,69 @@
-# agent-overleaf-connector (`olmcp`)
+# agent-overleaf-connector
 
-[![tests](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml)
-
-**Let an AI agent (Claude Code, Codex, any MCP client) work on your Overleaf paper from your comments.**
-Open source (Apache-2.0), nothing hosted: it runs on your machine against your own Overleaf project.
-
-Overleaf has no connector for AI agents. This tool is that connector:
-
-- **Comments in, with the exact text.** Select a passage in Overleaf's Review panel and comment; the agent
-  gets your message, the selected text, and the thread. (Typing `%% @agent: ...` lines in the source works too.)
-- **Edits out, as normal Overleaf edits.** The agent edits your files through Overleaf's Git integration and
-  replies in the same comment thread, showing what it changed as a one-line diff.
-- **You stay in control.** Per comment or by default, an edit is either applied at once (`direct`) or held
-  for you to accept or reject (`suggest`). The agent never resolves or approves a thread; you do.
-- **Agent-neutral.** One local MCP server and a CLI. The agent never touches git itself.
+Connect AI agents (Claude Code, Codex, any MCP client) to your **Overleaf** project. You comment in Overleaf's
+Review panel; the agent reads your comments, edits the live document as **tracked changes** you accept or reject
+in Overleaf, and replies in the same thread. Free, open source (Apache-2.0), one small Node program with no runtime
+dependencies. No git, no CI, no copies of your paper.
 
 ```
- Overleaf project ── Git + native comments ──  your clone  ──  AI agent
- (you comment here)        (olmcp-overleaf)      (olmcp)         (Claude Code / Codex / ...)
+ Overleaf project  ── your session cookie ──  olmcp-overleaf (MCP server)  ──  AI agent
+ (you comment here)                           comments · tracked edits · PDF    (Claude Code / Codex / ...)
 ```
 
-> Status: **0.9.x, early.** Tested with real git and TeX Live, a fake Overleaf comment API, and the MCP SDK's
-> own client; used by the author with Claude Code and Codex on a real project. Not yet exercised by anyone else.
-> See [what is verified and what is not](docs/status-and-roadmap.md).
+- **Comments in, with the exact text.** Select a passage, comment; the agent gets your message, the selected
+  text and the thread.
+- **Edits out, in Reviewing mode.** The agent's change appears as a tracked deletion and insertion in the editor;
+  its reply in the thread shows the word diff. Reject restores your text.
+- **You stay in control.** The agent never resolves, closes or approves a thread (the tool has no such command).
+  Optional hashtags steer it per comment: `#agent`, `#no-agent`, `#review` / `#suggest`, `#direct`.
+- **See the result.** The agent can compile with Overleaf's own compiler and read the PDF.
 
-## Quick start (new Overleaf project)
+> Status: early. Verified by the author on a real project with Claude Code and Codex (comments, tracked-change
+> edits, replies, tags). See [docs/status-and-roadmap.md](docs/status-and-roadmap.md).
 
-Needs Linux or macOS, Python 3.10+, git, and an Overleaf project with **Git integration** (a premium feature).
-Full steps, with troubleshooting: **[docs/setup.md](docs/setup.md)**.
+## Quick start
+
+Needs Node 20+ and an Overleaf account. **No paid Overleaf plan or Git integration is required.**
 
 ```bash
-# 1. install (and, for native Overleaf comments, the Node client from this repository)
-pipx install "agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"
-git clone https://github.com/nipdep/agent-overleaf-connector ~/agent-overleaf-connector
-(cd ~/agent-overleaf-connector/node && npm install -g .)
-
-# 2. log in with your Overleaf session cookie (never paste it into a chat)
-olmcp-overleaf auth --cookie "<overleaf_session2 cookie value>"
-
-# 3. clone your project (username: git, password: an Overleaf Git token) and set it up
-git clone https://git@git.overleaf.com/<project-id> my-paper && cd my-paper
-olmcp init --local --mode direct        # or --mode suggest
-git add -A && git commit -m "Set up olmcp" && olmcp push
-olmcp overleaf-check                    # should print: ok: project ...
-
-# 4. connect your agent (from inside the clone)
-claude mcp add olmcp -- "$(which olmcp)" mcp      # Claude Code
-codex mcp add olmcp -- "$(which olmcp)" mcp       # Codex
+npm install -g github:nipdep/agent-overleaf-connector        # gives the command olmcp-overleaf
+olmcp-overleaf auth --cookie "<value of the overleaf_session2 cookie>"   # never paste it into a chat
+mkdir my-paper-agent && cd my-paper-agent
+olmcp-overleaf init <24-character-project-id>                 # the id is in the project's URL
+olmcp-overleaf doctor
+claude mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp   # and/or:
+codex mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp
 ```
 
-Then comment in Overleaf and tell the agent: **"address the review comments"**.
+Then comment in Overleaf and tell the agent: "address the review comments". Details: [docs/setup.md](docs/setup.md).
 
 ## Everyday use
 
 | You want to... | Do this |
 |---|---|
-| Ask for a change | Select text in Overleaf, add a Review comment (or type `%% @agent: ...` above a paragraph) |
-| Choose how it is applied | Add `#suggest` or `#direct` to the comment; change the default with `olmcp mode suggest` |
-| Focus or exclude the agent | Add `#agent` (work on these first) or `#no-agent` (hands off) to a comment; tags are optional |
-| Accept a held change | Resolve the thread, or reply "accept", or set `accept` on its line in `redline.tex` |
-| Reject or adjust it | Reply in the thread with what to change, or set `reject` in `redline.tex` |
-| Undo an applied edit | Reply in the thread, `git revert` the commit, or use Overleaf's History |
-
-Details: **[docs/usage.md](docs/usage.md)**.
+| Ask for a change | Select text in Overleaf, add a Review comment |
+| Have the agent skip a comment | Add `#no-agent` (the tools refuse it) |
+| Focus the agent on a few comments | Add `#agent` to them; while any is open only those are listed |
+| Choose how the edit is made | `#review` / `#suggest` (tracked change, default) or `#direct` (plain edit) |
+| Accept or reject a change | The Review panel buttons in Overleaf |
+| Close a thread | Resolve it yourself; the agent never does |
 
 ## Documentation
 
 | | |
 |---|---|
-| [docs/setup.md](docs/setup.md) | Setting up a new project, credentials, troubleshooting |
-| [docs/usage.md](docs/usage.md) | Comments, modes, deciding, commands, configuration |
-| [docs/agents.md](docs/agents.md) | Claude Code, Codex, other MCP clients, ChatGPT (status) |
-| [docs/overleaf-client.md](docs/overleaf-client.md) | The own Node Overleaf client: comments, tracked-change edits, test checklist |
-| [docs/ci-mode.md](docs/ci-mode.md) | The GitHub-sync alternative (no local machine) |
-| [docs/architecture.md](docs/architecture.md) | How it works, for contributors |
-| [docs/status-and-roadmap.md](docs/status-and-roadmap.md) | What is verified, what is open, what is planned |
-| [docs/design.md](docs/design.md) | The full design record and the reasoning behind decisions |
-| [CHANGELOG.md](CHANGELOG.md) | What changed in each version |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Developing, testing, releasing |
+| [docs/setup.md](docs/setup.md) | Install, cookie, project, agents, troubleshooting |
+| [docs/usage.md](docs/usage.md) | Comments, tags, modes, tools and commands |
+| [docs/status-and-roadmap.md](docs/status-and-roadmap.md) | What is verified, open, planned |
+| [docs/design.md](docs/design.md) | The design record, including the earlier Python version |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development and the real-Overleaf checklist |
 
-## License
+The earlier Python version (git sync, `%% @agent:` markers, `redline.tex`, GitHub CI mode) lives on the
+[`python-legacy`](https://github.com/nipdep/agent-overleaf-connector/tree/python-legacy) branch.
 
-Apache-2.0. See [LICENSE](LICENSE).
+## Credits and licence
+
+Apache-2.0. The Overleaf protocol handling follows the approach of [olcli](https://github.com/aloth/olcli) by
+Alexander Loth (MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). It relies on Overleaf's unofficial
+web interface and your session cookie, so it can break when Overleaf changes; the cookie gives full access to your
+account, so keep it private.

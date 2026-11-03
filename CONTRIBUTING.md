@@ -1,99 +1,77 @@
 # Contributing
 
 Thanks for helping. This project is small and the maintainer reads every issue and pull request.
-For how the code is organised, read [docs/architecture.md](docs/architecture.md) first; for the reasoning behind
-decisions, [docs/design.md](docs/design.md); for what is open, [docs/status-and-roadmap.md](docs/status-and-roadmap.md).
+Read [docs/usage.md](docs/usage.md) for what the tool does, [docs/design.md](docs/design.md) for the reasoning behind
+decisions (it also records the earlier Python version), and [docs/status-and-roadmap.md](docs/status-and-roadmap.md)
+for what is open.
 
 ## Ground rules
 
-- **A connector, not a policy.** The tool gives agents capabilities and honours what the researcher chose. Please do
-  not add features that decide how an agent should work for a given kind of task; those belong in instructions
-  (`templates/AGENTS.md`) the user can edit.
-- **Never handle secrets.** Credentials stay with git and `olmcp-overleaf`. Do not log, store or print tokens or cookies, and
-  do not paste them into issues.
-- **Optional things stay optional.** Missing TeX, `olmcp-overleaf` or `latexdiff` must switch a feature off with a clear
-  message, never break the core.
+- **A connector, not a policy.** The tool gives agents capabilities and honours what the researcher chose (tags,
+  decisions in Overleaf). Please do not add features that decide how an agent should work for a given kind of task;
+  those belong in instructions (`src/agents-md.js`, the user's `AGENTS.md`).
+- **Never handle secrets carelessly.** The session cookie lives only in `~/.config/olmcp-overleaf/config.json` (mode
+  0600) or `OVERLEAF_SESSION`. Never log, print or send it anywhere, and do not paste it into issues.
+- **No way to resolve, reopen or delete a thread.** That is a deliberate property; do not add one.
+- **No runtime dependencies** unless there is a strong reason; the package is plain Node 20+.
 - **Tests come with the change.** Behaviour you add or change needs a test; so does every bug you fix.
 
-## Development setup
+## Development
 
 ```bash
 git clone https://github.com/nipdep/agent-overleaf-connector && cd agent-overleaf-connector
-python -m venv .venv && . .venv/bin/activate
-pip install -e ".[dev]"
-pytest -q
+npm test                       # node --test, against a fake Overleaf; nothing needs the network
+node src/cli.js help
 ```
 
-Needs Python 3.10+ and git. The suite uses real git. Tests that need `latexdiff` or `latexmk` are **skipped** when
-those are missing, so install them to run everything:
-
-```bash
-sudo apt install -y latexmk latexdiff texlive-latex-base texlive-latex-recommended \
-  texlive-fonts-recommended texlive-plain-generic       # macOS: brew install latexdiff, and a TeX distribution
-```
-
-Run part of it: `pytest tests/test_modes.py -q`, or `pytest -k redline`. Nothing in the suite needs the network
-or a real Overleaf; native comments are tested against `tests/fake_overleaf_client.py`.
+`test/fake-overleaf.js` imitates the parts of Overleaf the client uses: the project page with the CSRF token, the
+project socket over Socket.IO 0.9 long polling, joining documents, applying operations (tracked or not), thread
+endpoints, compile and download. It encodes how the protocol is understood from olcli's source and from
+Overleaf's behaviour, so it cannot prove the real service agrees.
 
 ## Making a change
 
 1. Branch from `main` and open a pull request (the template lists what to include).
 2. Write the test first or alongside the change.
-3. Keep the docs true. A user-visible change usually touches several of:
-   - `README.md` and `docs/usage.md` (how it is used), `docs/agents.md` and `src/olmcp/templates/AGENTS.md`
-     (what agents are told and what the tools enforce),
-   - `docs/design.md` (a numbered section and the status table at its top), `docs/status-and-roadmap.md`
-     (move things between "verified" and "not verified"),
-   - `CHANGELOG.md`.
-4. Add a `CHANGELOG.md` entry under a new version heading and bump `version` in `pyproject.toml` (the single
-   source; `olmcp --version` reads it). While the project is 0.x: a new feature or a behaviour change is a minor
-   bump (`0.9.0`), a fix is a patch (`0.9.1`). A change nobody can notice needs neither.
-5. Conventions:
-   - Python 3.10+, `pathlib`, `from __future__ import annotations`; no shell strings for subprocesses.
-   - `mcp_server.py` must not use `from __future__ import annotations` (the SDK reads real annotations).
-   - Library code never prints; only `cli.py` does, and the `mcp` command must keep stdout clean (it is the
-     protocol channel).
-   - Agent-facing refusals raise `ToolError` with a message that says how to retry.
-   - Commit messages: a short imperative subject, then why.
+3. Keep the docs true: `README.md`, `docs/usage.md`, `docs/agents.md`, `src/agents-md.js` (what agents are told),
+   `docs/status-and-roadmap.md` (move things between "verified" and "not verified"), `CHANGELOG.md`.
+4. Add a `CHANGELOG.md` entry and bump `version` in `package.json` (and the server version in `src/mcp.js`). While the
+   project is 0.x: a feature or behaviour change is a minor bump, a fix is a patch.
+5. Conventions: ES modules, no shell strings for subprocesses, the `mcp` command must keep stdout clean (it is the
+   protocol channel), and agent-facing refusals are `ToolError` messages that say how to retry.
 
 ## Testing against real Overleaf
 
-Automated tests cannot reach the real Overleaf or the real Overleaf client, so changes that touch `overleaf.py`,
-`local.py` or the thread messages need this check on a **scratch project** (never your real paper) before release:
+Automated tests cannot reach the real Overleaf, so changes to `src/client.js`, `src/socketio.js`, `src/ranges.js`
+or the thread messages need this check on a **scratch project** (never your real paper) before release:
 
-1. `olmcp overleaf-check` prints `ok: project ...`.
-2. Select text, comment in Overleaf; `olmcp pull` lists it with `on: "<selected text>"`.
-3. Direct mode: the agent addresses it; the file changes in Overleaf; the thread gets an `[agent]` reply with
-   `Edit applied` and the diff; the thread is **not** resolved.
-4. A comment starting `[suggest]`: the reply says `Proposed edit`; `redline.tex` opened as the main document
-   compiles and shows the change; resolving the thread then `olmcp pull` applies it; replying instead rejects it.
-5. A follow-up reply reopens a handled comment; deleting a thread marks the comment `wontfix` on the next pull.
-6. `olmcp mode suggest` / `direct` switches the default and `olmcp push` publishes the config line.
-7. Overleaf's History shows the agent's pushes.
-
-For the Node client (`node/`, `olmcp-overleaf`) the checklist is in [docs/overleaf-client.md](docs/overleaf-client.md);
-`cd node && npm test` runs its tests against a fake Overleaf.
+1. `olmcp-overleaf doctor --project <id>`: all `[ok]`.
+2. A comment on selected text shows up in `olmcp-overleaf list` with the right `selected_text`, including after a
+   non-ASCII character earlier in the file.
+3. `edit <id> main.tex --old "..." --new "..." --dry-run`, then without it: Overleaf shows a tracked deletion and
+   insertion; Reject restores the text; Accept keeps the new text.
+4. The same in a file inside a folder, and where another tracked change already exists (it must refuse).
+5. `--direct`: the text changes with no tracking.
+6. `olmcp-overleaf pdf <id> -o /tmp/p.pdf` produces the PDF; a deliberate TeX error prints the error lines.
+7. An agent with `olmcp-overleaf mcp`: `#no-agent` comments are ignored, `#agent` focuses, the thread gets the reply
+   with the diff and stays unresolved.
 
 Record the result in `docs/status-and-roadmap.md`.
 
 ## Releasing
 
 1. Everything merged; CI green on `main`.
-2. `CHANGELOG.md` has the version heading with the date; `pyproject.toml` has that version; docs updated.
-3. Tag and publish:
+2. `CHANGELOG.md` has the version; `package.json` has that version.
+3. Tag and publish (users can then pin `npm install -g github:nipdep/agent-overleaf-connector#vX.Y.Z`):
 
    ```bash
-   git tag -a vX.Y.Z -m "olmcp X.Y.Z"
+   git tag -a vX.Y.Z -m "olmcp-overleaf X.Y.Z"
    git push origin vX.Y.Z
    ```
 
-   Then create a GitHub release for the tag and paste the changelog entry into it.
-4. Users can then pin: `pipx install "agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@vX.Y.Z"`,
-   and the CI-mode workflow's `package` input can pin the same way.
-
 ## Reporting problems
 
-Use the issue templates. For a bug include `olmcp --version`, your OS, which agent you use, your mode, the command
-you ran and its output, and `olmcp doctor`. **Remove tokens, cookies, names and emails first.** For a security
+Use the issue templates. For a bug include the version, your OS and Node version, which agent you use, the command
+you ran and its output, and `olmcp-overleaf doctor`. **Remove cookies, names and emails first.** For a security
 problem, do not open a public issue: use the repository's Security tab (Report a vulnerability) or contact the
 maintainer directly.

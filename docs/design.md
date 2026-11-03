@@ -1,3 +1,8 @@
+> **Historical.** This is the design record of the earlier Python version (still on the `python-legacy` branch).
+> The current tool is the Node program `olmcp-overleaf`; see sections 20-26 for the Overleaf client, tags and
+> review mode, and [usage.md](usage.md) for what exists now. Commands such as `olmcp pull` below belong to the
+> Python version.
+
 # olmcp: design (v2)
 
 An open-source toolkit for the review-and-revise loop on LaTeX papers when the editor is
