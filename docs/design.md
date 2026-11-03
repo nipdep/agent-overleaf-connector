@@ -35,6 +35,7 @@ marker lines typed in Overleaf, Apache-2.0, Python.
 | Area | Status |
 |---|---|
 | Build (`latexmk`, page PNGs, `text.json`), comment store, markers, `sync` | **[built]** |
+| Hashtags `#agent` `#no-agent` `#suggest` `#direct` in comments (optional) | **[built]**, unverified on real Overleaf |
 | `direct` / `suggest` modes, `apply` (per comment), rollback tag, conflict rollback | **[built]** |
 | Flattened latexdiff `redline.tex` (beside the main file) with `decision[...]` lines | **[built]** (becomes optional, see 8) |
 | CI mode (reusable workflow, verified on real GitHub Actions) | **[built]** |
@@ -600,3 +601,25 @@ mix a trivial typo fix (apply now) with a rewrite (hold for review).
 
 **Limits.** The tag must be at the start; one mode per comment (not per edit); an existing comment's mode
 changes only through a later tagged message; the redline's decision lines still decide a whole comment.
+
+## 25. Comment hashtags  [built, unverified on real Overleaf]
+
+**Why.** The researcher should be able to steer the agent from inside the Overleaf comment itself: skip a
+comment, focus on a few, choose the mode, without editing config or talking to the agent.
+
+**Tags** (case-insensitive, anywhere in the text, not inside URLs): `#agent`, `#no-agent` (or `#noagent`),
+`#suggest`, `#direct`. All optional; `comment_tags: false` turns parsing off.
+
+**Semantics.**
+- `#no-agent` is enforced: `list_comments` hides the comment, and `address_comment` / `reply_to_comment`
+  refuse it with a message saying why. `include_skipped` never lifts this.
+- `#agent` is focus: while any open comment has it, untagged open comments are reported as skipped ("focus")
+  and `list_comments` returns only the focused ones; `include_skipped=true` returns the rest. Focus clears
+  itself when the `#agent` comments are no longer open. It is advisory because the agent can be told otherwise.
+- `#suggest` / `#direct` set the mode, exactly as the 0.9 start-of-comment tags did (those forms still work).
+- Conflicts resolve to the safe side: `#no-agent` over `#agent`, `#suggest` over `#direct`, hashtag over legacy.
+- The latest human message that mentions a tag decides; agent messages are ignored. Tags are stripped from the
+  request text shown in the redline.
+
+**Not done.** A tag cannot be set from the agent side, and there is no per-edit tagging.
+

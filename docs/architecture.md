@@ -108,7 +108,7 @@ rebase if you pushed meanwhile).
 
 ## Tests
 
-119 tests, about 80 seconds, using real git and (where installed) real `latexdiff`/`latexmk`; nothing needs the
+148 tests, about 85 seconds, using real git and (where installed) real `latexdiff`/`latexmk`; nothing needs the
 network or a real Overleaf.
 
 | File | Covers |
@@ -118,7 +118,7 @@ network or a real Overleaf.
 | `test_local.py` | `pull`/`push` against a bare repo imitating Overleaf's remote |
 | `test_overleaf.py` | Native comments against a fake `olcli` (`fake_olcli.py`), decisions in threads |
 | `test_mcp.py` | The tools, path confinement, and a real stdio MCP session |
-| `test_modes.py` | Tags, mixed rounds, the mode command |
+| `test_modes.py`, `test_tags.py` | Mode tags, hashtags (`#agent`, `#no-agent`), mixed rounds, the mode command |
 | `test_build.py` | Rendering (needs `latexmk`) |
 
 `conftest.py` provides `repo` (a git repo with a small paper), `world` (that repo plus a bare remote and a second

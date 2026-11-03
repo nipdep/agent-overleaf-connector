@@ -26,7 +26,7 @@ from . import anchor as anchor_mod
 from .build import load_text
 from .config import Config
 from .gitutil import git, rev_parse
-from .modes import parse_mode_tag
+from .modes import parse_tags
 from .store import Store
 from .textdiff import word_diff  # noqa: F401  (also used by tests)
 
@@ -205,6 +205,15 @@ def _entry(m: dict, kind: str = "follow-up") -> dict:
     return {"type": kind, "author": f"human:{m['author']}", "at": m["at"] or "", "body": m["text"]}
 
 
+def _apply_tags(cfg: Config, comment: dict, text: str) -> None:
+    """Fold the tags in one human message into the comment; the latest message that mentions a tag wins."""
+    tags = parse_tags(text, cfg.comment_tags)
+    if tags.mode:
+        comment["mode"] = tags.mode
+    if tags.agent is not None:
+        comment["agent"] = tags.agent
+
+
 def import_comments(cfg: Config) -> OverleafSync:
     """Mirror Overleaf's comment threads into ``review/comments/``."""
     result = OverleafSync()
@@ -229,12 +238,15 @@ def import_comments(cfg: Config) -> OverleafSync:
             first = human[0]
             c = store.new(
                 body=first["text"], author=f"human:{first['author']}", kind="comment",
-                anchor=_build_anchor(cfg, t, pages), mode=parse_mode_tag(first["text"]),
+                anchor=_build_anchor(cfg, t, pages),
+                mode=parse_tags(first["text"], cfg.comment_tags).mode,
+                agent=parse_tags(first["text"], cfg.comment_tags).agent,
                 origin={"type": "overleaf", "external_id": ext, "thread_id": t["thread_id"],
                         "doc_id": t["doc_id"], "messages_seen": [m["id"] for m in human]},
             )
             for m in human[1:]:
                 c["thread"].append(_entry(m))
+                _apply_tags(cfg, c, m["text"])  # a later message in the same thread can change a tag
             store.save(c)
             result.created.append(c["id"])
             continue
@@ -245,8 +257,7 @@ def import_comments(cfg: Config) -> OverleafSync:
         dirty = False
         if fresh:
             for m in fresh:  # a later message can change the choice for this comment
-                if parse_mode_tag(m["text"]):
-                    existing["mode"] = parse_mode_tag(m["text"])
+                _apply_tags(cfg, existing, m["text"])
             existing["thread"].extend(_entry(m) for m in fresh)
             origin["messages_seen"] = sorted(seen | {m["id"] for m in fresh})
             if existing["status"] != "open":

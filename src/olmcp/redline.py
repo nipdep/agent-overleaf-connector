@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .config import Config, detect_main
 from .gitutil import commits_between, export_tree, git, rev_parse
+from .modes import strip_tags
 from .store import Store, now
 from .textdiff import crop_to_change, word_diff
 
@@ -173,7 +174,7 @@ def _request(cfg: Config, entry: dict) -> str:
             body = store.get(cid)["body"]
         except KeyError:
             continue
-        one = " ".join(body.split())
+        one = strip_tags(body) or " ".join(body.split())
         return one if len(one) <= 110 else one[:107] + "..."
     return " ".join(entry["subject"].split())
 

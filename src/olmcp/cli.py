@@ -52,7 +52,9 @@ def _row(c: dict) -> str:
     where = f"{src.get('file', '-')}:{src.get('line', '-')}"
     page = c["anchor"].get("page")
     body = c["body"].replace("\n", " ")
-    return f"{c['id']}  {c['status']:<9} p{page if page else '-':<3} {where:<28} {body[:70]}"
+    flags = "".join(f" [{t}]" for t in (
+        "#no-agent" if c.get("agent") is False else "#agent" if c.get("agent") else "", c.get("mode") or "") if t)
+    return f"{c['id']}{flags}  {c['status']:<9} p{page if page else '-':<3} {where:<28} {body[:70]}"
 
 
 def cmd_list(args, cfg):
@@ -164,12 +166,19 @@ def cmd_pull(args, cfg):
     lines.append(f"open comments ({len(r['open'])}):")
     for o in r["open"]:
         where = f"{o['file']}:{o['line']}" if o["file"] else "-"
-        tag = f" [{o['mode']}]" if o.get("mode_chosen") else ""
+        tag = (" [#agent]" if o.get("agent_tag") else "") + (f" [{o['mode']}]" if o.get("mode_chosen") else "")
         lines.append(f"  {o['id']}{tag}  {where:<30} {o['body'][:80]}")
         if o.get("selected_text"):
             lines.append(f"      on: \"{' '.join(o['selected_text'].split())[:100]}\"")
         for t in o["thread"]:
             lines.append(f"      reply: {t[:100]}")
+    hands_off = [s["id"] for s in r.get("skipped", []) if s["why"] == "no-agent"]
+    unfocused = [s["id"] for s in r.get("skipped", []) if s["why"] == "focus"]
+    if unfocused:
+        lines.append(f"focus: only the #agent comments ({', '.join(r['focus'])}) are for the agent this round; "
+                     f"skipped: {', '.join(unfocused)} (ask the agent for all comments to include them)")
+    if hands_off:
+        lines.append(f"hands off (#no-agent): {', '.join(hands_off)}")
     print("\n".join(lines))
 
 

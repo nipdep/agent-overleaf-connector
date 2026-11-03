@@ -2,6 +2,12 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.10.0
+- **Optional hashtags in comments.** `#agent` (focus), `#no-agent` (hands off, enforced by the tools),
+  `#suggest` / `#direct` (mode), anywhere in a comment or a later thread message. Conflicts resolve to the safe
+  side. `pull`, `list` and `list_comments` show focus and skipped comments (`include_skipped` to see all).
+  `comment_tags: false` disables them. The 0.9 start-of-comment forms still work.
+
 ## Unreleased
 - Documentation set: a short README front page and `docs/` (setup, usage, agents, CI mode, architecture, status and
   roadmap), `CONTRIBUTING.md` (development, a manual checklist for real Overleaf, releasing), a test workflow that

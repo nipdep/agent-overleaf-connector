@@ -28,6 +28,7 @@ from .config import Config
 from .gitutil import (GitError, auto_resolve_comment_conflicts, commit_paths, commits_between, current_branch, default_branch, git,
                       has_changes_outside, is_clean, rev_parse)
 from .redline import RedlineError, generate
+from .modes import skip_reasons
 from .store import Store
 from .sync import sync
 
@@ -213,15 +214,21 @@ def pull(cfg: Config) -> dict:
     summary["redline"] = agent["redline"]
     summary["warnings"] += agent["warnings"]
     summary["agent_branch"] = agent_branch(cfg)
-    summary["open"] = [
-        {"id": c["id"], "body": c["body"], "file": (c["anchor"].get("source") or {}).get("file"),
-         "line": (c["anchor"].get("source") or {}).get("line"),
-         "selected_text": c["anchor"].get("quote") or None,
-         "mode": c.get("mode") or cfg.mode, "mode_chosen": bool(c.get("mode")),
-         "from": (c.get("origin") or {}).get("type"),
-         "thread": [t["body"] for t in c["thread"]]}
-        for c in Store(cfg).all() if c["status"] == "open"
-    ]
+    everything = Store(cfg).all()
+    skips = skip_reasons(everything)
+
+    def brief(c: dict) -> dict:
+        return {"id": c["id"], "body": c["body"], "file": (c["anchor"].get("source") or {}).get("file"),
+                "line": (c["anchor"].get("source") or {}).get("line"),
+                "selected_text": c["anchor"].get("quote") or None,
+                "mode": c.get("mode") or cfg.mode, "mode_chosen": bool(c.get("mode")),
+                "agent_tag": c.get("agent"), "from": (c.get("origin") or {}).get("type"),
+                "thread": [t["body"] for t in c["thread"]]}
+
+    summary["open"] = [brief(c) for c in everything if c["status"] == "open" and c["id"] not in skips]
+    summary["skipped"] = [{"id": c["id"], "why": skips[c["id"]]} for c in everything
+                          if c["status"] == "open" and c["id"] in skips]
+    summary["focus"] = [c["id"] for c in everything if c["status"] == "open" and c.get("agent") is True]
     return summary
 
 

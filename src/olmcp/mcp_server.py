@@ -65,9 +65,12 @@ def create_server(root: Optional[Path] = None) -> MCPServer:
 
     @server.tool()
     @expose
-    def list_comments(status: Optional[str] = "open") -> list[dict]:
-        """List review comments (default: open ones) with their request, location and thread."""
-        return tools.list_comments(status)
+    def list_comments(status: Optional[str] = "open", include_skipped: bool = False) -> list[dict]:
+        """List review comments (default: open ones) with their request, location and thread. By default
+        only comments you should work on: ones tagged #no-agent are left out, and while any open comment is
+        tagged #agent only those are listed (focus). Pass include_skipped=true when the researcher asks you to
+        address all comments; #no-agent comments must still never be worked on or replied to."""
+        return tools.list_comments(status, include_skipped)
 
     @server.tool()
     @expose

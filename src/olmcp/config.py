@@ -33,6 +33,7 @@ class Config:
     default_branch: str | None = None
     overleaf_project: str | None = None  # override; normally read from the git remote URL
     overleaf_comments: bool = True  # set false to turn native Overleaf comments off
+    comment_tags: bool = True  # read #agent / #no-agent / #suggest / #direct in comments; false = plain text
     auto_resolve_threads: bool = False  # true: close an Overleaf thread when its change is applied (default: only you do)
     olcli: str = "olcli"  # command used to reach Overleaf's comment API
     remote: str = "origin"  # git remote used by `pull` / `push` (e.g. Overleaf's git.overleaf.com)

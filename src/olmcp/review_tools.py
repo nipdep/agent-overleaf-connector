@@ -16,7 +16,7 @@ from .apply import ensure_identity
 from .build import BuildError, build
 from .config import Config, find_root, load_config
 from .gitutil import GitError, commit_paths, current_branch, default_branch, git, has_changes_outside, is_clean
-from .modes import MODES, effective_mode, write_default_mode
+from .modes import MODES, effective_mode, skip_reasons, write_default_mode
 from .markers import remove_marker, scan
 from .store import Store
 
@@ -72,16 +72,25 @@ class PaperTools:
             raise ToolError(str(exc)) from exc
 
     # ------------------------------------------------------------------ reading
-    def list_comments(self, status: str | None = "open") -> list[dict]:
+    def list_comments(self, status: str | None = "open", include_skipped: bool = False) -> list[dict]:
+        """Comments, by default only those the agent should work on. A comment is skipped when the researcher
+        tagged it ``#no-agent``, or when focus is on (some open comment is tagged ``#agent``) and it is not one
+        of them. ``include_skipped=True`` lists those too, flagged with ``skipped_because``."""
+        comments = Store(self.cfg).all()
+        skips = skip_reasons(comments)
         out = []
-        for c in Store(self.cfg).all():
+        for c in comments:
             if status and c["status"] != status:
+                continue
+            why = skips.get(c["id"])
+            if why and not include_skipped:
                 continue
             src = c["anchor"].get("source") or {}
             out.append({
                 "id": c["id"], "status": c["status"], "request": c["body"],
                 "selected_text": c["anchor"].get("quote") or None,
                 "mode": effective_mode(self.cfg, c), "mode_chosen_by_researcher": bool(c.get("mode")),
+                "for_agent": why is None, "skipped_because": why, "agent_tag": c.get("agent"),
                 "file": src.get("file"), "line": src.get("line"), "page": c["anchor"].get("page"),
                 "thread": [{"author": t["author"], "text": t["body"]} for t in c["thread"]],
             })
@@ -100,12 +109,14 @@ class PaperTools:
             n = src.get("line", 1)
             lo, hi = max(0, n - 1 - context_lines), min(len(lines), n + context_lines + 8)
             context, start = "\n".join(lines[lo:hi]), lo + 1
+        why = skip_reasons(Store(self.cfg).all()).get(comment_id)
         page = c["anchor"].get("page")
         has_image = bool(page) and (self.cfg.build_path / "pages" / f"p-{page:03d}.png").exists()
         return {
             "id": c["id"], "status": c["status"], "request": c["body"],
             "selected_text": c["anchor"].get("quote") or None,
             "mode": effective_mode(self.cfg, c), "mode_chosen_by_researcher": bool(c.get("mode")),
+            "for_agent": why is None, "skipped_because": why, "agent_tag": c.get("agent"),
             "from": (c.get("origin") or {}).get("type"), "file": src.get("file"),
             "line": src.get("line"), "page": page, "page_image_available": has_image,
             "source_context": context, "source_context_first_line": start,
@@ -177,6 +188,8 @@ class PaperTools:
             raise ToolError(str(exc)) from exc
         if comment["status"] in {"resolved", "wontfix"}:
             raise ToolError(f"{comment_id} is already {comment['status']}")
+        if comment.get("agent") is False:
+            raise ToolError(f"the researcher tagged {comment_id} #no-agent: do not work on it or reply to it")
         if mode is not None and mode not in MODES:
             raise ToolError(f"mode must be one of {', '.join(MODES)}, got {mode!r}")
         chosen = comment.get("mode")  # the researcher tagged this comment [suggest] / [direct]
@@ -269,6 +282,8 @@ class PaperTools:
             git(root, "switch", "-q", default)
         store = Store(cfg)
         try:
+            if store.get(comment_id).get("agent") is False:
+                raise ToolError(f"the researcher tagged {comment_id} #no-agent: do not work on it or reply to it")
             store.reply(comment_id, "agent", text.strip())
         except KeyError as exc:
             raise ToolError(str(exc)) from exc

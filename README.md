@@ -55,7 +55,8 @@ Then comment in Overleaf and tell the agent: **"address the review comments"**.
 | You want to... | Do this |
 |---|---|
 | Ask for a change | Select text in Overleaf, add a Review comment (or type `%% @agent: ...` above a paragraph) |
-| Choose how it is applied | Start the comment with `[suggest]` or `[direct]`; change the default with `olmcp mode suggest` |
+| Choose how it is applied | Add `#suggest` or `#direct` to the comment; change the default with `olmcp mode suggest` |
+| Focus or exclude the agent | Add `#agent` (work on these first) or `#no-agent` (hands off) to a comment; tags are optional |
 | Accept a held change | Resolve the thread, or reply "accept", or set `accept` on its line in `redline.tex` |
 | Reject or adjust it | Reply in the thread with what to change, or set `reject` in `redline.tex` |
 | Undo an applied edit | Reply in the thread, `git revert` the commit, or use Overleaf's History |

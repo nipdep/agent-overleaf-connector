@@ -74,7 +74,9 @@ unbuilt, hard part. See `design.md` section 19. Until then the OpenAI route is *
 - `address_comment` is atomic: every edit's `old` text must match exactly once, or nothing changes and the
   error says how to retry.
 - One comment per commit, with the `Resolves: C-NNNN` trailer; the reply is recorded with the edit.
-- Your `[suggest]` / `[direct]` tag beats the agent's `mode` argument.
+- Your `#suggest` / `#direct` tag beats the agent's `mode` argument.
+- A `#no-agent` comment cannot be edited or replied to; with any open `#agent` comment, `list_comments` returns
+  only those unless the agent passes `include_skipped`.
 - Paths stay inside the repository; only `.tex`, `.bib` and `.sty` can be edited; `.git`, `build/` and `review/`
   cannot; symlinks out of the repository are refused. There is no tool that runs arbitrary commands.
 - The agent never creates branches, pushes by itself, or resolves a thread.

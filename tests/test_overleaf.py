@@ -480,3 +480,28 @@ def test_a_later_message_can_change_a_comments_mode(ov):
     _says(w, "direct: just apply it, I trust you")
     pull(w.cfg)
     assert Store(w.cfg).get("C-0003")["mode"] == "direct"
+
+
+def test_native_comments_carry_the_same_tags_and_later_messages_can_change_them(ov):
+    w = ov
+    w.state_write([thread("T1", "we need to fix the wording in here to shorten this #agent #suggest",
+                          "always outperforms the baselines"),
+                   thread("T2", "Alice, can you check this? #no-agent", "Another intro paragraph that stays as it is.",
+                          path="/sections/intro.tex", line=5)])
+    pull(w.cfg)
+    store = Store(w.cfg)
+    assert store.get("C-0003")["agent"] is True and store.get("C-0003")["mode"] == "suggest"
+    assert store.get("C-0004")["agent"] is False
+    assert [c["id"] for c in PaperTools(w.repo).list_comments()] == ["C-0003"]   # focus; the other is hands off
+
+    # a later message from the researcher flips a tag; an [agent] message never does
+    ts = w.state_read()
+    ts[1]["messages"].append({"id": "m7", "content": "[agent] I would use #direct #agent here",
+                              "user": {"email": "researcher@example.com"}})
+    ts[1]["messages"].append({"id": "m8", "content": "actually #agent please look at it too",
+                              "user": {"email": "researcher@example.com"}})
+    w.state_write(ts)
+    pull(w.cfg)
+    c4 = store.get("C-0004")
+    assert c4["agent"] is True and "mode" not in c4   # only the researcher's message counted
+    assert [c["id"] for c in PaperTools(w.repo).list_comments()] == ["C-0003", "C-0004"]

@@ -40,9 +40,24 @@ Only files the paper uses are scanned; keep comments out of `archive/` or `sampl
 Default: `olmcp mode` shows it, `olmcp mode suggest` (or `direct`) sets it (a committed one-line change; run
 `olmcp push` to publish it), or tell the agent "switch to suggest mode".
 
-Per comment: start the comment with `[suggest]`, `[direct]`, `suggest:` or `direct:`. A tag is your choice and
-beats the default; the agent cannot override it and may choose only for untagged comments. A later tagged
+Per comment: put `#suggest` or `#direct` anywhere in the comment (the older `[suggest]` / `direct:` at the start
+still work). A tag is your choice and beats the default; the agent cannot override it and may choose only for untagged comments. A later tagged
 message in a thread changes that comment's mode. Direct and suggest edits mix freely in one round.
+
+## Comment tags (all optional)
+
+Write hashtags anywhere in a comment, for example `we need to fix the wording here to shorten this #agent #suggest`.
+
+| Tag | Effect |
+|---|---|
+| `#agent` | Focus: while any open comment has it, the agent is given only those comments this round |
+| `#no-agent` | Hands off: the agent is not given the comment and its tools refuse to edit or reply to it |
+| `#suggest` / `#direct` | The comment's edit mode |
+
+If tags conflict in one comment, the safe side wins: `#no-agent` beats `#agent`, `#suggest` beats `#direct`. A
+later message in a thread that carries a tag changes the comment's tag. Focus is advisory (you can tell the agent
+"do all comments"); `#no-agent` is enforced. Tags are removed from the request the agent reads. Without any tag
+everything works as before; set `comment_tags: false` to ignore tags entirely.
 
 ## What the agent's reply shows
 
@@ -124,6 +139,7 @@ All optional. The old name `.paper-review.yml` is still read, and `olmcp init` r
 | `mode` | `direct` | Default edit mode (`direct` or `suggest`) |
 | `main` | detected | Main `.tex` file, if detection picks the wrong one |
 | `engine` | detected | `pdflatex`, `xelatex` or `lualatex`; only matters for local builds |
+| `comment_tags` | `true` | Set `false` to ignore `#agent`, `#no-agent`, `#suggest`, `#direct` |
 | `overleaf_comments` | `true` | Set `false` to turn native Overleaf comments off |
 | `overleaf_project` | from the remote URL | Override the project id |
 | `auto_resolve_threads` | `false` | Close an Overleaf thread when its change is applied |
