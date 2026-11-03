@@ -232,3 +232,22 @@ def test_commit_outside_the_compiled_paper_is_flagged_not_silent(round1, repo, c
     assert "WARNING: C-0099: no visible change" in cfg.redline_path.read_text()
     # the real changes in the same round are unaffected
     assert "decision[C-0002]" in cfg.redline_path.read_text()
+
+
+def test_a_star_decision_applies_to_everything_still_pending(round1, repo, cfg):
+    generate(cfg, "main", "agent/round-1", branch="agent/round-1")
+    tex = cfg.redline_path
+    tex.write_text(tex.read_text() + "\n%% decision[*]: accept-all\n")
+    commit_all(repo, "accept everything")
+    result = apply(cfg)
+    assert sorted(result["accepted"]) == ["C-0001", "C-0002"] and result["rejected"] == [] and result["pending"] == []
+
+
+def test_a_decision_on_one_comment_beats_the_star(round1, repo, cfg):
+    generate(cfg, "main", "agent/round-1", branch="agent/round-1")
+    tex = cfg.redline_path
+    s = tex.read_text().replace("decision[C-0001]: pending", "decision[C-0001]: reject")
+    tex.write_text(s + "\n%% decision[*]: accept-all\n")
+    commit_all(repo, "accept all but one")
+    result = apply(cfg)
+    assert result["accepted"] == ["C-0002"] and result["rejected"] == ["C-0001"]
