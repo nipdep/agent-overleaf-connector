@@ -15,6 +15,7 @@ columns.
 | Local mode against Overleaf's Git (push appears, pull sees comments) | The author, on a real project | Verified by the author |
 | Native comments: import with selected text, agent replies in the thread | The author, first with `olcli`, then `olmcp-overleaf check` read all 15 threads of a real project | Reading verified by the author; replies and import through the new client not yet re-run |
 | Use from Claude Code and Codex | The author | Verified by the author |
+| `review` mode: the agent's edit appears as a tracked deletion and insertion with a thread reply | The author, on a real project (Overleaf Review panel) | Verified by the author |
 | Redline opened as main document in Overleaf | The author | Verified by the author |
 
 ## Not verified
@@ -25,7 +26,6 @@ columns.
 | The 0.8 behaviour change (agent no longer resolves threads) 0.9 mode tags and 0.10 hashtags (`#agent`, `#no-agent`, `#suggest`, `#direct`) on a real project | New |
 | What Overleaf's comment endpoints return across versions | Undocumented; the parser accepts the known fields and aliases |
 | `olmcp-overleaf` (Node client: comments, replies, tracked-change edits) against real Overleaf | Tested against a fake server only; checklist in overleaf-client.md |
-| `review` mode (edits as Overleaf tracked changes) | Not tried on real Overleaf; fake only |
 | Large projects (many documents) | the client joins every document; each call re-lists |
 | macOS, Windows | Linux only |
 | Other MCP clients, other agents following `AGENTS.md` | Only Claude Code and Codex used |

@@ -21,6 +21,8 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
 - `olmcp guard` now denies `olmcp-overleaf` and the legacy `olcli` for agents.
 
 ## Unreleased
+- `olmcp-overleaf pdf <project> [-o file]` compiles with Overleaf's own compiler and saves the PDF (a failed compile
+  prints the TeX error lines). Tested against a fake Overleaf only.
 - **`olmcp-overleaf`** (`node/`): our own Overleaf client in plain Node (credit to olcli, MIT): comments, replies,
   tracked changes, and edits written as tracked changes (Reviewing mode). No resolve/reopen/delete commands by
   design. Drop-in for `olcli` (`olcli: olmcp-overleaf`). Tested against a fake Overleaf only; see

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // olmcp-overleaf: the command line for the Overleaf client. Its comment commands accept the same arguments
 // the Python tool passed to olcli, so `olcli: olmcp-overleaf` in .olmcp.yml is all it takes to switch.
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { OverleafClient } from './client.js';
 import { configPath, loadConfig, saveConfig } from './config.js';
 
@@ -13,6 +13,7 @@ const USAGE = `olmcp-overleaf <command>
   changes list <project> [--json]
   edit <project> <file> (--old TEXT --new TEXT | --stdin) [--direct] [--dry-run] [--json]
        --stdin reads {"edits":[{"old":"...","new":"..."}]}; edits are tracked changes unless --direct
+  pdf <project> [-o FILE] [--draft]   compile with Overleaf's compiler and save the PDF (default output.pdf)
   check <project>
 
 There is no command to resolve, reopen or delete a comment thread.`;
@@ -23,9 +24,10 @@ function parse(argv) {
     const a = argv[i];
     if (a.startsWith('--')) {
       const key = a.slice(2);
-      if (['json', 'stdin', 'direct', 'dry-run', 'changes'].includes(key)) flags[key] = true;
+      if (['json', 'stdin', 'direct', 'dry-run', 'changes', 'draft'].includes(key)) flags[key] = true;
       else flags[key] = argv[++i];
-    } else positional.push(a);
+    } else if (a === '-o') flags.o = argv[++i];
+    else positional.push(a);
   }
   return { positional, flags };
 }
@@ -72,6 +74,14 @@ async function main(argv) {
     else throw new Error('give --old and --new, or --stdin');
     const result = await client.editDocument(project, file, edits, { tracked: !flags.direct, dryRun: !!flags['dry-run'] });
     print(result, flags.json, (r) => r.applied ? `${r.tracked ? 'tracked' : 'direct'} edit applied to ${r.path}` : `dry run: ${r.ops.length} operation(s) for ${r.path}`);
+    return 0;
+  }
+  if (cmd === 'pdf') {
+    if (!p[1]) throw new Error('usage: pdf <project> [-o FILE]');
+    const { pdf } = await client.renderPdf(p[1], { draft: !!flags.draft });
+    const out = flags.o || 'output.pdf';
+    writeFileSync(out, pdf);
+    console.log(flags.json ? JSON.stringify({ file: out, bytes: pdf.length }) : `saved ${out} (${pdf.length} bytes)`);
     return 0;
   }
   if (cmd === 'check') {

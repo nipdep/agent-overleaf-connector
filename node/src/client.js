@@ -83,6 +83,43 @@ export class OverleafClient {
     return out;
   }
 
+  /** Compile the project with Overleaf's own compiler (the same TeX Live version as your editor). */
+  async compile(projectId, { draft = false } = {}) {
+    const res = await request(this.jar, `${this.baseUrl}/project/${projectId}/compile?enable_pdf_caching=true`, {
+      method: 'POST', headers: this.headers(true), timeoutMs: 240000,
+      body: JSON.stringify({ rootDoc_id: null, draft, check: 'silent', incrementalCompilesEnabled: true }),
+    });
+    if (!res.ok) throw new Error(`could not start a compile: HTTP ${res.status}`);
+    const data = JSON.parse(res.text);
+    const qs = data.clsiServerId ? `?clsiserverid=${encodeURIComponent(data.clsiServerId)}` : '';
+    const file = (name, type) => (data.outputFiles || []).find((f) => f.path === name) || (type && (data.outputFiles || []).find((f) => f.type === type));
+    const pdf = file('output.pdf', 'pdf');
+    const log = file('output.log', 'log');
+    return { status: data.status, pdfUrl: pdf ? `${this.baseUrl}${pdf.url}${qs}` : null, logUrl: log ? `${this.baseUrl}${log.url}${qs}` : null };
+  }
+
+  async download(url) {
+    const res = await request(this.jar, url, { headers: this.headers(), timeoutMs: 120000 });
+    if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
+    return res.buffer;
+  }
+
+  /** Compile and fetch the PDF; on a failed compile the error carries the first lines of the TeX log. */
+  async renderPdf(projectId, options = {}) {
+    const result = await this.compile(projectId, options);
+    if (result.status !== 'success' || !result.pdfUrl) {
+      let excerpt = '';
+      if (result.logUrl) {
+        try {
+          const log = (await this.download(result.logUrl)).toString('utf-8');
+          excerpt = log.split('\n').filter((l) => l.startsWith('!') || /error/i.test(l)).slice(0, 12).join('\n');
+        } catch { /* the log is a courtesy */ }
+      }
+      throw new Error(`the compile did not succeed (${result.status})${excerpt ? `:\n${excerpt}` : ''}`);
+    }
+    return { status: result.status, pdf: await this.download(result.pdfUrl) };
+  }
+
   async reply(projectId, threadId, content) {
     const res = await request(this.jar, `${this.baseUrl}/project/${projectId}/thread/${threadId}/messages`, {
       method: 'POST', headers: this.headers(true), body: JSON.stringify({ content }),

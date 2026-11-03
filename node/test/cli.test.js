@@ -47,3 +47,13 @@ test('edit --stdin makes tracked changes', async () => {
   assert.equal(r.code, 0, r.err);
   assert.equal(JSON.parse(r.out).tracked, true);
 });
+
+test('pdf saves the compiled file', async () => {
+  const { mkdtempSync, readFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const out = join(mkdtempSync(join(tmpdir(), 'ovpdf-')), 'paper.pdf');
+  const r = await run(['pdf', 'p1', '-o', out]);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(readFileSync(out, 'utf-8'), '%PDF-1.5 fake');
+});

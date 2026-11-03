@@ -94,3 +94,16 @@ test('says so when the server did not record the edit as tracked', async () => {
     await assert.rejects(c.editDocument('p1', 'main.tex', [{ old: 'Intro line', new: 'Opening' }]), /did not record it as a tracked change/);
   } finally { await f.close(); }
 });
+
+test('compiles with the project compiler and downloads the PDF with the server id', async () => {
+  const { pdf } = await client.renderPdf('p1');
+  assert.equal(pdf.toString(), '%PDF-1.5 fake');
+  assert.equal(fake.state.pdfQuery, '?clsiserverid=cls-1');
+});
+
+test('a failed compile reports the TeX error lines', async () => {
+  fake.state.compileFails = true;
+  try {
+    await assert.rejects(client.renderPdf('p1'), /did not succeed \(error\):\n! Undefined control sequence/);
+  } finally { fake.state.compileFails = false; }
+});

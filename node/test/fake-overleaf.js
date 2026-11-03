@@ -77,6 +77,14 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
         state.posted.push({ thread: msg[1], content, csrf: req.headers['x-csrf-token'] });
         return send(200, JSON.stringify({ id: 'new', content }), 'application/json');
       }
+      if (/\/project\/\w+\/compile$/.test(url.pathname) && req.method === 'POST') {
+        state.compiles = (state.compiles || 0) + 1;
+        const ok = !state.compileFails;
+        return send(200, JSON.stringify({ status: ok ? 'success' : 'error', clsiServerId: 'cls-1',
+          outputFiles: [{ path: 'output.log', url: '/build/1/output.log', type: 'log' }, ...(ok ? [{ path: 'output.pdf', url: '/build/1/output.pdf', type: 'pdf' }] : [])] }), 'application/json');
+      }
+      if (url.pathname === '/build/1/output.pdf') { state.pdfQuery = url.search; return send(200, '%PDF-1.5 fake'); }
+      if (url.pathname === '/build/1/output.log') return send(200, 'This is pdfTeX\n! Undefined control sequence.\nl.12 \\foo\n');
       if (/\/resolve$/.test(url.pathname)) { state.resolveCalls += 1; return send(204, ''); }
       return send(404, 'nope');
     });

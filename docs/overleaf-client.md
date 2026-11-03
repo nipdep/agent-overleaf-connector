@@ -5,8 +5,8 @@ A small Node program in `node/` that talks to Overleaf's web interface for what 
 protocol handling follows the approach in [olcli](https://github.com/aloth/olcli) by Alexander Loth (MIT); see
 `node/THIRD_PARTY_NOTICES.md`.
 
-**Status: reading comments is verified on a real project (the author's `check`). Tracked-change edits are tested
-against a fake Overleaf only: run the scratch-project checklist below before using them on a real paper.**
+**Status: reading comments and review-mode (tracked-change) edits are verified on a real project by the author.
+`pdf` is tested against a fake Overleaf only.**
 
 ## Install and sign in
 
@@ -26,6 +26,7 @@ Use `--base-url` for a self-hosted Overleaf. `.olmcp.yml` needs nothing: the com
 | `comments list <project> [--status] [--json]` | Threads with selected text, file, line, and messages |
 | `comments reply <thread> <text> <project>` | Post a message into a thread |
 | `changes list <project>` | Pending tracked changes |
+| `pdf <project> [-o FILE] [--draft]` | Compile with **Overleaf's own compiler** (your TeX Live version) and save the PDF; a failed compile prints the TeX error lines |
 | `edit <project> <file> --old A --new B` | Make the edit as a **tracked change** (the researcher accepts or rejects it in Overleaf) |
 | `edit ... --direct` | Make it as a plain edit |
 | `edit ... --dry-run`, `--stdin` | Show the operations; read many edits as JSON |

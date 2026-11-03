@@ -28,6 +28,7 @@ export async function request(jar, url, { method = 'GET', headers = {}, body, ti
       if (method === 'GET') body = undefined;
       continue;
     }
-    return { status: res.status, ok: res.ok, headers: res.headers, text: await res.text() };
+    const buf = Buffer.from(await res.arrayBuffer());
+    return { status: res.status, ok: res.ok, headers: res.headers, buffer: buf, text: buf.toString('utf-8') };
   }
 }
