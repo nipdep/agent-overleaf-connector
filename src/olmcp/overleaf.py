@@ -255,9 +255,12 @@ def import_comments(cfg: Config) -> OverleafSync:
         seen = set(origin.get("messages_seen", []))
         fresh = [m for m in human if m["id"] not in seen]
         dirty = False
+        before = (existing.get("mode"), existing.get("agent"))
+        for m in human:  # re-read every message so comments imported by an older version pick their tags up
+            _apply_tags(cfg, existing, m["text"])
+        if (existing.get("mode"), existing.get("agent")) != before:
+            dirty = True
         if fresh:
-            for m in fresh:  # a later message can change the choice for this comment
-                _apply_tags(cfg, existing, m["text"])
             existing["thread"].extend(_entry(m) for m in fresh)
             origin["messages_seen"] = sorted(seen | {m["id"] for m in fresh})
             if existing["status"] != "open":

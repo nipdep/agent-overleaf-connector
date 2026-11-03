@@ -9,6 +9,8 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
   `comment_tags: false` disables them. The 0.9 start-of-comment forms still work.
 
 ## Unreleased
+- `pull` re-reads the tags of every message in an already imported thread, so comments imported by an older
+  version pick up their `#suggest` / `#direct` / `#agent` / `#no-agent` tags. `pull` and `doctor` print the version.
 - Documentation set: a short README front page and `docs/` (setup, usage, agents, CI mode, architecture, status and
   roadmap), `CONTRIBUTING.md` (development, a manual checklist for real Overleaf, releasing), a test workflow that
   runs the suite on Python 3.10, 3.12 and 3.13, and issue and pull request templates.

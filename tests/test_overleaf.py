@@ -505,3 +505,16 @@ def test_native_comments_carry_the_same_tags_and_later_messages_can_change_them(
     c4 = store.get("C-0004")
     assert c4["agent"] is True and "mode" not in c4   # only the researcher's message counted
     assert [c["id"] for c in PaperTools(w.repo).list_comments()] == ["C-0003", "C-0004"]
+
+
+def test_tags_are_picked_up_for_comments_imported_before_tags_existed(ov):
+    w = ov
+    w.state_write([thread("T1", "shorten this #suggest", "always outperforms the baselines")])
+    pull(w.cfg)
+    store = Store(w.cfg)
+    c = store.get("C-0003")
+    c.pop("mode"), c.pop("agent", None)   # what an older version stored
+    store.save(c)
+    sh(w.cfg.root, "git", "commit", "-qam", "old version")
+    pull(w.cfg)
+    assert Store(w.cfg).get("C-0003")["mode"] == "suggest"
