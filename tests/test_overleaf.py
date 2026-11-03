@@ -115,7 +115,7 @@ def test_a_follow_up_reopens_a_comment_the_agent_had_handled(ov):
     pull(w.cfg)
     t = PaperTools(w.repo)
     t.address_comment("C-0003", [SOFTEN], "Softened.")
-    assert Store(w.cfg).get("C-0003")["status"] == "resolved"
+    assert Store(w.cfg).get("C-0003")["status"] == "addressed"
     ts = w.state_read()
     ts[0]["messages"].append({"id": "m9", "content": "still too strong", "user": {"email": "researcher@example.com"}})
     w.state_write(ts)
@@ -123,27 +123,46 @@ def test_a_follow_up_reopens_a_comment_the_agent_had_handled(ov):
     assert Store(w.cfg).get("C-0003")["status"] == "open"
 
 
-def test_agent_reply_lands_in_the_overleaf_thread_once_and_thread_is_resolved_in_direct_mode(ov):
+def test_agent_reply_lands_in_the_overleaf_thread_once_and_the_thread_stays_open_in_direct_mode(ov):
     w = ov
     w.state_write([thread("T1", "make this less absolute", "always outperforms the baselines")])
     pull(w.cfg)
     PaperTools(w.repo).address_comment("C-0003", [SOFTEN], "Softened to 'most baselines'.")
     out = push(w.cfg)
-    assert out["overleaf"] == {"replies_posted": ["C-0003"], "threads_resolved": ["C-0003"]}
+    assert out["overleaf"] == {"replies_posted": ["C-0003"], "threads_resolved": []}
     t1 = w.state_read()[0]
-    assert t1["resolved"] is True
+    assert t1["resolved"] is False  # only the researcher closes a thread
     assert [m["content"] for m in t1["messages"]][-1].startswith("[agent] Softened to 'most baselines'.")
     n = len(t1["messages"])
     out = push(w.cfg)  # idempotent: nothing posted again
     assert out["overleaf"] == {"replies_posted": [], "threads_resolved": []}
     assert len(w.state_read()[0]["messages"]) == n
-    assert Store(w.cfg).get("C-0003")["origin"]["resolve_pushed"] is True
+    assert Store(w.cfg).get("C-0003")["status"] == "addressed"
     assert sh(w.repo, "git", "status", "--porcelain").strip() == ""
     assert "outperforms most baselines" in w.remote_file("sections/results.tex")
 
+    # the researcher closes it when satisfied; that is mirrored locally
+    ts = w.state_read()
+    ts[0]["resolved"] = True
+    w.state_write(ts)
+    assert pull(w.cfg)["overleaf"]["resolved_in_overleaf"] == ["C-0003"]
+    assert Store(w.cfg).get("C-0003")["status"] == "resolved"
+
+
+def test_closing_threads_for_you_is_opt_in(ov):
+    w = ov
+    (w.repo / ".olmcp.yml").write_text((w.repo / ".olmcp.yml").read_text() + "auto_resolve_threads: true\n")
+    sh(w.repo, "git", "commit", "-qam", "opt in to auto-resolving")
+    w.cfg = load_config(w.repo)
+    w.state_write([thread("T1", "make this less absolute", "always outperforms the baselines")])
+    pull(w.cfg)
+    PaperTools(w.repo).address_comment("C-0003", [SOFTEN], "Softened.")
+    assert push(w.cfg)["overleaf"] == {"replies_posted": ["C-0003"], "threads_resolved": ["C-0003"]}
+    assert w.state_read()[0]["resolved"] is True
+
 
 @needs_latexdiff
-def test_suggest_mode_replies_now_and_resolves_the_thread_only_after_you_accept(ov):
+def test_suggest_mode_replies_now_and_applies_on_accept_but_leaves_the_thread_to_you(ov):
     w, repo = ov, ov.repo
     (repo / ".olmcp.yml").write_text(repo.joinpath(".olmcp.yml").read_text() + "mode: suggest\n")
     sh(repo, "git", "commit", "-qam", "suggest mode")
@@ -168,9 +187,9 @@ def test_suggest_mode_replies_now_and_resolves_the_thread_only_after_you_accept(
 
     out = pull(w.cfg)
     assert out["decisions"]["accepted"] == ["C-0003"]
-    assert out["overleaf_sync_back"]["threads_resolved"] == ["C-0003"]
-    assert w.state_read()[0]["resolved"] is True  # closed in Overleaf's own panel
-    assert Store(w.cfg).get("C-0003")["status"] == "resolved"
+    assert out["overleaf_sync_back"]["threads_resolved"] == []
+    assert w.state_read()[0]["resolved"] is False  # the researcher closes it, not the tool
+    assert Store(w.cfg).get("C-0003")["status"] == "resolved"  # the accepted change is applied
 
 
 def test_a_broken_or_missing_olcli_is_a_warning_not_a_crash(ov, monkeypatch):

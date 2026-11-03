@@ -94,7 +94,7 @@ def cmd_reply(args, cfg):
 
 
 def cmd_resolve(args, cfg):
-    status = "resolved" if cfg.mode == "direct" else "addressed"
+    status = "addressed"
     extra = {"by": args.author, "note": args.note or ""}
     if args.commit:
         extra["commit"] = rev_parse(cfg.root, args.commit) or args.commit
@@ -286,7 +286,7 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("id")
     sp.add_argument("text")
     sp.add_argument("--author", default="agent")
-    sp = add("resolve", cmd_resolve, "mark a comment addressed (suggest mode) or resolved (direct mode)")
+    sp = add("resolve", cmd_resolve, "mark a comment addressed (the researcher closes it)")
     sp.add_argument("id")
     sp.add_argument("--note")
     sp.add_argument("--commit")

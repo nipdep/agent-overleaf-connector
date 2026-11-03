@@ -2,6 +2,14 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.8.0
+- **The agent no longer approves or closes comments.** Handling a comment (direct or suggest mode) sets its
+  status to `addressed` instead of `resolved`, and `push` no longer resolves the Overleaf thread, so the comment
+  stays visible in the Review panel until the researcher resolves it (which `pull` mirrors as `resolved`). A
+  follow-up reply reopens it. `olmcp resolve` now also only marks a comment `addressed`. `AGENTS.md` and the
+  tool descriptions tell agents never to resolve, close, approve or dismiss a thread.
+- `auto_resolve_threads: true` in `.olmcp.yml` restores the old behaviour (default: off).
+
 ## 0.7.1
 - **Every change in `redline.tex` is annotated where it happens.** Above each change a `>>` note gives the
   comment id, "change 2 of 3", the real file and line (`sections/01_introduction.tex:14`), what you asked

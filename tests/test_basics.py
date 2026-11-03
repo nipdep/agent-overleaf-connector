@@ -77,7 +77,7 @@ def test_cli_list_show_resolve(repo, cli, capsys):
     out = capsys.readouterr().out
     assert "soften this claim" in out and "results.tex" in out and "Our method always" in out
     cli("resolve", "C-0002", "--note", "done")
-    assert Store(load_config(repo)).get("C-0002")["status"] == "resolved"  # direct mode
+    assert Store(load_config(repo)).get("C-0002")["status"] == "addressed"  # the agent never closes a comment
     cli("round")
     assert capsys.readouterr().out.strip().endswith("agent/round-1")
 

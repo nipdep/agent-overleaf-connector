@@ -199,7 +199,7 @@ class PaperTools:
                 p.write_text(text, encoding="utf-8")
             store.reply(comment_id, "agent", reply.strip(),
                         edits=[{"file": e["file"], "old": _clip(e["old"]), "new": _clip(e["new"])} for e in edits])
-            status = "resolved" if cfg.mode == "direct" else "addressed"
+            status = "addressed"  # the agent is done; the researcher decides when the thread is closed
             store.set_status(comment_id, status, by="agent", note=reply.strip()[:300])
 
             message = f"{(commit_message or f'Address {comment_id}').strip()}\n\nResolves: {comment_id}\n"

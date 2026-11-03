@@ -92,7 +92,7 @@ def create_server(root: Optional[Path] = None) -> MCPServer:
     def address_comment(comment_id: str, edits: list[Edit], reply: str,
                         commit_message: Optional[str] = None) -> dict:
         """Address ONE comment: apply the edits, remove the comment's marker, record your reply,
-        mark it done and commit it (one commit per comment, with the Resolves trailer). All or
+        mark it addressed (never resolved: only the researcher closes a thread) and commit it (one commit per comment, with the Resolves trailer). All or
         nothing: if any edit's 'old' text does not match exactly once, nothing is changed.
         The reply must say what you changed and why. Returns the resulting diff."""
         return tools.address_comment(comment_id, [e.model_dump() for e in edits], reply, commit_message)

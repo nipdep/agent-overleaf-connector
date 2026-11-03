@@ -470,10 +470,11 @@ tool never reads, stores or logs the cookie.
 - **Telling the agent's messages apart.** Posted messages appear under the researcher's account, so every
   agent message is prefixed `[agent] ` and never imported as feedback.
 - `push` (and `pull`, for accepted changes) **reconciles idempotently without local state**: an agent
-  reply is posted only if no message with exactly that text is in the thread; a thread is resolved only
-  if the local comment is `resolved` and it is still open there. In `suggest` mode replies are read from
-  the agent branch's copy of the comment, so the researcher sees the reply before deciding; the thread is
-  resolved only after the change is accepted.
+  reply is posted only if no message with exactly that text is in the thread. In `suggest` mode replies
+  are read from the agent branch's copy of the comment, so the researcher sees the reply before deciding.
+  **The tool never closes a thread by default**: closing ("approving") is the researcher's act. Status
+  meanings: `addressed` = the agent has handled it (direct or proposed), `resolved` = a human closed it or
+  accepted the change. `auto_resolve_threads: true` restores closing the thread when its change is applied.
 - No marker exists for these comments, so there is nothing to remove from the source.
 
 **Deciding in the thread [built].** The Review panel is also the accept/reject interface. When a change
@@ -560,3 +561,14 @@ The word diff compares words, LaTeX commands and single punctuation marks, never
 original spacing (an earlier version diffed whitespace tokens and produced scrambled output such as
 `in{+one+} [-a long-]`). latexdiff leaves doubled spaces where it substitutes text, so the file search
 normalises whitespace first. The same helper produces the diff shown in Overleaf comment threads (20).
+
+## 23. The agent never approves  [built]
+
+In direct mode `address_comment` used to mark the comment `resolved`, and `push` then resolved the Overleaf
+thread, so a handled comment vanished from the Review panel (Overleaf shows only open threads there) and
+looked approved by the agent. Approving is a human act, so now: the agent's edit sets the status to
+`addressed`, the reply is posted, and the thread stays open; the researcher resolves it when satisfied, which
+`pull` mirrors as `resolved`. A follow-up reply reopens an `addressed` comment for the agent. The agent
+protocol says never to resolve, close, approve or dismiss a thread. `auto_resolve_threads` (default false)
+is the opt-in for the old behaviour. In `suggest` mode an accepted change also stays open in Overleaf until
+the researcher resolves it.

@@ -28,12 +28,12 @@ def test_address_comment_is_one_atomic_commit_in_direct_mode(world):
     t = PaperTools(w.repo)
     t.pull()
     out = t.address_comment("C-0002", [SOFTEN], "Softened the claim to 'most baselines'.")
-    assert out["status"] == "resolved" and out["branch"] == "master" and "outperforms most baselines" in out["diff"]
+    assert out["status"] == "addressed" and out["branch"] == "master" and "outperforms most baselines" in out["diff"]
     assert "Resolves: C-0002" in head_message(w.repo)
     results = (w.repo / "sections" / "results.tex").read_text()
     assert "outperforms most baselines" in results and "@agent" not in results  # marker removed
     c = Store(w.cfg).get("C-0002")
-    assert c["status"] == "resolved" and c["thread"][-1] == {**c["thread"][-1], "author": "agent"}
+    assert c["status"] == "addressed" and c["thread"][-1] == {**c["thread"][-1], "author": "agent"}
     assert "most baselines" in c["thread"][-1]["body"]
     assert sh(w.repo, "git", "status", "--porcelain").strip() == ""
 
@@ -160,7 +160,7 @@ def test_list_and_show_comment(world):
     assert "always outperforms" in shown["source_context"] and shown["source_context_first_line"] >= 1
     t.address_comment("C-0002", [SOFTEN], "done")
     assert [i["id"] for i in t.list_comments()] == ["C-0001"]
-    assert [i["id"] for i in t.list_comments(status="resolved")] == ["C-0002"]
+    assert [i["id"] for i in t.list_comments(status="addressed")] == ["C-0002"]
 
 
 def _text(result):

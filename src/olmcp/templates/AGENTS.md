@@ -68,6 +68,8 @@ If you cannot install it and have no MCP tools, stop and tell the researcher; do
 
 ## Rules
 
+- **Never resolve, close, approve or dismiss a comment or thread yourself.** Reply and describe what you did;
+  the researcher decides when a thread is done. A comment you handled stays open for them.
 - One comment, one `address` call. Edit only what the comment asks for; do not reformat other text.
 - Do not edit `redline.tex`, `review/` or anything under `build/` by hand.
 - **Never push a branch to Overleaf.** Its Git server accepts only the default branch (a push

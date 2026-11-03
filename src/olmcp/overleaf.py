@@ -1,7 +1,7 @@
 """Native Overleaf review comments, through the community CLI ``olcli`` (MIT).
 
 Select text in Overleaf, add a comment in its Review panel, and the agent sees the selected range
-and your message; its reply appears in the same thread and the thread is resolved once the change
+and your message; its reply appears in the same thread and you resolve the thread when you are satisfied (the tool only closes it for you if auto_resolve_threads is on)
 is accepted.
 
 Overleaf has no public API for comments and they are not in git, so this uses ``olcli``, which talks
@@ -337,7 +337,9 @@ def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
                 reply(cfg, t["thread_id"], msg)
                 have.append(msg.strip())
                 posted.append(c["id"])
-        if stored["status"] == "resolved" and not t["resolved"] and not stored["origin"].get("resolve_pushed"):
+        applied = stored["status"] == "resolved" or (cfg.mode == "direct" and stored["status"] == "addressed")
+        if cfg.auto_resolve_threads and applied and not t["resolved"] \
+                and not stored["origin"].get("resolve_pushed"):
             resolve(cfg, t["thread_id"])
             stored["origin"]["resolve_pushed"] = True
             store.save(stored)

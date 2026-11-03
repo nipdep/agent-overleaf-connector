@@ -106,7 +106,9 @@ changes of a comment. Edit only the `decision[...]` and `reason[...]` lines.
 
 Instead of typing `%%` markers you can use Overleaf's own Review panel: select a range, add a
 comment, and the agent sees your message **and the exact selected text**. Its reply shows up in the
-same Overleaf thread (prefixed `[agent]`), and the thread is resolved when the change is accepted.
+same Overleaf thread (prefixed `[agent]`). **The tool never resolves a thread for you**: a comment the agent
+handled stays open in the Review panel until you resolve it (set `auto_resolve_threads: true` in `.olmcp.yml`
+if you want the old behaviour of closing it automatically).
 This is optional and uses the community CLI [olcli](https://github.com/aloth/olcli) (MIT), because
 Overleaf has no public API for comments and they are not in git.
 
