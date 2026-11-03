@@ -98,7 +98,8 @@ def create_server(root: Optional[Path] = None) -> MCPServer:
         addressed (never resolved: only the researcher closes a thread) and commit it (one commit per
         comment, with the Resolves trailer). All or nothing: if any edit's 'old' text does not match exactly
         once, nothing is changed. The reply must say what you changed and why. Returns the resulting diff.
-        `mode` ("direct" applies the edit now, "suggest" holds it for review) is optional: if the comment
+        `mode` ("direct" applies the edit now, "suggest" holds it for review in redline.tex, "review" writes it
+        into Overleaf as a tracked change for the researcher to accept or reject there) is optional: if the comment
         shows a mode chosen by the researcher it is used and cannot be overridden; otherwise your `mode`
         (or the default) applies."""
         return tools.address_comment(comment_id, [e.model_dump() for e in edits], reply, commit_message, mode)
@@ -107,7 +108,7 @@ def create_server(root: Optional[Path] = None) -> MCPServer:
     @expose
     def set_mode(mode: str) -> dict:
         """Change the default edit mode: "direct" applies edits to the paper at once, "suggest" holds them
-        for the researcher to accept or reject. Comments the researcher tagged [suggest] or [direct] keep
+        for the researcher to accept or reject, "review" writes them into Overleaf as tracked changes. Comments the researcher tagged #suggest, #review or #direct keep
         their own mode. Only do this when the researcher asks."""
         return tools.set_mode(mode)
 

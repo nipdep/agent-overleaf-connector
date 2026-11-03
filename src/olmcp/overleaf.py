@@ -91,12 +91,13 @@ def _base(cfg: Config) -> list[str]:
     return shlex.split(cfg.olcli)
 
 
-def _run(cfg: Config, args: list[str], timeout: int = 240) -> str:
+def _run(cfg: Config, args: list[str], timeout: int = 240, input_text: str | None = None) -> str:
     cmd = _base(cfg) + args
     if not cmd or not shutil.which(cmd[0]):
         raise OverleafError(f"olcli not found: {INSTALL_HINT}")
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                              input=input_text, stdin=None if input_text is not None else subprocess.DEVNULL)
     except subprocess.TimeoutExpired as exc:
         raise OverleafError(f"olcli timed out after {timeout}s ({' '.join(args[:2])})") from exc
     if proc.returncode != 0:
@@ -154,6 +155,27 @@ def list_threads(cfg: Config, status: str = "all") -> list[dict]:
     except (json.JSONDecodeError, OverleafError):
         # some olcli versions only emit JSON together with --changes
         return parse_threads(_run(cfg, args + ["--changes"]))
+
+
+class ReviewEditError(OverleafError):
+    pass
+
+
+def tracked_edit(cfg: Config, file: str, edits: list[dict]) -> dict:
+    """Write edits into the live Overleaf document as tracked changes (needs ``olmcp-overleaf``)."""
+    pid = project_id(cfg)
+    if not pid:
+        raise ReviewEditError("review mode needs the Overleaf project id (set overleaf_project in .olmcp.yml)")
+    payload = json.dumps({"edits": [{"old": e["old"], "new": e["new"]} for e in edits]})
+    try:
+        out = _run(cfg, ["edit", pid, file, "--stdin", "--json"], input_text=payload)
+    except OverleafError as exc:
+        raise ReviewEditError(f"{exc}. Review mode needs the Node client: set 'olcli: olmcp-overleaf' in "
+                              f".olmcp.yml (see docs/overleaf-client.md)") from exc
+    try:
+        return json.loads(out[out.find("{"):])
+    except (ValueError, json.JSONDecodeError):
+        return {"applied": True, "raw": out.strip()[:200]}
 
 
 def reply(cfg: Config, thread_id: str, text: str) -> None:
@@ -298,11 +320,15 @@ def import_comments(cfg: Config) -> OverleafSync:
 
 
 # ------------------------------------------------------------------------------ write back
-def edits_block(edits: list[dict], proposed: bool) -> str:
+REVIEW_HINT = ("\n\n(Made as a tracked change in this document: accept or reject it in the editor's Review "
+               "panel; reply here to ask for something different.)")
+
+
+def edits_block(edits: list[dict], proposed: bool, mode: str | None = None) -> str:
     """What changed, for the Overleaf thread: the comment and its change in one place."""
     if not edits:
         return ""
-    head = "Proposed edit" if proposed else "Edit applied"
+    head = "Tracked change" if mode == "review" else ("Proposed edit" if proposed else "Edit applied")
     return "".join(f"\n\n{head} in {e['file']}:\n{word_diff(e['old'], e['new'])}" for e in edits)
 
 
@@ -350,8 +376,10 @@ def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
         for text, edits, reply_mode in _agent_replies(c):
             head = (AGENT_PREFIX + text).strip()
             if not any(h.startswith(head) for h in have):  # matches with or without the diff and footer
-                proposal = (reply_mode or cfg.mode) == "suggest" and stored["status"] != "resolved"
-                msg = AGENT_PREFIX + text + edits_block(edits, proposal) + (DECIDE_HINT if proposal else "")
+                kind = reply_mode or cfg.mode
+                proposal = kind == "suggest" and stored["status"] != "resolved"
+                msg = (AGENT_PREFIX + text + edits_block(edits, proposal, kind)
+                       + (DECIDE_HINT if proposal else REVIEW_HINT if kind == "review" else ""))
                 reply(cfg, t["thread_id"], msg)
                 have.append(msg.strip())
                 posted.append(c["id"])

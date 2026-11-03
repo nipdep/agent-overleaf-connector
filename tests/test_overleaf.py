@@ -518,3 +518,56 @@ def test_tags_are_picked_up_for_comments_imported_before_tags_existed(ov):
     sh(w.cfg.root, "git", "commit", "-qam", "old version")
     pull(w.cfg)
     assert Store(w.cfg).get("C-0003")["mode"] == "suggest"
+
+
+def test_review_mode_sends_a_tracked_edit_to_overleaf_and_leaves_git_alone(ov):
+    from olmcp.review_tools import PaperTools, ToolError
+
+    w = ov
+    w.state_write([thread("T1", "make this less absolute #review", "always outperforms the baselines")])
+    pull(w.cfg)
+    assert Store(w.cfg).get("C-0003")["mode"] == "review"
+    t = PaperTools(w.repo)
+    head_tree = sh(w.repo, "git", "rev-parse", "HEAD^{tree}")
+    edit = {"file": "sections/results.tex", "old": "always outperforms the baselines",
+            "new": "outperforms most baselines"}
+    out = t.address_comment("C-0003", [edit], "Softened the claim.")
+    assert out["mode"] == "review" and out["status"] == "addressed"
+    import os
+
+    sent = json.loads(open(os.environ["FAKE_OLCLI_STATE"]).read())["edits"]
+    assert sent == [{"project": PROJECT, "file": "sections/results.tex",
+                     "edits": [{"old": edit["old"], "new": edit["new"]}]}]
+    assert "outperforms most" not in (w.repo / "sections" / "results.tex").read_text()   # git text untouched
+    assert sh(w.repo, "git", "rev-parse", "HEAD^{tree}") != head_tree   # only the comment record changed
+    assert sh(w.repo, "git", "diff", "--name-only", "HEAD~1", "HEAD").strip().endswith("C-0003.json")
+
+    pull(w.cfg)
+    overleaf.reconcile(w.cfg)
+    msgs = [m["content"] for m in w.state_read()[0]["messages"]]
+    assert any("Tracked change in sections/results.tex" in m and "Review panel" in m for m in msgs)
+    assert not w.state_read()[0]["resolved"]
+
+
+def test_review_mode_failure_changes_nothing_and_points_at_the_node_client(ov, monkeypatch):
+    from olmcp.review_tools import PaperTools, ToolError
+
+    w = ov
+    w.state_write([thread("T1", "x #review", "always outperforms the baselines")])
+    pull(w.cfg)
+    monkeypatch.setenv("FAKE_OLCLI_EDIT_FAIL", "1")
+    head = sh(w.repo, "git", "rev-parse", "HEAD")
+    edit = {"file": "sections/results.tex", "old": "always outperforms the baselines", "new": "better"}
+    with pytest.raises(ToolError, match="did not take the edit"):
+        PaperTools(w.repo).address_comment("C-0003", [edit], "r")
+    assert sh(w.repo, "git", "rev-parse", "HEAD") == head and Store(w.cfg).get("C-0003")["status"] == "open"
+
+
+def test_review_mode_is_not_available_for_source_markers(world):
+    from olmcp.review_tools import PaperTools, ToolError
+
+    w = world
+    PaperTools(w.repo).pull()
+    edit = {"file": "sections/intro.tex", "old": "in a long sentence", "new": "briefly"}
+    with pytest.raises(ToolError, match="needs a native Overleaf comment"):
+        PaperTools(w.repo).address_comment("C-0001", [edit], "r", mode="review")

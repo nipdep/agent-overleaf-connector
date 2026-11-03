@@ -318,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
         return sp
 
     sp = add("init", cmd_init, "add config, workflow and agent instructions to a repo")
-    sp.add_argument("--mode", choices=["direct", "suggest"], default="direct")
+    sp.add_argument("--mode", choices=["direct", "suggest", "review"], default="direct")
     sp.add_argument("--uses", default=DEFAULT_USES, help="reusable workflow reference")
     sp.add_argument("--no-workflow", action="store_true", help="skip the GitHub workflow file")
     sp.add_argument("--local", action="store_true", help="local-first mode (pull/push, no CI): implies --no-workflow")
@@ -347,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
     add("pull", cmd_pull, "before an agent task: fetch the researcher's edits and report what happened to the comments", True)
     add("push", cmd_push, "after an agent task: refresh the redline and publish the default branch", True)
     sp = add("mode", cmd_mode, "show or set the default edit mode: direct (apply now) or suggest (hold for review)")
-    sp.add_argument("value", nargs="?", choices=["direct", "suggest"])
+    sp.add_argument("value", nargs="?", choices=["direct", "suggest", "review"])
     sp = add("address", cmd_address, "address ONE comment atomically (edits + reply + commit) from JSON in a file or stdin")
     sp.add_argument("id")
     sp.add_argument("json_file", nargs="?", default="-", help="JSON file, or - for stdin (default)")

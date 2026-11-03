@@ -204,6 +204,8 @@ class PaperTools:
             raise ToolError("at least one edit is required; to ask the researcher a question use reply_to_comment")
 
         default = default_branch(root, cfg.default_branch)
+        if edit_mode == "review":
+            return self._address_in_review(store, comment, edits, reply, commit_message)
         branch, created = self._begin_change(edit_mode)
         try:
             new_texts: dict[Path, str] = {}
@@ -256,6 +258,57 @@ class PaperTools:
             "comment_id": comment_id, "status": status, "mode": edit_mode, "branch": branch,
             "commit": sha[:10], "files": [p for p in paths if not p.endswith(".json")],
             "diff": diff[:MAX_DIFF_CHARS] + ("\n... (truncated)" if len(diff) > MAX_DIFF_CHARS else ""),
+            "next": "Address the remaining open comments, then call push.",
+        }
+
+    def _address_in_review(self, store: Store, comment: dict, edits: list[dict], reply: str,
+                           commit_message: str | None) -> dict:
+        """Review mode: the edits go into the live Overleaf document as tracked changes; git is not touched
+        except for recording the conversation. The researcher accepts or rejects them in Overleaf."""
+        from . import overleaf
+
+        cfg, root = self.cfg, self.cfg.root
+        cid = comment["id"]
+        if (comment.get("origin") or {}).get("type") == "marker":
+            raise ToolError(f"{cid} is a %% marker in the source; review mode needs a native Overleaf comment. "
+                            "Use direct or suggest for it.")
+        if not cfg.overleaf_comments:
+            raise ToolError("review mode needs Overleaf access (overleaf_comments is off in .olmcp.yml)")
+        by_file: dict[str, list[dict]] = {}
+        for e in edits:
+            old, new = e.get("old", ""), e.get("new", "")
+            if not old or old == new:
+                raise ToolError("each edit needs a non-empty 'old' text that differs from 'new'")
+            p = self._path(e.get("file", ""), write=True)
+            n = p.read_text(encoding="utf-8").count(old)
+            if n != 1:
+                raise ToolError(f"{e['file']}: 'old' must match exactly once in the file, found {n}. "
+                                f"Read the file again and copy a longer, unique passage.")
+            by_file.setdefault(e["file"], []).append({"old": old, "new": new})
+        ensure_identity(root)
+        self._require_clean()
+        default = default_branch(root, cfg.default_branch)
+        if current_branch(root) != default:
+            git(root, "switch", "-q", default)
+        done: list[str] = []
+        try:
+            for file, group in by_file.items():
+                overleaf.tracked_edit(cfg, file, group)
+                done.append(file)
+        except overleaf.OverleafError as exc:
+            partly = f" Already written as tracked changes: {', '.join(done)}." if done else ""
+            raise ToolError(f"Overleaf did not take the edit: {exc}.{partly} Nothing else was changed.") from exc
+        store.reply(cid, "agent", reply.strip(),
+                    edits=[{"file": e["file"], "old": _clip(e["old"]), "new": _clip(e["new"])} for e in edits],
+                    mode="review")
+        store.set_status(cid, "addressed", by="agent", note=reply.strip()[:300])
+        message = f"{(commit_message or f'Review-mode edit for {cid}').strip()}\n\nResolves: {cid}\n"
+        sha = commit_paths(root, [f"{cfg.review_dir}/comments/{cid}.json"], message)
+        return {
+            "comment_id": cid, "status": "addressed", "mode": "review", "branch": default,
+            "commit": (sha or "")[:10], "files": list(by_file),
+            "note": "Written into Overleaf as tracked changes; the researcher accepts or rejects them there. "
+                    "Nothing was changed in git.",
             "next": "Address the remaining open comments, then call push.",
         }
 

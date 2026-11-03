@@ -8,6 +8,11 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
   side. `pull`, `list` and `list_comments` show focus and skipped comments (`include_skipped` to see all).
   `comment_tags: false` disables them. The 0.9 start-of-comment forms still work.
 
+## 0.11.0
+- **`review` mode: the agent's edits as Overleaf tracked changes.** `mode: review`, `#review` in a comment, or
+  `address_comment(mode="review")` writes the edit through `olmcp-overleaf edit` (Reviewing mode) and records only the
+  conversation in git; you accept or reject in Overleaf. Native comments only. Not yet verified on real Overleaf.
+
 ## Unreleased
 - **`olmcp-overleaf`** (`node/`): our own Overleaf client in plain Node (credit to olcli, MIT): comments, replies,
   tracked changes, and edits written as tracked changes (Reviewing mode). No resolve/reopen/delete commands by

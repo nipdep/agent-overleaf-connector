@@ -20,6 +20,15 @@ if os.environ.get("FAKE_OLCLI_FAIL"):
 
 state_path = os.environ["FAKE_OLCLI_STATE"]
 state = json.load(open(state_path))
+if args[:1] == ["edit"]:
+    if os.environ.get("FAKE_OLCLI_EDIT_FAIL"):
+        print("error: the old text was not found in " + args[2], file=sys.stderr)
+        sys.exit(1)
+    payload = json.loads(sys.stdin.read())
+    state.setdefault("edits", []).append({"project": args[1], "file": args[2], "edits": payload["edits"]})
+    json.dump(state, open(state_path, "w"))
+    print(json.dumps({"path": args[2], "tracked": True, "applied": True, "changes": []}))
+    sys.exit(0)
 assert args[:1] == ["comments"], args
 sub, rest = args[1], args[2:]
 

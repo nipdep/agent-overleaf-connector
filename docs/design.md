@@ -625,6 +625,8 @@ comment, focus on a few, choose the mode, without editing config or talking to t
 
 ## 26. An own Overleaf client, and tracked-change edits  [built, unverified against the real service]
 
+(Update: `review` is now a third edit mode, see the end of this section.)
+
 **Why.** `olcli` is a separate command that an agent with a shell can use to resolve threads, and it cannot write
 tracked changes. A client of our own can leave resolve, reopen and delete out entirely and can make edits as
 Overleaf tracked changes ("Reviewing" mode) instead of only through Git.
@@ -643,4 +645,15 @@ understanding of how the editor works, not something verified here.
 **Not done yet.** The Python tool does not yet have a "reviewing" mode that routes `address_comment` through
 `edit`; how `olmcp pull` should treat pending tracked changes and what Overleaf's Git export contains for them
 must be established on a scratch project first.
+
+**The `review` mode.** `mode: review` (default), `#review` (per comment) or `address_comment(mode="review")` sends the
+agent's edits through `olmcp-overleaf edit` instead of editing git files. The tool validates `old` against the
+local file, the client validates it again against the live document, and nothing is written to git except the
+conversation record (`review/comments/C-NNNN.json`, status `addressed`). The thread reply says "Tracked change in
+<file>" with the word diff and points at the Review panel. Accepting or rejecting happens in Overleaf; accepted
+text reaches the clone through the normal `olmcp pull`. Refused for `%%` marker comments (the marker is source
+text). Precedence among tags: `#suggest` beats `#review` beats `#direct`. If the client or Overleaf refuses, the tool
+reports it and changes nothing (a multi-file edit can leave earlier files already tracked; the error says which).
+Unknown: what Overleaf's Git export contains while tracked changes are pending, so a `pull` before you decide may
+or may not show the new text; verify on a scratch project.
 

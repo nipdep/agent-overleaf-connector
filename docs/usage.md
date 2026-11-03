@@ -35,7 +35,11 @@ Only files the paper uses are scanned; keep comments out of `archive/` or `sampl
 ## Direct or suggest
 
 - **`direct`** applies an edit to your files at once, as a normal Overleaf edit.
-- **`suggest`** holds the edit for you to accept or reject.
+- **`suggest`** holds the edit for you to accept or reject in `redline.tex`.
+- **`review`** writes the edit into Overleaf as a **tracked change** (Reviewing mode); you accept or reject it in
+  Overleaf's Review panel. Needs a native comment and the Node client (`olcli: olmcp-overleaf`, see
+  [overleaf-client.md](overleaf-client.md)); **not yet verified on real Overleaf**. Git is not touched: the accepted
+  text arrives with your next `olmcp pull`.
 
 Default: `olmcp mode` shows it, `olmcp mode suggest` (or `direct`) sets it (a committed one-line change; run
 `olmcp push` to publish it), or tell the agent "switch to suggest mode".
@@ -52,9 +56,9 @@ Write hashtags anywhere in a comment, for example `we need to fix the wording he
 |---|---|
 | `#agent` | Focus: while any open comment has it, the agent is given only those comments this round |
 | `#no-agent` | Hands off: the agent is not given the comment and its tools refuse to edit or reply to it |
-| `#suggest` / `#direct` | The comment's edit mode |
+| `#suggest` / `#review` / `#direct` | The comment's edit mode |
 
-If tags conflict in one comment, the safe side wins: `#no-agent` beats `#agent`, `#suggest` beats `#direct`. A
+If tags conflict in one comment, the safe side wins: `#no-agent` beats `#agent`, `#suggest` beats `#review` beats `#direct`. A
 later message in a thread that carries a tag changes the comment's tag. Focus is advisory (you can tell the agent
 "do all comments"); `#no-agent` is enforced. Tags are removed from the request the agent reads. Without any tag
 everything works as before; set `comment_tags: false` to ignore tags entirely.

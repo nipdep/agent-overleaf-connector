@@ -98,8 +98,8 @@ def load_config(root: Path) -> Config:
                 setattr(cfg, key, value)
             else:
                 cfg.extra[key] = value
-    if cfg.mode not in {"direct", "suggest"}:
-        raise ValueError(f"mode must be 'direct' or 'suggest', got {cfg.mode!r}")
+    if cfg.mode not in {"direct", "suggest", "review"}:
+        raise ValueError(f"mode must be 'direct', 'suggest' or 'review', got {cfg.mode!r}")
     return cfg
 
 

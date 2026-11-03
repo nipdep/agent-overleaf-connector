@@ -1,11 +1,12 @@
 """Edit modes and comment tags.
 
-``direct`` applies an edit to the paper at once; ``suggest`` holds it for review. The default comes from
+``direct`` applies an edit to the paper at once; ``suggest`` holds it for review in ``redline.tex``;
+``review`` writes it into Overleaf as a tracked change (Reviewing mode) for you to accept or reject there. The default comes from
 ``mode:`` in ``.olmcp.yml`` (change it with ``olmcp mode``).
 
 A researcher can steer a single comment with optional hashtags anywhere in its text:
 
-* ``#suggest`` / ``#direct``: the edit mode for this comment (beats the default and the agent's choice).
+* ``#suggest`` / ``#review`` / ``#direct``: the edit mode for this comment (beats the default and the agent's choice).
 * ``#no-agent``: the agent must not work on or reply to this comment.
 * ``#agent``: focus. While any open comment carries it, the agent works only on those; the focus ends by
   itself when they are handled, and the agent can still be told to do everything.
@@ -22,30 +23,32 @@ from pathlib import Path
 
 from .config import CONFIG_NAME, LEGACY_CONFIG_NAME, Config
 
-MODES = ("direct", "suggest")
+MODES = ("direct", "suggest", "review")
 
 # A tag is a standalone word: not glued to other text, and not a URL fragment (`page.html#direct`).
 _BEFORE = r"(?<![\w#/&=?.-])"
 _AFTER = r"(?![\w-])"
-_HASH = re.compile(_BEFORE + r"#(no-?agent|agent|suggest|direct)" + _AFTER, re.I)
+_HASH = re.compile(_BEFORE + r"#(no-?agent|agent|suggest|review|direct)" + _AFTER, re.I)
 _LEGACY = re.compile(r"^\s*(?:\[(direct|suggest)\]|(direct|suggest)\s*:)", re.I)
 
 
 @dataclass(frozen=True)
 class Tags:
     agent: bool | None = None  # True: #agent (focus), False: #no-agent (hands off), None: untagged
-    mode: str | None = None  # "suggest", "direct" or None
+    mode: str | None = None  # "suggest", "review", "direct" or None
 
 
 def parse_tags(text: str, enabled: bool = True) -> Tags:
     """The tags in one piece of comment text. Conflicts resolve to the safe side: ``#no-agent`` beats
-    ``#agent`` and ``#suggest`` beats ``#direct``."""
+    ``#agent``, and ``#suggest`` beats ``#review`` beats ``#direct``."""
     if not enabled or not text:
         return Tags()
     found = {m.group(1).lower().replace("-", "") for m in _HASH.finditer(text)}
     agent = False if "noagent" in found else (True if "agent" in found else None)
     if "suggest" in found:
         mode = "suggest"
+    elif "review" in found:
+        mode = "review"
     elif "direct" in found:
         mode = "direct"
     else:
@@ -59,7 +62,7 @@ def parse_mode_tag(text: str) -> str | None:
     return parse_tags(text).mode
 
 
-_STRIP = re.compile(_BEFORE + r"#(?:no-?agent|agent|suggest|direct)" + _AFTER, re.I)
+_STRIP = re.compile(_BEFORE + r"#(?:no-?agent|agent|suggest|review|direct)" + _AFTER, re.I)
 
 
 def strip_tags(text: str) -> str:

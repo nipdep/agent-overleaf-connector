@@ -52,6 +52,11 @@ newer history format are refused for now; whether Overleaf's Git export includes
 they interact with `olmcp pull`, is not yet established. Overleaf itself warns against mixing Git pushes with
 tracked changes.
 
+## Using it from the agent: `review` mode
+
+With `mode: review` in `.olmcp.yml` (or `#review` in a comment) the agent's `address_comment` sends its edits through
+`edit`, so they appear in Overleaf as tracked changes, and the thread reply says so. Git is not touched.
+
 ## Scratch-project checklist (before real use)
 
 1. `olmcp-overleaf check <project>` prints `ok: N comment thread(s) readable`.
