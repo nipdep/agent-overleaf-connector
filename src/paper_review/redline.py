@@ -271,6 +271,13 @@ def generate(cfg: Config, base: str, head: str | None, branch: str | None = None
         new_body.append(l)
 
     unplaced = [e for e in entries if e["key"] not in placed]
+    for e in unplaced:  # a change that latexdiff cannot see would otherwise be silent
+        touched = sorted({f for sha in e["shas"]
+                          for f in git(cfg.root, "diff-tree", "--no-commit-id", "--name-only", "-r", sha).split()})
+        warnings.append(
+            f"{e['key']}: no visible change in {main}. The commit touched: {', '.join(touched[:6]) or 'nothing'}"
+            f"{' ...' if len(touched) > 6 else ''}. Either those files are not \\input by {main} (for example "
+            f"archive/ or sample/), or only comments/whitespace changed. Review the diff with: git show {e['shas'][0][:7]}")
     header = _header(entries, base_sha, head_sha, branch, warnings)
     for e in unplaced:
         header.extend(_decision_block(e, previous, prev_entries))

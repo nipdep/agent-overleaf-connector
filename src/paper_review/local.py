@@ -117,6 +117,7 @@ def _refresh_agent(cfg: Config, default: str) -> dict:
             out["warnings"].append(f"redline not updated: {exc}")
             return out
         out["redline"] = f"{len(m['entries'])} change(s) from {branch}"
+        out["warnings"] += m.get("warnings", [])
     elif meta and meta.get("entries"):
         generate(cfg, default, None)
         out["redline"] = "reset (no pending agent changes)"

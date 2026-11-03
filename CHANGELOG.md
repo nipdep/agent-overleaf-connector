@@ -2,6 +2,11 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.2.1
+- A commit whose change cannot appear in the redline (it touches files `main.tex` does not input, or only
+  comments/whitespace) is now flagged with a warning in `redline.tex`, in `redline.json`, and in the
+  output of `redline` / `pull` / `push`. It used to produce a redline with no visible change and no message.
+
 ## 0.2.0
 - Local mode: `paper-review pull` / `push` around an agent task (Overleaf Git remote, no CI, no polling).
 - `init --local`; `remote` / `remote_branch` config.

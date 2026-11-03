@@ -217,3 +217,18 @@ def test_ci_pushes_to_a_real_remote(round1, repo, cfg, tmp_path):
     tags = sh(tmp_path, "git", "--git-dir", str(remote), "tag", "--list")
     assert "paper-review/pre-apply-" in tags  # rollback point survives the CI runner
     assert sh(repo, "git", "status", "--porcelain").strip() == ""
+
+
+def test_commit_outside_the_compiled_paper_is_flagged_not_silent(round1, repo, cfg):
+    """An agent commit that edits a file main.tex never inputs must produce a visible warning."""
+    sh(repo, "git", "switch", "-q", "agent/round-1")
+    (repo / "archive").mkdir()
+    (repo / "archive" / "old_draft.tex").write_text("Old draft text.\n")
+    sh(repo, "git", "add", "-A")
+    sh(repo, "git", "commit", "-qm", "Edit the archived draft\n\nResolves: C-0099")
+    sh(repo, "git", "switch", "-q", "main")
+    meta = generate(cfg, "main", "agent/round-1", branch="agent/round-1")
+    assert any("C-0099: no visible change" in w and "archive/old_draft.tex" in w for w in meta["warnings"])
+    assert "WARNING: C-0099: no visible change" in cfg.redline_path.read_text()
+    # the real changes in the same round are unaffected
+    assert "decision[C-0002]" in cfg.redline_path.read_text()
