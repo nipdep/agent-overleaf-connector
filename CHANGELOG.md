@@ -21,6 +21,11 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
 - `olmcp guard` now denies `olmcp-overleaf` and the legacy `olcli` for agents.
 
 ## Unreleased
+- **`olmcp-overleaf` 0.2.0 is a Node-only tool of its own**: an MCP server (`olmcp-overleaf mcp`) and CLI with
+  `list_comments`, `show_comment`, `read_file`, `list_files`, `address_comment` (tracked changes or plain edits plus the
+  thread reply), `reply_to_comment`, `list_tracked_changes`, `render_pdf`; `#agent` / `#no-agent` / `#review` /
+  `#suggest` / `#direct` tags; `init`. Overleaf is the store (no local state, no git). Tested against a fake
+  Overleaf and the official Python MCP client; not yet run by an agent on a real project.
 - `olmcp-overleaf pdf <project> [-o file]` compiles with Overleaf's own compiler and saves the PDF (a failed compile
   prints the TeX error lines). Tested against a fake Overleaf only.
 - **`olmcp-overleaf`** (`node/`): our own Overleaf client in plain Node (credit to olcli, MIT): comments, replies,

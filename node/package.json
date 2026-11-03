@@ -1,7 +1,7 @@
 {
   "name": "olmcp-overleaf",
-  "version": "0.1.0",
-  "description": "Overleaf comments and tracked-change edits for agent-overleaf-connector (no runtime dependencies)",
+  "version": "0.2.0",
+  "description": "Overleaf review comments, tracked-change edits, PDF and an MCP server for AI agents (no runtime dependencies)",
   "type": "module",
   "license": "Apache-2.0",
   "bin": { "olmcp-overleaf": "src/cli.js" },

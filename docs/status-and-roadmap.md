@@ -26,6 +26,7 @@ columns.
 | The 0.8 behaviour change (agent no longer resolves threads) 0.9 mode tags and 0.10 hashtags (`#agent`, `#no-agent`, `#suggest`, `#direct`) on a real project | New |
 | What Overleaf's comment endpoints return across versions | Undocumented; the parser accepts the known fields and aliases |
 | `olmcp-overleaf` (Node client: comments, replies, tracked-change edits) against real Overleaf | Tested against a fake server only; checklist in overleaf-client.md |
+| Node-only `olmcp-overleaf mcp` driven by Claude Code or Codex on a real project | Only the fake Overleaf and a Python MCP client so far |
 | Large projects (many documents) | the client joins every document; each call re-lists |
 | macOS, Windows | Linux only |
 | Other MCP clients, other agents following `AGENTS.md` | Only Claude Code and Codex used |

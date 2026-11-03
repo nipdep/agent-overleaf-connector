@@ -48,7 +48,38 @@ newer history format are refused for now; whether Overleaf's Git export includes
 they interact with `olmcp pull`, is not yet established. Overleaf itself warns against mixing Git pushes with
 tracked changes.
 
-## Using it from the agent: `review` mode
+## Node-only: use it as the whole tool (no Python, no git)
+
+`olmcp-overleaf` is also an MCP server and CLI of its own, working on the live Overleaf project through the
+session cookie. **Overleaf is the store**: a comment's status is derived from its thread (resolved; last message is
+the agent's = `addressed`; otherwise `open`), tags come from the researcher's messages, and nothing is kept locally.
+Overleaf's Git integration is not needed.
+
+```bash
+cd ~/some-folder-for-the-agent
+olmcp-overleaf init <project-id> [--mode review|direct]      # writes .olmcp-overleaf.json and AGENTS.md
+claude mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp
+codex mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp
+```
+
+| Tool | Does |
+|---|---|
+| `list_comments`, `show_comment` | Open comments with selected text, request, thread, mode, and whether they are for the agent |
+| `list_files`, `read_file` | The project's text documents |
+| `address_comment` | Edits to the live document (tracked changes in `review`, plain in `direct`) plus the thread reply, together; validated first |
+| `reply_to_comment` | Reply without editing |
+| `list_tracked_changes`, `render_pdf` | Pending tracked changes; compile and save the PDF |
+
+Tags work as in the Python tool: `#no-agent` (enforced: hidden and refused), `#agent` (focus), `#review` / `#suggest`
+(tracked change, the default), `#direct` (plain edit); a comment's tag beats the agent's `mode`. There is no tool
+to resolve, reopen or delete a thread. The project is taken from `--project`, `OVERLEAF_PROJECT`,
+`.olmcp-overleaf.json`, or the git remote of the current folder.
+
+Not in this version: Git sync, `%% @agent:` markers, `redline.tex` and the branch-based `suggest` mode, which
+`review` replaces. The Python tool still has all of those; use whichever fits. The MCP server speaks plain
+JSON-RPC over stdio and is tested with the official Python MCP SDK's client.
+
+## Using it from the Python tool: `review` mode
 
 With `mode: review` in `.olmcp.yml` (or `#review` in a comment) the agent's `address_comment` sends its edits through
 `edit`, so they appear in Overleaf as tracked changes, and the thread reply says so. Git is not touched.

@@ -4,6 +4,11 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { OverleafClient } from './client.js';
 import { configPath, loadConfig, saveConfig } from './config.js';
+import { existsSync, writeFileSync as write } from 'node:fs';
+import { PROJECT_FILE, resolveProject } from './project.js';
+import { Tools } from './tools.js';
+import { serve } from './mcp.js';
+import { AGENTS_MD } from './agents-md.js';
 
 const USAGE = `olmcp-overleaf <command>
 
@@ -16,6 +21,10 @@ const USAGE = `olmcp-overleaf <command>
   pdf <project> [-o FILE] [--draft]   compile with Overleaf's compiler and save the PDF (default output.pdf)
   check <project>
 
+  init <project-id> [--mode review|direct]   write .olmcp-overleaf.json and AGENTS.md here, show how to add the MCP server
+  mcp [--project ID]                        run the MCP server (stdio) for Claude Code, Codex, ...
+  list [--status S] [--all] [--json]  |  show <id>  |  address <id> < edit.json   (same operations as the MCP tools)
+
 There is no command to resolve, reopen or delete a comment thread.`;
 
 function parse(argv) {
@@ -24,7 +33,7 @@ function parse(argv) {
     const a = argv[i];
     if (a.startsWith('--')) {
       const key = a.slice(2);
-      if (['json', 'stdin', 'direct', 'dry-run', 'changes', 'draft'].includes(key)) flags[key] = true;
+      if (['json', 'stdin', 'direct', 'dry-run', 'changes', 'draft', 'all'].includes(key)) flags[key] = true;
       else flags[key] = argv[++i];
     } else if (a === '-o') flags.o = argv[++i];
     else positional.push(a);
@@ -48,7 +57,33 @@ async function main(argv) {
   if (cmd === 'comments' && ['resolve', 'reopen', 'delete'].includes(p[1])) {
     throw new Error(`"comments ${p[1]}" does not exist in olmcp-overleaf: resolving, reopening and deleting threads is left to the researcher in Overleaf`);
   }
+  if (cmd === 'init') {
+    if (!p[1] || !/^[0-9a-f]{24}$/.test(p[1])) throw new Error('usage: init <24-character project id>');
+    const mode = flags.mode || 'review';
+    if (!['review', 'direct'].includes(mode)) throw new Error('mode must be review or direct');
+    write(PROJECT_FILE, JSON.stringify({ project: p[1], mode }, null, 2) + '\n');
+    if (!existsSync('AGENTS.md')) write('AGENTS.md', AGENTS_MD);
+    console.log(`wrote ${PROJECT_FILE}${existsSync('AGENTS.md') ? ' and AGENTS.md (an existing AGENTS.md is left alone)' : ''}
+Add the server to your agent (run from this folder):
+  claude mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp
+  codex mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp`);
+    return 0;
+  }
   const client = await OverleafClient.connect(loadConfig());
+  if (['mcp', 'list', 'show', 'address'].includes(cmd)) {
+    const settings = resolveProject({ flag: flags.project });
+    const tools = new Tools(client, settings);
+    if (cmd === 'mcp') { await serve(tools); return 0; }
+    let result;
+    if (cmd === 'list') result = await tools.listComments({ status: flags.status || 'open', include_skipped: !!flags.all });
+    else if (cmd === 'show') result = await tools.showComment(p[1]);
+    else {
+      const body = JSON.parse(readFileSync(0, 'utf-8'));
+      result = await tools.addressComment(p[1], body.edits, body.reply, body.mode);
+    }
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
   if (cmd === 'comments' && p[1] === 'list') {
     const comments = await client.listComments(p[2], { status: flags.status || 'all' });
     print(comments, flags.json, (cs) => cs.map((c) => `${c.resolved ? '[resolved]' : '[open]'} ${c.threadId} ${c.path}:${c.line} "${c.selectedText.slice(0, 60)}"\n${c.messages.map((m) => `  - ${m.content}`).join('\n')}`).join('\n') || 'no comments');

@@ -120,6 +120,23 @@ export class OverleafClient {
     return { status: result.status, pdf: await this.download(result.pdfUrl) };
   }
 
+  async listFiles(projectId) {
+    const socket = await this.openSocket(projectId);
+    try { return collectDocs(socket.project).map((d) => d.path).sort(); } finally { await socket.close(); }
+  }
+
+  /** The stored text of one document. Text with a pending tracked deletion is still present in it. */
+  async readFile(projectId, path) {
+    const socket = await this.openSocket(projectId);
+    try {
+      const wanted = path.replace(/^\/+/, '');
+      const doc = collectDocs(socket.project).find((d) => d.path === wanted);
+      if (!doc) throw new Error(`no document ${wanted} in the project (list_files shows the paths)`);
+      const joined = await this.join(socket, doc.id);
+      return { path: wanted, content: joined.content };
+    } finally { await socket.close(); }
+  }
+
   async reply(projectId, threadId, content) {
     const res = await request(this.jar, `${this.baseUrl}/project/${projectId}/thread/${threadId}/messages`, {
       method: 'POST', headers: this.headers(true), body: JSON.stringify({ content }),

@@ -1,0 +1,74 @@
+// A small MCP server over stdio (newline-delimited JSON-RPC 2.0): initialize, ping, tools/list, tools/call.
+import { createInterface } from 'node:readline';
+import { ToolError } from './tools.js';
+
+const SUPPORTED = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+const str = (description) => ({ type: 'string', description });
+const editSchema = {
+  type: 'object', required: ['file', 'old', 'new'], additionalProperties: false,
+  properties: { file: str('document path as list_files shows it, e.g. sections/intro.tex'),
+    old: str('exact text to replace; must occur exactly once in the document'), new: str('replacement text') },
+};
+
+export const TOOLS = [
+  { name: 'list_comments', description: "Open review comments (Overleaf threads) the researcher left, with the selected text, the request, the thread, the mode and whether they are for you. Comments the researcher tagged #no-agent are never listed; while any open comment is tagged #agent only those are listed unless include_skipped is true.",
+    inputSchema: { type: 'object', properties: { status: { type: 'string', enum: ['open', 'addressed', 'resolved', 'all'], description: 'default open' }, include_skipped: { type: 'boolean' } } },
+    run: (t, a) => t.listComments(a) },
+  { name: 'show_comment', description: 'One comment with its whole thread.', inputSchema: { type: 'object', required: ['comment_id'], properties: { comment_id: str('the id from list_comments') } },
+    run: (t, a) => t.showComment(a.comment_id) },
+  { name: 'list_files', description: "The project's text documents.", inputSchema: { type: 'object', properties: {} }, run: (t) => t.listFiles() },
+  { name: 'read_file', description: 'Read a document (optionally a line range). Copy "old" text for edits from here exactly.',
+    inputSchema: { type: 'object', required: ['path'], properties: { path: str('document path'), start_line: { type: 'integer' }, end_line: { type: 'integer' } } },
+    run: (t, a) => t.readFile(a.path, a) },
+  { name: 'address_comment', description: 'Address ONE comment: apply the edits to the live Overleaf document and post your reply into the comment thread, together. In review mode the edits are tracked changes the researcher accepts or rejects in Overleaf; in direct mode they are plain edits. All edits are validated first (each "old" must match exactly once and must not touch existing tracked changes). Never resolve, close or approve the thread: only the researcher does. "mode" is optional: if the comment shows mode_chosen_by_researcher the researcher\'s mode is used and cannot be overridden.',
+    inputSchema: { type: 'object', required: ['comment_id', 'edits', 'reply'], properties: { comment_id: str('the id from list_comments'), edits: { type: 'array', minItems: 1, items: editSchema }, reply: str('what you changed and why, for the researcher to read in the thread'), mode: { type: 'string', enum: ['review', 'direct'] } } },
+    run: (t, a) => t.addressComment(a.comment_id, a.edits, a.reply, a.mode) },
+  { name: 'reply_to_comment', description: 'Reply in the thread without changing the document (a question or an explanation). Refused for #no-agent comments.',
+    inputSchema: { type: 'object', required: ['comment_id', 'text'], properties: { comment_id: str('the id'), text: str('the reply') } },
+    run: (t, a) => t.replyToComment(a.comment_id, a.text) },
+  { name: 'list_tracked_changes', description: 'Pending tracked changes in the project (yours and the researcher\'s).', inputSchema: { type: 'object', properties: {} }, run: (t) => t.listTrackedChanges() },
+  { name: 'render_pdf', description: "Compile with Overleaf's own compiler and save the PDF to a local file, then read it to see the pages. Fails with the TeX error lines if the compile fails.",
+    inputSchema: { type: 'object', properties: { save_to: str('where to save; default ./overleaf-output.pdf') } }, run: (t, a) => t.renderPdf(a) },
+];
+
+export async function handle(tools, msg) {
+  const { id, method, params } = msg;
+  const ok = (result) => ({ jsonrpc: '2.0', id, result });
+  const fail = (code, message) => ({ jsonrpc: '2.0', id, error: { code, message } });
+  if (method === 'initialize') {
+    const asked = params?.protocolVersion;
+    return ok({ protocolVersion: SUPPORTED.includes(asked) ? asked : SUPPORTED[0], capabilities: { tools: {} },
+      serverInfo: { name: 'olmcp-overleaf', version: '0.2.0' },
+      instructions: 'Overleaf review comments for an AI agent. list_comments, then address_comment once per comment. Never resolve or approve a thread.' });
+  }
+  if (method === 'ping') return ok({});
+  if (method === 'tools/list') return ok({ tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
+  if (method === 'tools/call') {
+    const tool = TOOLS.find((t) => t.name === params?.name);
+    if (!tool) return fail(-32602, `unknown tool ${params?.name}`);
+    try {
+      const result = await tool.run(tools, params.arguments || {});
+      return ok({ content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], isError: false });
+    } catch (e) {
+      const text = e instanceof ToolError ? e.message : `${e.message}`;
+      return ok({ content: [{ type: 'text', text }], isError: true });
+    }
+  }
+  if (id === undefined) return null; // a notification we do not need (initialized, cancelled, ...)
+  return fail(-32601, `method not found: ${method}`);
+}
+
+export function serve(tools, input = process.stdin, output = process.stdout) {
+  const rl = createInterface({ input });
+  let chain = Promise.resolve();
+  rl.on('line', (line) => {
+    if (!line.trim()) return;
+    chain = chain.then(async () => {
+      let msg;
+      try { msg = JSON.parse(line); } catch { output.write(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } }) + '\n'); return; }
+      const reply = await handle(tools, msg);
+      if (reply && msg.id !== undefined) output.write(JSON.stringify(reply) + '\n');
+    });
+  });
+  return new Promise((done) => rl.on('close', () => chain.then(done)));
+}
