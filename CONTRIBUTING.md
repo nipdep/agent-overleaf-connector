@@ -10,7 +10,7 @@ for what is open.
 - **A connector, not a policy.** The tool gives agents capabilities and honours what the researcher chose (tags,
   decisions in Overleaf). Please do not add features that decide how an agent should work for a given kind of task;
   those belong in instructions (`src/agents-md.js`, the user's `AGENTS.md`).
-- **Never handle secrets carelessly.** The session cookie lives only in `~/.config/olmcp-overleaf/config.json` (mode
+- **Never handle secrets carelessly.** The session cookie lives only in `~/.config/olmcp/config.json` (mode
   0600) or `OVERLEAF_SESSION`. Never log, print or send it anywhere, and do not paste it into issues.
 - **No way to resolve, reopen or delete a thread.** That is a deliberate property; do not add one.
 - **No runtime dependencies** unless there is a strong reason; the package is plain Node 20+.
@@ -45,15 +45,15 @@ Overleaf's behaviour, so it cannot prove the real service agrees.
 Automated tests cannot reach the real Overleaf, so changes to `src/client.js`, `src/socketio.js`, `src/ranges.js`
 or the thread messages need this check on a **scratch project** (never your real paper) before release:
 
-1. `olmcp-overleaf doctor --project <id>`: all `[ok]`.
-2. A comment on selected text shows up in `olmcp-overleaf list` with the right `selected_text`, including after a
+1. `olmcp doctor --project <id>`: all `[ok]`.
+2. A comment on selected text shows up in `olmcp list` with the right `selected_text`, including after a
    non-ASCII character earlier in the file.
 3. `edit <id> main.tex --old "..." --new "..." --dry-run`, then without it: Overleaf shows a tracked deletion and
    insertion; Reject restores the text; Accept keeps the new text.
 4. The same in a file inside a folder, and where another tracked change already exists (it must refuse).
 5. `--direct`: the text changes with no tracking.
-6. `olmcp-overleaf pdf <id> -o /tmp/p.pdf` produces the PDF; a deliberate TeX error prints the error lines.
-7. An agent with `olmcp-overleaf mcp`: `#no-agent` comments are ignored, `#agent` focuses, the thread gets the reply
+6. `olmcp pdf <id> -o /tmp/p.pdf` produces the PDF; a deliberate TeX error prints the error lines.
+7. An agent with `olmcp mcp`: `#no-agent` comments are ignored, `#agent` focuses, the thread gets the reply
    with the diff and stays unresolved.
 
 Record the result in `docs/status-and-roadmap.md`.
@@ -65,13 +65,13 @@ Record the result in `docs/status-and-roadmap.md`.
 3. Tag and publish (users can then pin `npm install -g github:nipdep/agent-overleaf-connector#vX.Y.Z`):
 
    ```bash
-   git tag -a vX.Y.Z -m "olmcp-overleaf X.Y.Z"
+   git tag -a vX.Y.Z -m "olmcp X.Y.Z"
    git push origin vX.Y.Z
    ```
 
 ## Reporting problems
 
 Use the issue templates. For a bug include the version, your OS and Node version, which agent you use, the command
-you ran and its output, and `olmcp-overleaf doctor`. **Remove cookies, names and emails first.** For a security
+you ran and its output, and `olmcp doctor`. **Remove cookies, names and emails first.** For a security
 problem, do not open a public issue: use the repository's Security tab (Report a vulnerability) or contact the
 maintainer directly.

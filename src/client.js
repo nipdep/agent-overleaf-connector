@@ -14,11 +14,11 @@ export class OverleafClient {
   constructor({ baseUrl, jar, csrf }) { this.baseUrl = baseUrl; this.jar = jar; this.csrf = csrf; }
 
   static async connect({ baseUrl, sessionCookie, cookieName = 'overleaf_session2' }) {
-    if (!sessionCookie) throw new Error('no Overleaf session cookie: run "olmcp-overleaf auth --cookie <value>" or set OVERLEAF_SESSION');
+    if (!sessionCookie) throw new Error('no Overleaf session cookie: run "olmcp auth --cookie <value>" or set OVERLEAF_SESSION');
     const jar = new Jar({ [cookieName]: sessionCookie });
     const res = await request(jar, `${baseUrl}/project`);
     if (!res.ok) throw new Error(`Overleaf answered HTTP ${res.status} (is the session cookie current?)`);
-    if (/name=["']loginForm["']|name=["']password["']/.test(res.text)) throw new Error('the session cookie has expired: run "olmcp-overleaf auth --cookie <value>" again');
+    if (/name=["']loginForm["']|name=["']password["']/.test(res.text)) throw new Error('the session cookie has expired: run "olmcp auth --cookie <value>" again');
     const csrf = csrfFrom(res.text);
     if (!csrf) throw new Error('could not find the CSRF token (session expired, or Overleaf changed its page)');
     return new OverleafClient({ baseUrl, jar, csrf });

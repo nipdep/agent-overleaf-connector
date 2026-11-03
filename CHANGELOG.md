@@ -3,6 +3,12 @@
 Bump `version` in `package.json` for every change that users can notice, and add a line here.
 
 
+## 0.4.0
+- **The command is now `olmcp`** (package `olmcp`). `olmcp-overleaf` stays as an alias so existing registrations keep
+  working. The project file is `.olmcp.json` and the cookie file `~/.config/olmcp/config.json`; the old names
+  (`.olmcp-overleaf.json`, `~/.config/olmcp-overleaf/config.json`) are still read. If the Python tool is still
+  installed, uninstall it: `pipx uninstall agent-overleaf-connector`.
+
 ## 0.3.0 (Node-only)
 - **The tool is now only the Node program `olmcp-overleaf`.** Install with `npm install -g github:nipdep/agent-overleaf-connector`.
   It works on the live Overleaf project: comments (selected text, threads), edits as **tracked changes** (`review`,

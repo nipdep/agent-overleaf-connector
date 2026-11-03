@@ -20,5 +20,5 @@ jobs:
       - name: The package installs and the command runs
         run: |
           npm pack --silent
-          npm install -g ./olmcp-overleaf-*.tgz
-          olmcp-overleaf help
+          npm install -g ./olmcp-*.tgz
+          olmcp help

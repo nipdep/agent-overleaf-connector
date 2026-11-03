@@ -38,7 +38,7 @@ export async function handle(tools, msg) {
   if (method === 'initialize') {
     const asked = params?.protocolVersion;
     return ok({ protocolVersion: SUPPORTED.includes(asked) ? asked : SUPPORTED[0], capabilities: { tools: {} },
-      serverInfo: { name: 'olmcp-overleaf', version: '0.3.0' },
+      serverInfo: { name: 'olmcp', version: '0.4.0' },
       instructions: 'Overleaf review comments for an AI agent. list_comments, then address_comment once per comment. Never resolve or approve a thread.' });
   }
   if (method === 'ping') return ok({});

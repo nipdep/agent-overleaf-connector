@@ -6,7 +6,7 @@ in Overleaf, and replies in the same thread. Free, open source (Apache-2.0), one
 dependencies. No git, no CI, no copies of your paper.
 
 ```
- Overleaf project  ── your session cookie ──  olmcp-overleaf (MCP server)  ──  AI agent
+ Overleaf project  ── your session cookie ──  olmcp (MCP server)  ──  AI agent
  (you comment here)                           comments · tracked edits · PDF    (Claude Code / Codex / ...)
 ```
 
@@ -18,6 +18,9 @@ dependencies. No git, no CI, no copies of your paper.
   Optional hashtags steer it per comment: `#agent`, `#no-agent`, `#review` / `#suggest`, `#direct`.
 - **See the result.** The agent can compile with Overleaf's own compiler and read the PDF.
 
+> The command is `olmcp` (earlier versions were a Python tool of the same name, now on the `python-legacy` branch:
+> uninstall it with `pipx uninstall agent-overleaf-connector` first).
+
 > Status: early. Verified by the author on a real project with Claude Code and Codex (comments, tracked-change
 > edits, replies, tags). See [docs/status-and-roadmap.md](docs/status-and-roadmap.md).
 
@@ -26,13 +29,13 @@ dependencies. No git, no CI, no copies of your paper.
 Needs Node 20+ and an Overleaf account. **No paid Overleaf plan or Git integration is required.**
 
 ```bash
-npm install -g github:nipdep/agent-overleaf-connector        # gives the command olmcp-overleaf
-olmcp-overleaf auth --cookie "<value of the overleaf_session2 cookie>"   # never paste it into a chat
+npm install -g github:nipdep/agent-overleaf-connector        # gives the command olmcp
+olmcp auth --cookie "<value of the overleaf_session2 cookie>"   # never paste it into a chat
 mkdir my-paper-agent && cd my-paper-agent
-olmcp-overleaf init <24-character-project-id>                 # the id is in the project's URL
-olmcp-overleaf doctor
-claude mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp   # and/or:
-codex mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp
+olmcp init <24-character-project-id>                 # the id is in the project's URL
+olmcp doctor
+claude mcp add olmcp -- "$(which olmcp)" mcp   # and/or:
+codex mcp add olmcp -- "$(which olmcp)" mcp
 ```
 
 Then comment in Overleaf and tell the agent: "address the review comments". Details: [docs/setup.md](docs/setup.md).

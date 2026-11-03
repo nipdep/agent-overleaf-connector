@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// olmcp-overleaf: the command line for the Overleaf client. Its comment commands accept the same arguments
-// the Python tool passed to olcli, so `olcli: olmcp-overleaf` in .olmcp.yml is all it takes to switch.
+// olmcp: the command line and MCP server for Overleaf review comments, tracked-change edits and the PDF.
+// (`olmcp-overleaf` is an alias of the same program.)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { OverleafClient } from './client.js';
 import { configPath, loadConfig, saveConfig } from './config.js';
@@ -10,7 +10,7 @@ import { Tools } from './tools.js';
 import { serve } from './mcp.js';
 import { AGENTS_MD } from './agents-md.js';
 
-const USAGE = `olmcp-overleaf <command>
+const USAGE = `olmcp <command>
 
   auth --cookie VALUE [--base-url URL] [--cookie-name NAME]   store the session cookie (mode 0600)
   comments list <project> [--status all|open|resolved] [--json]
@@ -22,7 +22,7 @@ const USAGE = `olmcp-overleaf <command>
   check <project>
   doctor [--project ID]                     check Node, the cookie, the project and comment access
 
-  init <project-id> [--mode review|direct]   write .olmcp-overleaf.json and AGENTS.md here, show how to add the MCP server
+  init <project-id> [--mode review|direct]   write .olmcp.json and AGENTS.md here, show how to add the MCP server
   mcp [--project ID]                        run the MCP server (stdio) for Claude Code, Codex, ...
   list [--status S] [--all] [--json]  |  show <id>  |  address <id> < edit.json   (same operations as the MCP tools)
 
@@ -49,20 +49,20 @@ async function main(argv) {
   const cmd = p[0];
   if (!cmd || cmd === 'help' || flags.help) { console.log(USAGE); return 0; }
   if (cmd === 'auth') {
-    if (!flags.cookie) throw new Error('usage: olmcp-overleaf auth --cookie <value>');
+    if (!flags.cookie) throw new Error('usage: olmcp auth --cookie <value>');
     saveConfig({ sessionCookie: flags.cookie, ...(flags['base-url'] ? { baseUrl: flags['base-url'] } : {}),
       ...(flags['cookie-name'] ? { cookieName: flags['cookie-name'] } : {}) });
     console.log(`saved to ${configPath()}`);
     return 0;
   }
   if (cmd === 'comments' && ['resolve', 'reopen', 'delete'].includes(p[1])) {
-    throw new Error(`"comments ${p[1]}" does not exist in olmcp-overleaf: resolving, reopening and deleting threads is left to the researcher in Overleaf`);
+    throw new Error(`"comments ${p[1]}" does not exist in olmcp: resolving, reopening and deleting threads is left to the researcher in Overleaf`);
   }
   if (cmd === 'doctor') {
     const line = (ok, text) => { console.log(`[${ok ? 'ok' : 'FAIL'}] ${text}`); return ok; };
     let good = line(Number(process.versions.node.split('.')[0]) >= 20, `Node ${process.versions.node} (20 or later needed)`);
     const cfg = loadConfig();
-    good = line(Boolean(cfg.sessionCookie), `session cookie ${cfg.sessionCookie ? 'present' : 'missing: olmcp-overleaf auth --cookie ...'} (${cfg.baseUrl})`) && good;
+    good = line(Boolean(cfg.sessionCookie), `session cookie ${cfg.sessionCookie ? 'present' : 'missing: olmcp auth --cookie ...'} (${cfg.baseUrl})`) && good;
     let project = null;
     try { project = resolveProject({ flag: flags.project }); line(true, `project ${project.project}, default mode ${project.mode}`); }
     catch (e) { good = line(false, e.message) && good; }
@@ -83,8 +83,8 @@ async function main(argv) {
     if (!existsSync('AGENTS.md')) write('AGENTS.md', AGENTS_MD);
     console.log(`wrote ${PROJECT_FILE}${existsSync('AGENTS.md') ? ' and AGENTS.md (an existing AGENTS.md is left alone)' : ''}
 Add the server to your agent (run from this folder):
-  claude mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp
-  codex mcp add olmcp-overleaf -- "$(which olmcp-overleaf)" mcp`);
+  claude mcp add olmcp -- "$(which olmcp)" mcp
+  codex mcp add olmcp -- "$(which olmcp)" mcp`);
     return 0;
   }
   const client = await OverleafClient.connect(loadConfig());

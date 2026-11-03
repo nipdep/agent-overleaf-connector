@@ -18,7 +18,7 @@ export async function request(jar, url, { method = 'GET', headers = {}, body, ti
   for (let hop = 0; ; hop++) {
     const res = await fetch(current, {
       method, body, redirect: 'manual', signal: AbortSignal.timeout(timeoutMs),
-      headers: { Cookie: jar.header(), 'User-Agent': 'olmcp-overleaf', ...headers },
+      headers: { Cookie: jar.header(), 'User-Agent': 'olmcp', ...headers },
     });
     jar.absorb(res.headers);
     const location = res.headers.get('location');

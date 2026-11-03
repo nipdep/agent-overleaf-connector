@@ -24,7 +24,7 @@ last message), **resolved** (you closed it).
   text and a tracked insertion of the new, which you accept or reject in the Review panel. Reject restores your text.
 - **`direct`**: the edit is applied as a plain edit (undo it with Overleaf's History).
 
-Default: `mode` in `.olmcp-overleaf.json` (or `OLMCP_MODE`); `olmcp-overleaf init <id> --mode direct` sets it.
+Default: `mode` in `.olmcp.json` (or `OLMCP_MODE`); `olmcp init <id> --mode direct` sets it.
 Per comment, use a tag. The agent may choose a mode only for untagged comments.
 
 ## Comment tags (all optional)
@@ -41,7 +41,7 @@ Write hashtags anywhere in a comment, for example `we need to fix the wording he
 If tags conflict in one comment the safe side wins: `#no-agent` beats `#agent`, and `#suggest`/`#review` beats
 `#direct`. The latest message of yours that carries a tag decides. Focus is advisory (the agent can be told to
 do all comments); `#no-agent` is enforced. Tags are removed from the request text the agent reads. Without tags
-everything works as usual; `.olmcp-overleaf.json` with `"commentTags": false` turns tag reading off.
+everything works as usual; `.olmcp.json` with `"commentTags": false` turns tag reading off.
 
 ## What the agent's reply shows
 
@@ -69,7 +69,7 @@ until you resolve it**.
 | `render_pdf` | `pdf PROJECT -o file.pdf` | Compile with Overleaf's compiler, save the PDF |
 
 Other commands: `auth`, `init`, `doctor`, `check PROJECT`, `edit PROJECT FILE --old A --new B [--direct] [--dry-run]`,
-`comments list PROJECT [--json]`. Run `olmcp-overleaf help`. There is no command to resolve, reopen or delete a
+`comments list PROJECT [--json]`. Run `olmcp help`. There is no command to resolve, reopen or delete a
 thread, on purpose.
 
 ## What `address_comment` enforces

@@ -1,13 +1,15 @@
-// Credentials: environment first, then ~/.config/olmcp-overleaf/config.json (written with mode 0600).
+// Credentials: environment first, then ~/.config/olmcp/config.json (written with mode 0600).
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-export const configPath = () => process.env.OLMCP_OVERLEAF_CONFIG || join(homedir(), '.config', 'olmcp-overleaf', 'config.json');
+export const configPath = () => process.env.OLMCP_OVERLEAF_CONFIG || join(homedir(), '.config', 'olmcp', 'config.json');
+const legacyConfigPath = () => join(homedir(), '.config', 'olmcp-overleaf', 'config.json'); // the name before 0.4.0
 
 export function loadConfig() {
   let file = {};
-  try { if (existsSync(configPath())) file = JSON.parse(readFileSync(configPath(), 'utf-8')); } catch { /* unreadable: ignore */ }
+  const path = existsSync(configPath()) || process.env.OLMCP_OVERLEAF_CONFIG ? configPath() : legacyConfigPath();
+  try { if (existsSync(path)) file = JSON.parse(readFileSync(path, 'utf-8')); } catch { /* unreadable: ignore */ }
   return {
     baseUrl: (process.env.OVERLEAF_BASE_URL || file.baseUrl || 'https://www.overleaf.com').replace(/\/+$/, ''),
     sessionCookie: process.env.OVERLEAF_SESSION || file.sessionCookie || '',
