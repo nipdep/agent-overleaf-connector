@@ -144,9 +144,14 @@ def cmd_pull(args, cfg):
     lines.append("comments: " + ", ".join(f"{len(v)} {k.replace('_', ' ')} ({', '.join(v)})" for k, v in c.items() if v)
                  if any(c.values()) else "comments: no changes from the researcher")
     ov = r.get("overleaf")
-    if ov and any(ov.values()):
-        lines.append("Overleaf comments: " + ", ".join(f"{len(v)} {k.replace('_', ' ')} ({', '.join(v)})"
-                                                         for k, v in ov.items() if v))
+    if ov is not None:
+        parts = [f"{len(v)} {k.replace('_', ' ')} ({', '.join(v)})" for k, v in ov.items()
+                 if isinstance(v, list) and v]
+        lines.append(f"Overleaf comments: {ov['threads_checked']} thread(s) checked"
+                     + (": " + ", ".join(parts) if parts else ", nothing new"))
+    elif not r.get("overleaf_enabled"):
+        lines.append("Overleaf comments: off (add overleaf_project: <project id> to .paper-review.yml to read "
+                     "comments made in Overleaf's Review panel)")
     d = r["decisions"]
     if d and d.get("status") == "applied":
         lines.append(f"decisions applied: accepted {d['accepted'] or 'none'}, rejected {d['rejected'] or 'none'}, "

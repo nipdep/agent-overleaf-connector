@@ -2,6 +2,11 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.4.1
+- `pull` now always says whether Overleaf comments are on ("N thread(s) checked, ...") or off (with the setting
+  to add); before, "off" and "on but nothing found" both printed nothing.
+- The marker count is labelled `markers removed` (the agent removes markers too, not only the researcher).
+
 ## 0.4.0
 - **Native Overleaf comments** (optional, needs the community CLI `olcli`, MIT): select text in Overleaf's
   Review panel and comment; `pull` imports each thread with its selected text as the comment's anchor

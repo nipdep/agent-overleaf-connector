@@ -148,9 +148,10 @@ def pull(cfg: Config) -> dict:
         commit_paths(root, [f"{cfg.review_dir}/comments"],
                      f"paper-review: sync comments (+{len(res.created)} new, {len(res.addressed)} addressed)")
     summary["comments"] = {"new": res.created, "reopened": res.reopened,
-                           "removed_by_researcher": res.addressed, "updated": res.updated}
+                           "markers_removed": res.addressed, "updated": res.updated}
 
     summary["overleaf"] = None
+    summary["overleaf_enabled"] = overleaf.enabled(cfg)
     if overleaf.enabled(cfg):  # native comments: select text in Overleaf's Review panel
         try:
             ov = overleaf.import_comments(cfg)

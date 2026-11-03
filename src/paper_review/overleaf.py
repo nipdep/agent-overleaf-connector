@@ -120,6 +120,7 @@ def resolve(cfg: Config, thread_id: str) -> None:
 # ------------------------------------------------------------------------------ import
 @dataclass
 class OverleafSync:
+    threads_checked: int = 0
     created: list[str] = field(default_factory=list)
     followups: list[str] = field(default_factory=list)
     resolved_in_overleaf: list[str] = field(default_factory=list)
@@ -162,6 +163,7 @@ def import_comments(cfg: Config) -> OverleafSync:
     store = Store(cfg)
     pages = load_text(cfg)
     threads = list_threads(cfg, "all")
+    result.threads_checked = len(threads)
     present: set[str] = set()
 
     for t in threads:

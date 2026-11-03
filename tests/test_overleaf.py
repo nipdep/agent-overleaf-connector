@@ -210,3 +210,18 @@ def test_overleaf_check_command(ov, capsys):
     assert "2 thread(s), 1 open, 1 with selected text" in capsys.readouterr().out
     (ov.repo / ".paper-review.yml").write_text("mode: direct\n")
     assert main(["--root", str(ov.repo), "overleaf-check"]) == 1
+
+
+def test_pull_says_whether_overleaf_comments_are_on_and_what_it_found(ov, world, capsys):
+    from paper_review.cli import main
+
+    ov.state_write([thread("T1", "x", "always outperforms the baselines")])
+    assert main(["--root", str(ov.repo), "pull"]) == 0
+    out = capsys.readouterr().out
+    assert "Overleaf comments: 1 thread(s) checked: 1 created (C-0003)" in out and 'on: "always outperforms' in out
+    assert main(["--root", str(ov.repo), "pull"]) == 0
+    assert "Overleaf comments: 1 thread(s) checked, nothing new" in capsys.readouterr().out
+    (ov.repo / ".paper-review.yml").write_text("mode: direct\n")
+    sh(ov.repo, "git", "commit", "-qam", "turn Overleaf comments off")
+    assert main(["--root", str(ov.repo), "pull"]) == 0
+    assert "Overleaf comments: off (add overleaf_project" in capsys.readouterr().out

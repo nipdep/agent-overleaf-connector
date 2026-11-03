@@ -28,7 +28,7 @@ def test_pull_reports_what_the_researcher_did(world):
     # researcher removes the remaining marker in Overleaf -> reported as removed by researcher
     w.user_edit("sections/results.tex", "%% @agent: soften this claim and add a citation\n", "", "removes marker")
     out = pull(w.cfg)
-    assert out["comments"]["removed_by_researcher"] == ["C-0001"] and out["open"] == []
+    assert out["comments"]["markers_removed"] == ["C-0001"] and out["open"] == []
 
 
 def test_pull_with_nothing_new_is_quiet(world):
