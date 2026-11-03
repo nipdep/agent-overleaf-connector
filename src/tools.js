@@ -8,7 +8,6 @@ import { beforeAfter } from './textdiff.js';
 
 export class ToolError extends Error {}
 export const AGENT_PREFIX = '[agent] ';
-const REVIEW_HINT = "\n\nAccept or reject it in the Review panel, or reply here to ask for something different.";
 const DIRECT_HINT = "\n\nThis was applied directly; Overleaf's History can undo it.";
 const MAX_CHARS = 60000;
 
@@ -138,11 +137,13 @@ export class Tools {
     } catch (e) {
       throw new ToolError(`Overleaf did not take the edit: ${e.message}`);
     }
-    const changes = edits.map((e) => {
+    // A tracked change is already shown by Overleaf (struck-through and added text with Accept/Reject), so the reply is
+    // just the agent's words. A direct edit leaves no visible trace, so the reply shows what it said before and now.
+    const changes = tracked ? '' : edits.map((e) => {
       const { before, after } = beforeAfter(e.old, e.new ?? '');
       return `\n\n${edits.length > 1 || e.file !== item.file ? `In ${e.file}:\n` : ''}Before: ${before}\nAfter:  ${after}`;
     }).join('');
-    await this.client.reply(this.project, id, AGENT_PREFIX + reply.trim() + changes + (tracked ? REVIEW_HINT : DIRECT_HINT));
+    await this.client.reply(this.project, id, AGENT_PREFIX + reply.trim() + changes + (tracked ? '' : DIRECT_HINT));
     return { comment_id: id, status: 'addressed', mode: editMode, files: [...byFile.keys()],
       note: tracked ? 'Written into Overleaf as tracked changes; the researcher accepts or rejects them there.' : 'Applied as a plain edit in Overleaf.' };
   }

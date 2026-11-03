@@ -48,20 +48,17 @@ everything works as usual; `.olmcp.json` with `"commentTags": false` turns tag r
 
 ## What the agent's reply shows
 
+In `review` mode the reply is just the agent's words, one to three plain sentences about what it did and why, because
+Overleaf already shows the change itself (struck-through old text, added new text, Accept and Reject buttons):
+
 ```
 [agent] Shortened the sentence and dropped the repeated claim.
-
-Before: …Our method always outperforms the baselines on all tasks.
-After:  …Our method outperforms most baselines on all tasks.
-
-Accept or reject it in the Review panel, or reply here to ask for something different.
 ```
 
-The agent writes one to three plain sentences (what it did and why). The tool adds **Before / After** of the changed
-passage, cropped to the changed words plus a little context (`…` marks the crop), and one line saying what to do next.
-When the edit touches a different file than the comment, or several files, the file name is shown. A `direct` edit
-ends with a note that it was applied directly and that Overleaf's History can undo it. The agent never resolves a
-thread: **a handled comment stays open until you resolve it**.
+A `direct` edit leaves no visible trace, so its reply adds **Before / After** of the changed passage (cropped to the
+changed words plus a little context; `…` marks the crop) and a note that it was applied directly and that Overleaf's
+History can undo it. When a direct edit touches a different file than the comment, or several files, the file name is
+shown. The agent never resolves a thread: **a handled comment stays open until you resolve it**.
 
 ## The tools (MCP) and the CLI
 

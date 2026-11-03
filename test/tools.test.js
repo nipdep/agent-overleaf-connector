@@ -77,7 +77,7 @@ test('address_comment in review mode makes tracked changes and posts the reply w
   assert.deepEqual(kinds, ['d', 'i']);
   const last = fake.state.posted.at(-1);
   assert.equal(last.thread, 'T1');
-  assert.equal(last.content, '[agent] Softened the claim.\n\nBefore: always outperforms the baselines\nAfter:  outperforms most baselines\n\nAccept or reject it in the Review panel, or reply here to ask for something different.');
+  assert.equal(last.content, '[agent] Softened the claim.', 'Overleaf shows the tracked change itself, so the reply is only the agent\'s words');
   const [t1] = await tools.listComments({ status: 'addressed' });
   assert.equal(t1.status, 'addressed');
   assert.equal((await tools.listComments()).some((c) => c.id === 'T1'), false);
@@ -89,7 +89,7 @@ test('direct tag applies a plain edit', async () => {
   assert.equal(out.mode, 'direct');
   assert.equal(fake.state.tcSeen.length, before);
   assert.match(fake.state.docs.d1.content, /Third thought\./);
-  assert.doesNotMatch(fake.state.posted.at(-1).content, /Review panel/);
+  assert.match(fake.state.posted.at(-1).content, /^\[agent\] Rephrased\.\n\nBefore: Third idea here\.\nAfter:  Third thought\.\n\nThis was applied directly/);
 });
 
 test('a failing edit changes nothing and posts nothing', async () => {

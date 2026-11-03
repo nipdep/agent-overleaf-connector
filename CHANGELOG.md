@@ -3,6 +3,10 @@
 Bump `version` in `package.json` for every change that users can notice, and add a line here.
 
 
+## 0.6.1
+- In `review` mode the thread reply is only the agent's words: Overleaf already shows the tracked change, so the
+  Before/After block and the footer are gone. `direct` edits keep Before/After, because they leave no visible trace.
+
 ## 0.6.0
 - **Clearer agent replies.** The thread reply is the agent's one-to-three plain sentences, then **Before / After** of the
   changed passage (cropped to the changed words plus context) and one line on what to do next. The `[-old-]{+new+}`
