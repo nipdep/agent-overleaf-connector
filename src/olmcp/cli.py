@@ -278,6 +278,15 @@ def cmd_doctor(args, cfg):
     print(f"[{'ok' if st == 'on' else 'info'}] Overleaf comments: "
           + (f"on, project {detail}" if st == "on" else f"off ({detail})"))
     print(f"[info] mode {cfg.mode}, default branch {default_branch(cfg.root, cfg.default_branch)}")
+    check("auto_resolve_threads is off", not cfg.auto_resolve_threads,
+          "(it is ON: the tool closes threads itself; set it to false in .olmcp.yml)")
+    agents_md = cfg.root / "AGENTS.md"
+    if agents_md.exists():
+        check("AGENTS.md tells agents never to resolve threads",
+              "never resolve" in agents_md.read_text().lower(),
+              "(your AGENTS.md is from an old version: run olmcp init --force and review git diff)")
+    print("[info] the tool never resolves a thread by itself; if one is resolved, the agent ran "
+          "'olcli comments resolve' itself: deny it (see docs/agents.md, 'Stop an agent resolving threads')")
     return 0 if ok else 1
 
 

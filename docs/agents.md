@@ -85,6 +85,18 @@ unbuilt, hard part. See `design.md` section 19. Until then the OpenAI route is *
 What is only *instruction* (in `AGENTS.md`, which you can edit): how to word replies, when to ask instead of
 guess, which mode to choose for untagged comments, "never push a branch to Overleaf".
 
+## Stop an agent resolving threads
+
+The tool never resolves an Overleaf thread unless `auto_resolve_threads: true`. An agent with a shell can still
+run `olcli comments resolve` itself, using the same cookie as you; nothing in the tool can tell that apart from
+you resolving. Block it where the agent runs:
+
+- Claude Code, `.claude/settings.json`: `{ "permissions": { "deny": ["Bash(olcli:*)"] } }`
+- Codex, a rule in `~/.codex/rules/default.rules` such as `prefix_rule(pattern=["olcli"], decision="forbidden")`
+  (check the syntax against your Codex version). `olmcp pull` and `push` still work: they run outside the agent.
+
+`olmcp doctor` also warns about a stale `AGENTS.md` (written by `olmcp init`, never updated automatically).
+
 ## No MCP? Use the CLI
 
 An agent with only a shell can follow the same loop:
