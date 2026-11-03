@@ -2,6 +2,11 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## Unreleased
+- Documentation set: a short README front page and `docs/` (setup, usage, agents, CI mode, architecture, status and
+  roadmap), `CONTRIBUTING.md` (development, a manual checklist for real Overleaf, releasing), a test workflow that
+  runs the suite on Python 3.10, 3.12 and 3.13, and issue and pull request templates.
+
 ## 0.9.0
 - **Switch direct/suggest easily, and per comment.** `olmcp mode [direct|suggest]` shows or sets the default (a
   committed one-line change; the `set_mode` tool does the same). A comment, follow-up message or `%% @agent:`
