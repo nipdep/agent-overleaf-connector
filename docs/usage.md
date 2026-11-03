@@ -24,6 +24,9 @@ last message), **resolved** (you closed it).
   text and a tracked insertion of the new, which you accept or reject in the Review panel. Reject restores your text.
 - **`direct`**: the edit is applied as a plain edit (undo it with Overleaf's History).
 
+Which project: the agent passes `project` (id, project URL or git URL) with each tool call, or it comes from `.olmcp.json`
+(`olmcp init`), `--project`, `OVERLEAF_PROJECT` or the git remote of the folder.
+
 Default: `mode` in `.olmcp.json` (or `OLMCP_MODE`); `olmcp init <id> --mode direct` sets it.
 Per comment, use a tag. The agent may choose a mode only for untagged comments.
 

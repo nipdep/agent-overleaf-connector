@@ -89,7 +89,7 @@ Add the server to your agent (run from this folder):
   }
   const client = await OverleafClient.connect(loadConfig());
   if (['mcp', 'list', 'show', 'address'].includes(cmd)) {
-    const settings = resolveProject({ flag: flags.project });
+    const settings = resolveProject({ flag: flags.project, required: cmd !== 'mcp' });
     const tools = new Tools(client, settings);
     if (cmd === 'mcp') { await serve(tools); return 0; }
     let result;

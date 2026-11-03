@@ -5,13 +5,13 @@ registration commands; the tools are listed in [usage](usage.md).
 
 | Client | Registration | Notes |
 |---|---|---|
-| Claude Code | `claude mcp add olmcp -- "$(which olmcp)" mcp` | Restart it after adding |
+| Claude Code | `claude mcp add --scope user olmcp -- "$(which olmcp)" mcp` | Restart it after adding; `--scope user` makes it available in every folder |
 | Codex | `codex mcp add olmcp -- "$(which olmcp)" mcp` | Reads the folder's `AGENTS.md` |
 | Others that start local servers | command `olmcp`, arguments `mcp` | Untested |
 | ChatGPT chat apps | not supported | They need a remote HTTPS server with authentication |
 
-Run the agent from the folder where you ran `olmcp init`: it holds the project id and `AGENTS.md`.
-Keep any older MCP server for the same project removed, so the agent has one set of tools.
+Name the project when you ask (the tools take a `project` argument: id, project URL or git URL), or run the agent
+from a folder where you ran `olmcp init`, which holds the project id and an `AGENTS.md`. Keep any older MCP server for the same project removed, so the agent has one set of tools.
 
 ## What the tools enforce, and what is only instruction
 

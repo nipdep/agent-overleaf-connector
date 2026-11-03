@@ -109,9 +109,9 @@ test('read_file, list_files, render_pdf', async () => {
 });
 
 // ---- the MCP server over stdio, speaking JSON-RPC like a client
-function mcpSession() {
+function mcpSession(args = ['--project', 'a'.repeat(24)]) {
   const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url));
-  const child = spawn(process.execPath, [cli, 'mcp', '--project', 'p1'], { env: { ...process.env, OVERLEAF_BASE_URL: fake.url, OVERLEAF_SESSION: 'good', OLMCP_OVERLEAF_CONFIG: '/nonexistent/c.json' } });
+  const child = spawn(process.execPath, [cli, 'mcp', ...args], { env: { ...process.env, OVERLEAF_BASE_URL: fake.url, OVERLEAF_SESSION: 'good', OLMCP_OVERLEAF_CONFIG: '/nonexistent/c.json' } });
   let buffer = ''; const waiting = new Map();
   child.stdout.on('data', (d) => {
     buffer += d;
@@ -141,5 +141,24 @@ test('MCP: initialize, list tools, call a tool, refuse #no-agent as an error res
   assert.equal(refused.result.isError, true);
   assert.match(refused.result.content[0].text, /#no-agent/);
   assert.equal((await s.call('nope', {})).error.code, -32601);
+  await s.close();
+});
+
+test('MCP without a configured project: the agent passes the project (id, project URL or git URL) per call', async () => {
+  const s = mcpSession([]);
+  await s.call('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } });
+  const none = await s.call('tools/call', { name: 'list_files', arguments: {} });
+  assert.equal(none.result.isError, true);
+  assert.match(none.result.content[0].text, /pass "project"/);
+  const id = 'b'.repeat(24);
+  for (const ref of [id, `https://www.overleaf.com/project/${id}`, `git clone https://git@git.overleaf.com/${id}`]) {
+    const ok = await s.call('tools/call', { name: 'list_files', arguments: { project: ref } });
+    assert.equal(ok.result.isError, false, ref);
+  }
+  const bad = await s.call('tools/call', { name: 'list_files', arguments: { project: 'not an id' } });
+  assert.equal(bad.result.isError, true);
+  assert.match(bad.result.content[0].text, /project id/);
+  const tools = (await s.call('tools/list', {})).result.tools;
+  assert.ok(tools.every((x) => x.inputSchema.properties.project));
   await s.close();
 });

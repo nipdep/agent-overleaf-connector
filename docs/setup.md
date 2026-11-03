@@ -33,9 +33,25 @@ self-hosted Overleaf add `--base-url https://your.overleaf.example`. The cookie 
 expires after a few days; repeat this step when the tool says the session expired. Never paste it into a chat, an
 issue or a commit. If you did, log out of Overleaf in the browser (that ends the session) and sign in again.
 
-## 3. Point a folder at the project
+## 3. Connect your agent (once)
 
-The project id is the 24-character part of the project's URL.
+```bash
+claude mcp add --scope user olmcp -- "$(which olmcp)" mcp
+codex mcp add olmcp -- "$(which olmcp)" mcp
+```
+
+These register the server for all your folders; restart the agent afterwards. Other MCP clients that start local
+servers: command `olmcp`, argument `mcp`. ChatGPT's chat apps need a remote HTTPS server and are not supported; use
+Codex. (Claude Code without `--scope user` registers it for the current folder only.)
+
+## 4. Name the project
+
+Nothing needs to be cloned or configured per project. Either tell the agent the project when you ask:
+
+> Address the review comments in https://www.overleaf.com/project/&lt;id&gt;
+
+(the id, the project URL or the git URL all work; the tools take a `project` argument and the server's own instructions
+tell the agent to pass it), or save it for a folder:
 
 ```bash
 mkdir my-paper-agent && cd my-paper-agent
@@ -43,21 +59,9 @@ olmcp init <project-id> --mode review        # or --mode direct
 olmcp doctor
 ```
 
-`init` writes `.olmcp.json` (project and default mode) and an `AGENTS.md` with the agent's instructions
-(an existing `AGENTS.md` is left alone). `doctor` must show the cookie present and the comments readable. The project
-is also found from `--project`, `OVERLEAF_PROJECT`, or the git remote of the folder if it is an Overleaf clone.
-
-## 4. Connect your agent
-
-Run these from the folder, then restart the agent:
-
-```bash
-claude mcp add olmcp -- "$(which olmcp)" mcp
-codex mcp add olmcp -- "$(which olmcp)" mcp
-```
-
-Other MCP clients that start local servers: command `olmcp`, argument `mcp`, working directory the folder.
-ChatGPT's chat apps need a remote HTTPS server and are not supported; use Codex.
+`init` writes `.olmcp.json` (project and default mode) and an `AGENTS.md` with the agent's instructions (an existing
+`AGENTS.md` is left alone). Without it the same instructions come from the server itself. A folder that is a clone of the
+project's Overleaf git remote is recognised too, and `--project` / `OVERLEAF_PROJECT` also work.
 
 ## 5. Use it
 

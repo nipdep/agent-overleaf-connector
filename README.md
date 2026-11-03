@@ -26,19 +26,23 @@ dependencies. No git, no CI, no copies of your paper.
 
 ## Quick start
 
-Needs Node 20+ and an Overleaf account. **No paid Overleaf plan or Git integration is required.**
+Needs Node 20+ and an Overleaf account. **No paid Overleaf plan, Git integration, clone or per-project setup is
+needed.** One-time setup:
 
 ```bash
 npm install -g github:nipdep/agent-overleaf-connector        # gives the command olmcp
 olmcp auth --cookie "<value of the overleaf_session2 cookie>"   # never paste it into a chat
-mkdir my-paper-agent && cd my-paper-agent
-olmcp init <24-character-project-id>                 # the id is in the project's URL
-olmcp doctor
-claude mcp add olmcp -- "$(which olmcp)" mcp   # and/or:
+claude mcp add --scope user olmcp -- "$(which olmcp)" mcp       # and/or:
 codex mcp add olmcp -- "$(which olmcp)" mcp
+olmcp doctor --project <project-id>                              # optional check
 ```
 
-Then comment in Overleaf and tell the agent: "address the review comments". Details: [docs/setup.md](docs/setup.md).
+Then, from any folder, tell the agent which project, by id, project URL or the git URL Overleaf gives you:
+
+> Address the review comments in https://www.overleaf.com/project/&lt;id&gt;
+
+The agent passes the project to the tools itself. (Optional: `olmcp init <project-id>` in a folder saves the project,
+the default mode and an `AGENTS.md` there, so you do not have to name it.) Details: [docs/setup.md](docs/setup.md).
 
 ## Everyday use
 

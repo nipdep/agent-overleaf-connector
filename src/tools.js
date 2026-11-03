@@ -3,6 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseTags, skipReasons, stripTags } from './tags.js';
+import { parseProjectRef } from './project.js';
 import { wordDiff } from './textdiff.js';
 
 export class ToolError extends Error {}
@@ -34,9 +35,24 @@ export function toItem(c, { commentTags = true } = {}) {
 }
 
 export class Tools {
-  constructor(client, { project, mode = 'review', commentTags = true }) {
-    this.client = client; this.project = project; this.defaultMode = mode; this.commentTags = commentTags;
+  constructor(client, { project = null, mode = 'review', commentTags = true }) {
+    this.client = client; this.defaultProject = project; this.defaultMode = mode; this.commentTags = commentTags;
+    this.currentProject = project;
   }
+
+  /** The same tools bound to the project the agent named (an id, a project URL or a git URL), if it named one. */
+  forProject(ref) {
+    if (!ref) {
+      if (!this.defaultProject) throw new ToolError('no project is set for this folder: pass "project" (the Overleaf project id, project URL or git URL) with the call, or run "olmcp init <project-id>" here');
+      return this;
+    }
+    let id;
+    try { id = parseProjectRef(ref); } catch (e) { throw new ToolError(e.message); }
+    const bound = new Tools(this.client, { project: id, mode: this.defaultMode, commentTags: this.commentTags });
+    return bound;
+  }
+
+  get project() { return this.currentProject; }
 
   async items() {
     const comments = await this.client.listComments(this.project, { status: 'all' });

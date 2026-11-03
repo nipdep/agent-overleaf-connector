@@ -59,7 +59,7 @@ test('pdf saves the compiled file', async () => {
 });
 
 test('doctor reports the cookie, project and comment access', async () => {
-  const r = await run(['doctor', '--project', 'p1']);
+  const r = await run(['doctor', '--project', 'a'.repeat(24)]);
   assert.equal(r.code, 0, r.err + r.out);
   assert.match(r.out, /\[ok\] session cookie present/);
   assert.match(r.out, /\[ok\] Overleaf reachable, 1 comment thread\(s\) readable/);

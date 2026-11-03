@@ -3,6 +3,11 @@
 Bump `version` in `package.json` for every change that users can notice, and add a line here.
 
 
+## 0.5.0
+- **No clone or per-folder setup.** Every tool takes an optional `project` argument (an id, a project URL or a git
+  URL), so the server can be registered once for all folders and the agent told which project to work on; the
+  server's own instructions carry the rules. `olmcp init` is now optional. `olmcp mcp` starts without a project.
+
 ## 0.4.0
 - **The command is now `olmcp`** (package `olmcp`). `olmcp-overleaf` stays as an alias so existing registrations keep
   working. The project file is `.olmcp.json` and the cookie file `~/.config/olmcp/config.json`; the old names
