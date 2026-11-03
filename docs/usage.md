@@ -12,7 +12,7 @@ agent's work. There is no daemon and no polling.
 
 ## Making a comment
 
-**Native Overleaf comment** (needs `olcli`, see [setup](setup.md)): select text, add a Review comment. The agent
+**Native Overleaf comment** (needs `olmcp-overleaf`, see [setup](setup.md)): select text, add a Review comment. The agent
 receives your message, the selected text (`selected_text`), and the thread. Later messages you write in the
 thread are follow-ups the agent sees.
 
@@ -37,7 +37,7 @@ Only files the paper uses are scanned; keep comments out of `archive/` or `sampl
 - **`direct`** applies an edit to your files at once, as a normal Overleaf edit.
 - **`suggest`** holds the edit for you to accept or reject in `redline.tex`.
 - **`review`** writes the edit into Overleaf as a **tracked change** (Reviewing mode); you accept or reject it in
-  Overleaf's Review panel. Needs a native comment and the Node client (`olcli: olmcp-overleaf`, see
+  Overleaf's Review panel. Needs a native comment and the Node client (see
   [overleaf-client.md](overleaf-client.md)); **not yet verified on real Overleaf**. Git is not touched: the accepted
   text arrives with your next `olmcp pull`.
 
@@ -77,7 +77,7 @@ Our method [-always-] outperforms [-the-]{+most+} baselines on the benchmarks
 
 "Proposed edit" (with the decide footer) for `suggest`, "Edit applied" for `direct`. `[-removed-]{+added+}`
 is an inline word diff. The agent never resolves a thread: **a handled comment stays open until you resolve it**
-(set `auto_resolve_threads: true` to have the tool close it when its change is applied).
+(there is no setting that changes this).
 
 ## Deciding on a held change (suggest)
 
@@ -128,7 +128,7 @@ All commands accept `--root <dir>`; most listing commands accept `--json`. Run `
 | `list [--status ...]`, `show ID` | Comments and their conversation |
 | `address ID [file.json]` | Address one comment: edits + reply + commit, atomically (for agents with only a shell) |
 | `reply ID TEXT`, `resolve ID` | Reply without editing; mark a comment addressed |
-| `overleaf-check [--raw]` | Verify access to Overleaf's comments through `olcli` |
+| `overleaf-check [--raw]` | Verify access to Overleaf's comments through `olmcp-overleaf` |
 | `mcp` | Run the MCP server (stdio) for Claude Code, Codex and others |
 | `doctor` | Check git, TeX, latexdiff, main file, Overleaf comments |
 | `build` | Render the paper (PDF, page images); needs TeX |
@@ -146,8 +146,7 @@ All optional. The old name `.paper-review.yml` is still read, and `olmcp init` r
 | `comment_tags` | `true` | Set `false` to ignore `#agent`, `#no-agent`, `#suggest`, `#direct` |
 | `overleaf_comments` | `true` | Set `false` to turn native Overleaf comments off |
 | `overleaf_project` | from the remote URL | Override the project id |
-| `auto_resolve_threads` | `false` | Close an Overleaf thread when its change is applied |
-| `olcli` | `olcli` | Command used to reach Overleaf's comment API |
+| `overleaf_client` | `olmcp-overleaf` | Command used to reach Overleaf (the old key `olcli` still works) |
 | `remote`, `remote_branch` | `origin`, the default branch | Git remote and branch to sync with |
 | `default_branch` | detected | The branch Overleaf shows (`master` or `main`) |
 | `marker` | `agent` | The word in `%% @agent:` markers |

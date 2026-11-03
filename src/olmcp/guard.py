@@ -1,8 +1,8 @@
-"""Keep agents away from ``olcli``.
+"""Keep agents away from the Overleaf client (``olmcp-overleaf``, and the old ``olcli`` if it is installed).
 
-The tool never resolves an Overleaf thread (unless ``auto_resolve_threads``), but an agent with a shell can run
-``olcli comments resolve`` itself with the researcher's cookie. These rules deny that where the agent runs;
-``olmcp pull`` / ``push`` call ``olcli`` outside the agent and keep working.
+The tool never resolves an Overleaf thread, and ``olmcp-overleaf`` has no resolve command, but the old ``olcli``
+does, and any program holding the researcher's cookie could. These rules deny the client commands where the agent
+runs; ``olmcp pull`` / ``push`` call the client outside the agent and keep working.
 """
 
 from __future__ import annotations
@@ -16,13 +16,18 @@ from .config import Config
 CODEX_RULE_FILE = "olmcp.rules"
 
 
-def _program(cfg: Config) -> str:
-    parts = shlex.split(cfg.olcli or "olcli")
-    return Path(parts[0]).name if parts else "olcli"
+def _programs(cfg: Config) -> list[str]:
+    parts = shlex.split(cfg.overleaf_client or "olmcp-overleaf")
+    names = [Path(parts[0]).name] if parts else []
+    return list(dict.fromkeys(names + ["olmcp-overleaf", "olcli"]))
 
 
 def claude_rule(cfg: Config) -> str:
-    return f"Bash({_program(cfg)}:*)"
+    return f"Bash({_programs(cfg)[0]}:*)"
+
+
+def claude_rules(cfg: Config) -> list[str]:
+    return [f"Bash({p}:*)" for p in _programs(cfg)]
 
 
 def protect_claude(cfg: Config) -> str:
@@ -35,13 +40,13 @@ def protect_claude(cfg: Config) -> str:
         except json.JSONDecodeError:
             return f"skipped .claude/settings.json (not valid JSON; add deny rule {claude_rule(cfg)!r} yourself)"
     deny = data.setdefault("permissions", {}).setdefault("deny", [])
-    rule = claude_rule(cfg)
-    if rule in deny:
-        return f".claude/settings.json already denies {rule}"
-    deny.append(rule)
+    missing = [r for r in claude_rules(cfg) if r not in deny]
+    if not missing:
+        return ".claude/settings.json already denies the Overleaf client"
+    deny.extend(missing)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    return f"added deny rule {rule} to .claude/settings.json (Claude Code cannot run olcli here)"
+    return f"added deny rules {', '.join(missing)} to .claude/settings.json (Claude Code cannot run the client here)"
 
 
 def codex_rules_path(home: Path | None = None) -> Path:
@@ -51,10 +56,10 @@ def codex_rules_path(home: Path | None = None) -> Path:
 def protect_codex(cfg: Config, home: Path | None = None) -> str:
     """Write a Codex execution-policy rule in its own file, leaving ``default.rules`` alone (user-wide)."""
     path = codex_rules_path(home)
-    prog = _program(cfg)
-    text = (f"# written by olmcp: agents must not run {prog} (it could resolve Overleaf threads)\n"
-            f'prefix_rule(pattern=["{prog}"], decision="forbidden")\n')
+    progs = _programs(cfg)
+    text = "# written by olmcp: agents must not run the Overleaf client directly\n" + "".join(
+        f'prefix_rule(pattern=["{p}"], decision="forbidden")\n' for p in progs)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
-    return (f"wrote {path} (Codex, all projects). Check it: ask Codex to run '{prog} --help'; "
+    return (f"wrote {path} (Codex, all projects). Check it: ask Codex to run '{progs[0]} --help'; "
             "it should be refused. Syntax follows Codex's execpolicy rules; verify it for your version")

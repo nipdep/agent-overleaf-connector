@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-overleaf-connector"
-version = "0.11.0"
+version = "0.12.0"
 description = "AI-agent review loop for Overleaf/LaTeX papers: native comments, agent edits, redlines, accept or reject, MCP server (command: olmcp)."
 readme = "README.md"
 requires-python = ">=3.10"

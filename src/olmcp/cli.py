@@ -288,8 +288,8 @@ def cmd_doctor(args, cfg):
     print(f"[{'ok' if st == 'on' else 'info'}] Overleaf comments: "
           + (f"on, project {detail}" if st == "on" else f"off ({detail})"))
     print(f"[info] mode {cfg.mode}, default branch {default_branch(cfg.root, cfg.default_branch)}")
-    check("auto_resolve_threads is off", not cfg.auto_resolve_threads,
-          "(it is ON: the tool closes threads itself; set it to false in .olmcp.yml)")
+    if "auto_resolve_threads" in cfg.extra:
+        print("[info] auto_resolve_threads no longer exists: the tool never resolves threads; remove it from .olmcp.yml")
     agents_md = cfg.root / "AGENTS.md"
     if agents_md.exists():
         check("AGENTS.md tells agents never to resolve threads",
@@ -298,9 +298,9 @@ def cmd_doctor(args, cfg):
     from .guard import claude_rule
     settings = cfg.root / ".claude" / "settings.json"
     guarded = settings.exists() and claude_rule(cfg) in settings.read_text()
-    check("Claude Code is denied olcli", guarded, "(run: olmcp guard)")
-    print("[info] the tool never resolves a thread itself; if one is resolved, an agent ran 'olcli comments "
-          "resolve'. Block it: olmcp guard (Claude Code) and olmcp guard --codex")
+    check("Claude Code is denied the Overleaf client", guarded, "(run: olmcp guard)")
+    print("[info] the tool never resolves a thread itself; if one is resolved, an agent used the Overleaf "
+          "session itself. Block the client commands: olmcp guard (Claude Code) and olmcp guard --codex")
     return 0 if ok else 1
 
 
@@ -351,14 +351,14 @@ def main(argv: list[str] | None = None) -> int:
     sp = add("address", cmd_address, "address ONE comment atomically (edits + reply + commit) from JSON in a file or stdin")
     sp.add_argument("id")
     sp.add_argument("json_file", nargs="?", default="-", help="JSON file, or - for stdin (default)")
-    sp = add("overleaf-check", cmd_overleaf_check, "check that native Overleaf comments are reachable (needs olcli)")
-    sp.add_argument("--raw", action="store_true", help="print olcli's raw JSON (contains names/emails)")
+    sp = add("overleaf-check", cmd_overleaf_check, "check that native Overleaf comments are reachable (needs olmcp-overleaf)")
+    sp.add_argument("--raw", action="store_true", help="print the client's raw JSON (contains names/emails)")
     add("mcp", cmd_mcp, "run the MCP server (stdio) so Claude Code, Codex and other MCP clients can use the tools")
     add("changelog", cmd_changelog, "regenerate review/CHANGELOG.md")
     sp = add("ci", cmd_ci, "run the CI steps for the current branch")
     sp.add_argument("--branch")
     sp.add_argument("--push", action="store_true")
-    sp = add("guard", cmd_guard, "stop agents from running olcli (and so from resolving threads)")
+    sp = add("guard", cmd_guard, "stop agents from running the Overleaf client or olcli directly")
     sp.add_argument("--codex", action="store_true", help="also write a Codex rule in ~/.codex/rules (all projects)")
     add("doctor", cmd_doctor, "check the environment and configuration")
 

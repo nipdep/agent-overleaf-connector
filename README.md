@@ -17,7 +17,7 @@ Overleaf has no connector for AI agents. This tool is that connector:
 
 ```
  Overleaf project ── Git + native comments ──  your clone  ──  AI agent
- (you comment here)        (olcli)             (olmcp)         (Claude Code / Codex / ...)
+ (you comment here)        (olmcp-overleaf)      (olmcp)         (Claude Code / Codex / ...)
 ```
 
 > Status: **0.9.x, early.** Tested with real git and TeX Live, a fake Overleaf comment API, and the MCP SDK's
@@ -30,12 +30,13 @@ Needs Linux or macOS, Python 3.10+, git, and an Overleaf project with **Git inte
 Full steps, with troubleshooting: **[docs/setup.md](docs/setup.md)**.
 
 ```bash
-# 1. install (and, for native Overleaf comments, the community CLI olcli)
+# 1. install (and, for native Overleaf comments, the Node client from this repository)
 pipx install "agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"
-npm install -g @aloth/olcli
+git clone https://github.com/nipdep/agent-overleaf-connector ~/agent-overleaf-connector
+(cd ~/agent-overleaf-connector/node && npm install -g .)
 
-# 2. log in to olcli with your Overleaf session cookie (never paste it into a chat)
-olcli auth --cookie "<overleaf_session2 cookie value>"
+# 2. log in with your Overleaf session cookie (never paste it into a chat)
+olmcp-overleaf auth --cookie "<overleaf_session2 cookie value>"
 
 # 3. clone your project (username: git, password: an Overleaf Git token) and set it up
 git clone https://git@git.overleaf.com/<project-id> my-paper && cd my-paper

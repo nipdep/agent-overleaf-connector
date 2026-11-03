@@ -1,12 +1,12 @@
-"""Native Overleaf review comments, through the community CLI ``olcli`` (MIT).
+"""Native Overleaf review comments, through our own Overleaf client ``olmcp-overleaf`` (node/).
 
 Select text in Overleaf, add a comment in its Review panel, and the agent sees the selected range
-and your message; its reply appears in the same thread and you resolve the thread when you are satisfied (the tool only closes it for you if auto_resolve_threads is on)
+and your message; its reply appears in the same thread and you resolve the thread when you are satisfied
 is accepted.
 
-Overleaf has no public API for comments and they are not in git, so this uses ``olcli``, which talks
-to the web editor's own API with your browser session cookie. This tool never sees the cookie:
-credentials stay with ``olcli`` (``olcli auth --cookie ...`` or the ``OVERLEAF_SESSION`` variable).
+Overleaf has no public API for comments and they are not in git, so this uses ``olmcp-overleaf``, which talks
+to the web editor's own API with your browser session cookie (its approach follows olcli, MIT). This tool
+never sees the cookie: it stays with the client (``olmcp-overleaf auth --cookie ...`` or ``OVERLEAF_SESSION``).
 Unofficial, so it can break when Overleaf changes; every failure here is a warning, never fatal.
 
 Agent messages posted to a thread are prefixed ``[agent] `` (they appear under your account), which
@@ -33,8 +33,8 @@ from .textdiff import word_diff  # noqa: F401  (also used by tests)
 AGENT_PREFIX = "[agent] "
 DECIDE_HINT = ("\n\n(Proposed change, not applied yet: resolve this thread to accept it, or reply here "
                "to reject or adjust it. The redline is in redline.tex.)")
-INSTALL_HINT = ("install olcli (npm install -g @aloth/olcli), then run: olcli auth --cookie "
-                "\"<your overleaf_session2 cookie>\"  (or set OVERLEAF_SESSION)")
+INSTALL_HINT = ("install the client (cd node && npm install -g .), then run: olmcp-overleaf auth --cookie "
+                "\"<your overleaf_session2 cookie>\"  (or set OVERLEAF_SESSION); see docs/overleaf-client.md")
 
 
 class OverleafError(RuntimeError):
@@ -78,8 +78,8 @@ def state(cfg: Config) -> tuple[str, str]:
     if not pid:
         return "off", ("this clone's remote is not an Overleaf Git URL "
                        "(clone https://git.overleaf.com/<project-id>, or set overleaf_project)")
-    if not cfg.overleaf_project and not (cfg.olcli.split() and shutil.which(cfg.olcli.split()[0])):
-        return "off", "olcli is not installed (to read the Review panel: npm install -g @aloth/olcli, then olcli auth)"
+    if not cfg.overleaf_project and not (cfg.overleaf_client.split() and shutil.which(cfg.overleaf_client.split()[0])):
+        return "off", "olmcp-overleaf is not installed (cd node && npm install -g ., then olmcp-overleaf auth; see docs/overleaf-client.md)"
     return "on", pid
 
 
@@ -88,22 +88,22 @@ def enabled(cfg: Config) -> bool:
 
 
 def _base(cfg: Config) -> list[str]:
-    return shlex.split(cfg.olcli)
+    return shlex.split(cfg.overleaf_client)
 
 
 def _run(cfg: Config, args: list[str], timeout: int = 240, input_text: str | None = None) -> str:
     cmd = _base(cfg) + args
     if not cmd or not shutil.which(cmd[0]):
-        raise OverleafError(f"olcli not found: {INSTALL_HINT}")
+        raise OverleafError(f"Overleaf client not found: {INSTALL_HINT}")
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
                               input=input_text, stdin=None if input_text is not None else subprocess.DEVNULL)
     except subprocess.TimeoutExpired as exc:
-        raise OverleafError(f"olcli timed out after {timeout}s ({' '.join(args[:2])})") from exc
+        raise OverleafError(f"the Overleaf client timed out after {timeout}s ({' '.join(args[:2])})") from exc
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout).strip().splitlines()
-        raise OverleafError(f"olcli {' '.join(args[:2])} failed: {detail[-1] if detail else 'no output'}"
-                            " (an expired session cookie is the usual cause: olcli auth --cookie ...)")
+        raise OverleafError(f"Overleaf client {' '.join(args[:2])} failed: {detail[-1] if detail else 'no output'}"
+                            " (an expired session cookie is the usual cause: olmcp-overleaf auth --cookie ...)")
     return proc.stdout
 
 
@@ -119,10 +119,10 @@ def _author(message: dict) -> str:
 
 
 def parse_threads(raw: str) -> list[dict]:
-    """Normalise ``olcli comments list --json`` output (a bare array, or ``{comments, changes}``)."""
+    """Normalise ``olmcp-overleaf comments list --json`` output (a bare array, or ``{comments, changes}``)."""
     start = min((i for i in (raw.find("["), raw.find("{")) if i >= 0), default=-1)
     if start < 0:
-        raise OverleafError("olcli printed no JSON")
+        raise OverleafError("the Overleaf client printed no JSON")
     data = json.loads(raw[start:])
     items = data.get("comments", []) if isinstance(data, dict) else data
     out = []
@@ -153,7 +153,7 @@ def list_threads(cfg: Config, status: str = "all") -> list[dict]:
     try:
         return parse_threads(raw)
     except (json.JSONDecodeError, OverleafError):
-        # some olcli versions only emit JSON together with --changes
+        # the old olcli only emitted JSON together with --changes
         return parse_threads(_run(cfg, args + ["--changes"]))
 
 
@@ -170,8 +170,8 @@ def tracked_edit(cfg: Config, file: str, edits: list[dict]) -> dict:
     try:
         out = _run(cfg, ["edit", pid, file, "--stdin", "--json"], input_text=payload)
     except OverleafError as exc:
-        raise ReviewEditError(f"{exc}. Review mode needs the Node client: set 'olcli: olmcp-overleaf' in "
-                              f".olmcp.yml (see docs/overleaf-client.md)") from exc
+        raise ReviewEditError(f"{exc}. Review mode needs the Node client olmcp-overleaf "
+                              f"(see docs/overleaf-client.md)") from exc
     try:
         return json.loads(out[out.find("{"):])
     except (ValueError, json.JSONDecodeError):
@@ -180,10 +180,6 @@ def tracked_edit(cfg: Config, file: str, edits: list[dict]) -> dict:
 
 def reply(cfg: Config, thread_id: str, text: str) -> None:
     _run(cfg, ["comments", "reply", thread_id, text, project_id(cfg), "--json"])
-
-
-def resolve(cfg: Config, thread_id: str) -> None:
-    _run(cfg, ["comments", "resolve", thread_id, project_id(cfg), "--json"])
 
 
 # ------------------------------------------------------------------------------ import
@@ -357,7 +353,7 @@ def _effective(cfg: Config, store: Store, agent_branch: str | None) -> list[dict
 
 
 def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
-    """Post the agent's replies into their Overleaf threads and resolve accepted ones.
+    """Post the agent's replies into their Overleaf threads. Threads are never resolved by the tool.
 
     Idempotent without local state: a reply is posted only if no message with exactly that text is
     in the thread yet; a thread is resolved only if it is still open there.
@@ -365,7 +361,6 @@ def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
     store = Store(cfg)
     threads = {t["thread_id"]: t for t in list_threads(cfg, "all")}
     posted: list[str] = []
-    resolved: list[str] = []
     for c in _effective(cfg, store, agent_branch):
         origin = c["origin"]
         t = threads.get(origin.get("thread_id", ""))
@@ -383,16 +378,7 @@ def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
                 reply(cfg, t["thread_id"], msg)
                 have.append(msg.strip())
                 posted.append(c["id"])
-        replies = _agent_replies(c)
-        made_in = (replies[-1][2] if replies else None) or cfg.mode
-        applied = stored["status"] == "resolved" or (made_in == "direct" and stored["status"] == "addressed")
-        if cfg.auto_resolve_threads and applied and not t["resolved"] \
-                and not stored["origin"].get("resolve_pushed"):
-            resolve(cfg, t["thread_id"])
-            stored["origin"]["resolve_pushed"] = True
-            store.save(stored)
-            resolved.append(c["id"])
-    return {"replies_posted": posted, "threads_resolved": resolved}
+    return {"replies_posted": posted}
 
 
 def check(cfg: Config) -> dict:

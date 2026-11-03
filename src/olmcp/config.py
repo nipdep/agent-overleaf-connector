@@ -34,8 +34,7 @@ class Config:
     overleaf_project: str | None = None  # override; normally read from the git remote URL
     overleaf_comments: bool = True  # set false to turn native Overleaf comments off
     comment_tags: bool = True  # read #agent / #no-agent / #suggest / #direct in comments; false = plain text
-    auto_resolve_threads: bool = False  # true: close an Overleaf thread when its change is applied (default: only you do)
-    olcli: str = "olcli"  # command used to reach Overleaf's comment API
+    overleaf_client: str = "olmcp-overleaf"  # command used to reach Overleaf (comments, tracked edits)
     remote: str = "origin"  # git remote used by `pull` / `push` (e.g. Overleaf's git.overleaf.com)
     remote_branch: str | None = None  # branch on that remote (Overleaf: master or main); default: the default branch
     marker: str = "agent"  # comment marker word: ``%% @agent: ...``
@@ -94,6 +93,8 @@ def load_config(root: Path) -> Config:
     if path.exists():
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for key, value in data.items():
+            if key == "olcli":  # the old name of overleaf_client (the interface is compatible)
+                key = "overleaf_client"
             if hasattr(cfg, key) and key not in {"root", "extra"}:
                 setattr(cfg, key, value)
             else:

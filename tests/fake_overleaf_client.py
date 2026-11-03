@@ -5,23 +5,23 @@
   olcli comments reply <threadId> <body> [project] [--json]
   olcli comments resolve|reopen <threadId> [project] [--json]
 
-State lives in the JSON file named by FAKE_OLCLI_STATE: {"threads": [ProjectComment, ...]} where a
+State lives in the JSON file named by FAKE_CLIENT_STATE: {"threads": [ProjectComment, ...]} where a
 ProjectComment has threadId, docId, path, position, line, column, selectedText, resolved, messages.
-FAKE_OLCLI_FAIL=1 makes every call fail like an expired session.
+FAKE_CLIENT_FAIL=1 makes every call fail like an expired session.
 """
 import json
 import os
 import sys
 
 args = sys.argv[1:]
-if os.environ.get("FAKE_OLCLI_FAIL"):
+if os.environ.get("FAKE_CLIENT_FAIL"):
     print("Failed: session expired", file=sys.stderr)
     sys.exit(1)
 
-state_path = os.environ["FAKE_OLCLI_STATE"]
+state_path = os.environ["FAKE_CLIENT_STATE"]
 state = json.load(open(state_path))
 if args[:1] == ["edit"]:
-    if os.environ.get("FAKE_OLCLI_EDIT_FAIL"):
+    if os.environ.get("FAKE_CLIENT_EDIT_FAIL"):
         print("error: the old text was not found in " + args[2], file=sys.stderr)
         sys.exit(1)
     payload = json.loads(sys.stdin.read())

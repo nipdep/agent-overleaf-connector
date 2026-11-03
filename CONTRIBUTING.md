@@ -9,9 +9,9 @@ decisions, [docs/design.md](docs/design.md); for what is open, [docs/status-and-
 - **A connector, not a policy.** The tool gives agents capabilities and honours what the researcher chose. Please do
   not add features that decide how an agent should work for a given kind of task; those belong in instructions
   (`templates/AGENTS.md`) the user can edit.
-- **Never handle secrets.** Credentials stay with git and `olcli`. Do not log, store or print tokens or cookies, and
+- **Never handle secrets.** Credentials stay with git and `olmcp-overleaf`. Do not log, store or print tokens or cookies, and
   do not paste them into issues.
-- **Optional things stay optional.** Missing TeX, `olcli` or `latexdiff` must switch a feature off with a clear
+- **Optional things stay optional.** Missing TeX, `olmcp-overleaf` or `latexdiff` must switch a feature off with a clear
   message, never break the core.
 - **Tests come with the change.** Behaviour you add or change needs a test; so does every bug you fix.
 
@@ -33,7 +33,7 @@ sudo apt install -y latexmk latexdiff texlive-latex-base texlive-latex-recommend
 ```
 
 Run part of it: `pytest tests/test_modes.py -q`, or `pytest -k redline`. Nothing in the suite needs the network
-or a real Overleaf; native comments are tested against `tests/fake_olcli.py`.
+or a real Overleaf; native comments are tested against `tests/fake_overleaf_client.py`.
 
 ## Making a change
 
@@ -58,7 +58,7 @@ or a real Overleaf; native comments are tested against `tests/fake_olcli.py`.
 
 ## Testing against real Overleaf
 
-Automated tests cannot reach the real Overleaf or the real `olcli`, so changes that touch `overleaf.py`,
+Automated tests cannot reach the real Overleaf or the real Overleaf client, so changes that touch `overleaf.py`,
 `local.py` or the thread messages need this check on a **scratch project** (never your real paper) before release:
 
 1. `olmcp overleaf-check` prints `ok: project ...`.

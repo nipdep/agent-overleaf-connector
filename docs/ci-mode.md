@@ -6,7 +6,7 @@ GitHub sync connects the project to a GitHub repository, and a GitHub Actions wo
 
 Trade-offs: each round costs two manual clicks in Overleaf (Push to GitHub, Pull from GitHub) and a 2 to 3
 minute workflow run, and it needs the GitHub sync (also a premium Overleaf feature). Native Overleaf comments
-are not available in this mode (they need `olcli` and a local clone); `%% @agent:` markers are.
+are not available in this mode (they need `olmcp-overleaf` and a local clone); `%% @agent:` markers are.
 
 ## Setup
 

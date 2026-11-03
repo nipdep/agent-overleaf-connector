@@ -17,7 +17,7 @@ from olmcp.store import Store
 
 from conftest import needs_latexdiff, sh
 
-FAKE = Path(__file__).parent / "fake_olcli.py"
+FAKE = Path(__file__).parent / "fake_overleaf_client.py"
 PROJECT = "6ae8eca020f2e6cc79d3e5a2"
 SOFTEN = {"file": "sections/results.tex", "old": "always outperforms the baselines",
           "new": "outperforms most baselines"}
@@ -32,13 +32,13 @@ def thread(tid, text, quote, path="/sections/results.tex", line=3, resolved=Fals
 
 @pytest.fixture
 def ov(world, tmp_path, monkeypatch):
-    """world + Overleaf comments enabled, backed by the fake olcli."""
-    state = tmp_path / "olcli_state.json"
+    """world + Overleaf comments enabled, backed by the fake client."""
+    state = tmp_path / "client_state.json"
     state.write_text(json.dumps({"threads": []}))
-    monkeypatch.setenv("FAKE_OLCLI_STATE", str(state))
+    monkeypatch.setenv("FAKE_CLIENT_STATE", str(state))
     w = world
     (w.repo / ".olmcp.yml").write_text(
-        f"overleaf_project: {PROJECT}\nolcli: {json.dumps(shlex.join([sys.executable, str(FAKE)]))}\n")
+        f"overleaf_project: {PROJECT}\noverleaf_client: {json.dumps(shlex.join([sys.executable, str(FAKE)]))}\n")
     sh(w.repo, "git", "add", "-A")
     sh(w.repo, "git", "commit", "-qm", "enable Overleaf comments")
 
@@ -129,13 +129,13 @@ def test_agent_reply_lands_in_the_overleaf_thread_once_and_the_thread_stays_open
     pull(w.cfg)
     PaperTools(w.repo).address_comment("C-0003", [SOFTEN], "Softened to 'most baselines'.")
     out = push(w.cfg)
-    assert out["overleaf"] == {"replies_posted": ["C-0003"], "threads_resolved": []}
+    assert out["overleaf"] == {"replies_posted": ["C-0003"]}
     t1 = w.state_read()[0]
     assert t1["resolved"] is False  # only the researcher closes a thread
     assert [m["content"] for m in t1["messages"]][-1].startswith("[agent] Softened to 'most baselines'.")
     n = len(t1["messages"])
     out = push(w.cfg)  # idempotent: nothing posted again
-    assert out["overleaf"] == {"replies_posted": [], "threads_resolved": []}
+    assert out["overleaf"] == {"replies_posted": []}
     assert len(w.state_read()[0]["messages"]) == n
     assert Store(w.cfg).get("C-0003")["status"] == "addressed"
     assert sh(w.repo, "git", "status", "--porcelain").strip() == ""
@@ -147,18 +147,6 @@ def test_agent_reply_lands_in_the_overleaf_thread_once_and_the_thread_stays_open
     w.state_write(ts)
     assert pull(w.cfg)["overleaf"]["resolved_in_overleaf"] == ["C-0003"]
     assert Store(w.cfg).get("C-0003")["status"] == "resolved"
-
-
-def test_closing_threads_for_you_is_opt_in(ov):
-    w = ov
-    (w.repo / ".olmcp.yml").write_text((w.repo / ".olmcp.yml").read_text() + "auto_resolve_threads: true\n")
-    sh(w.repo, "git", "commit", "-qam", "opt in to auto-resolving")
-    w.cfg = load_config(w.repo)
-    w.state_write([thread("T1", "make this less absolute", "always outperforms the baselines")])
-    pull(w.cfg)
-    PaperTools(w.repo).address_comment("C-0003", [SOFTEN], "Softened.")
-    assert push(w.cfg)["overleaf"] == {"replies_posted": ["C-0003"], "threads_resolved": ["C-0003"]}
-    assert w.state_read()[0]["resolved"] is True
 
 
 @needs_latexdiff
@@ -173,7 +161,7 @@ def test_suggest_mode_replies_now_and_applies_on_accept_but_leaves_the_thread_to
     assert agent_branch(w.cfg) == "agent/round-1"
 
     out = push(w.cfg)
-    assert out["overleaf"]["replies_posted"] == ["C-0003"] and out["overleaf"]["threads_resolved"] == []
+    assert out["overleaf"]["replies_posted"] == ["C-0003"]
     t1 = w.state_read()[0]
     assert t1["resolved"] is False and t1["messages"][-1]["content"].startswith("[agent] Softened")
     assert "decision[C-0003]" in w.remote_file("redline.tex")
@@ -187,15 +175,14 @@ def test_suggest_mode_replies_now_and_applies_on_accept_but_leaves_the_thread_to
 
     out = pull(w.cfg)
     assert out["decisions"]["accepted"] == ["C-0003"]
-    assert out["overleaf_sync_back"]["threads_resolved"] == []
     assert w.state_read()[0]["resolved"] is False  # the researcher closes it, not the tool
     assert Store(w.cfg).get("C-0003")["status"] == "resolved"  # the accepted change is applied
 
 
-def test_a_broken_or_missing_olcli_is_a_warning_not_a_crash(ov, monkeypatch):
+def test_a_broken_or_missing_client_is_a_warning_not_a_crash(ov, monkeypatch):
     w = ov
     w.state_write([thread("T1", "x", "always outperforms the baselines")])
-    monkeypatch.setenv("FAKE_OLCLI_FAIL", "1")
+    monkeypatch.setenv("FAKE_CLIENT_FAIL", "1")
     out = pull(w.cfg)
     assert any("session" in x or "expired" in x for x in out["warnings"]), out["warnings"]
     assert [c["id"] for c in Store(w.cfg).all()] == ["C-0001", "C-0002"]  # the %% markers still work
@@ -203,7 +190,7 @@ def test_a_broken_or_missing_olcli_is_a_warning_not_a_crash(ov, monkeypatch):
     (w.repo / ".olmcp.yml").write_text(f"overleaf_project: {PROJECT}\nolcli: definitely-not-installed-xyz\n")
     sh(w.repo, "git", "commit", "-qam", "bad olcli")
     out = pull(load_config(w.repo))
-    assert any("olcli not found" in x for x in out["warnings"])
+    assert any("Overleaf client not found" in x for x in out["warnings"])
 
 
 def test_parse_threads_accepts_the_documented_shapes():
@@ -298,7 +285,7 @@ def test_resolving_the_thread_in_overleaf_accepts_the_proposed_change(ov):
     assert c["status"] == "resolved" and c["origin"]["resolve_pushed"] is True
     assert sh(w.repo, "git", "status", "--porcelain").strip() == ""
     assert agent_branch(w.cfg) is None
-    assert push(w.cfg)["overleaf"] == {"replies_posted": [], "threads_resolved": []}  # nothing posted twice
+    assert push(w.cfg)["overleaf"] == {"replies_posted": []}  # nothing posted twice
     assert "outperforms most baselines" in w.remote_file("sections/results.tex")
 
 
@@ -374,11 +361,11 @@ def test_an_explicit_project_id_overrides_the_remote(repo):
     assert overleaf.project_id(load_config(repo)) == "aaaaaaaaaaaaaaaaaaaaaaaa"
 
 
-def test_comments_can_be_turned_off_and_a_missing_olcli_is_a_quiet_note_when_auto_detected(repo, tmp_path):
+def test_comments_can_be_turned_off_and_a_missing_client_is_a_quiet_note_when_auto_detected(repo, tmp_path):
     sh(repo, "git", "remote", "add", "origin", "https://git.overleaf.com/6ae8eca020f2e6cc79d3e5a2")
     (repo / ".olmcp.yml").write_text("olcli: definitely-not-installed-xyz\n")
     st, why = overleaf.state(load_config(repo))
-    assert st == "off" and "olcli is not installed" in why
+    assert st == "off" and "olmcp-overleaf is not installed" in why
     (repo / ".olmcp.yml").write_text("overleaf_comments: false\n")
     assert overleaf.state(load_config(repo)) == ("off", "turned off (overleaf_comments: false)")
 
@@ -388,14 +375,14 @@ def test_comments_work_with_no_configuration_when_the_clone_is_an_overleaf_clone
     import shutil
 
     w = world
-    state = tmp_path / "olcli_state.json"
+    state = tmp_path / "client_state.json"
     state.write_text(json.dumps({"threads": [thread("T1", "make this less absolute", "always outperforms the baselines")]}))
-    monkeypatch.setenv("FAKE_OLCLI_STATE", str(state))
+    monkeypatch.setenv("FAKE_CLIENT_STATE", str(state))
     moved = tmp_path / "git.overleaf.com" / PROJECT  # looks like an Overleaf Git URL
     moved.parent.mkdir()
     shutil.move(str(w.bare), str(moved))
     sh(w.repo, "git", "remote", "set-url", "origin", str(moved))
-    (w.repo / ".olmcp.yml").write_text(f"olcli: {json.dumps(shlex.join([sys.executable, str(FAKE)]))}\n")  # no project id
+    (w.repo / ".olmcp.yml").write_text(f"overleaf_client: {json.dumps(shlex.join([sys.executable, str(FAKE)]))}\n")  # no project id
     sh(w.repo, "git", "add", "-A")
     sh(w.repo, "git", "commit", "-qm", "only the olcli command")
     out = pull(load_config(w.repo))
@@ -535,7 +522,7 @@ def test_review_mode_sends_a_tracked_edit_to_overleaf_and_leaves_git_alone(ov):
     assert out["mode"] == "review" and out["status"] == "addressed"
     import os
 
-    sent = json.loads(open(os.environ["FAKE_OLCLI_STATE"]).read())["edits"]
+    sent = json.loads(open(os.environ["FAKE_CLIENT_STATE"]).read())["edits"]
     assert sent == [{"project": PROJECT, "file": "sections/results.tex",
                      "edits": [{"old": edit["old"], "new": edit["new"]}]}]
     assert "outperforms most" not in (w.repo / "sections" / "results.tex").read_text()   # git text untouched
@@ -555,7 +542,7 @@ def test_review_mode_failure_changes_nothing_and_points_at_the_node_client(ov, m
     w = ov
     w.state_write([thread("T1", "x #review", "always outperforms the baselines")])
     pull(w.cfg)
-    monkeypatch.setenv("FAKE_OLCLI_EDIT_FAIL", "1")
+    monkeypatch.setenv("FAKE_CLIENT_EDIT_FAIL", "1")
     head = sh(w.repo, "git", "rev-parse", "HEAD")
     edit = {"file": "sections/results.tex", "old": "always outperforms the baselines", "new": "better"}
     with pytest.raises(ToolError, match="did not take the edit"):

@@ -11,9 +11,9 @@ MCP SDK. For the reasoning behind decisions and the options that were rejected, 
 3. **The diff is the authority.** What changed is computed from git, never taken from the agent's description.
 4. **Protocol in code, not hope.** What can be enforced (atomic edits, path confinement, one comment per commit)
    is enforced in the tools; the rest is instruction text.
-5. **Optional parts degrade quietly.** No TeX, no `olcli`, no `latexdiff`: the rest still works, and the tool
+5. **Optional parts degrade quietly.** No TeX, no `olmcp-overleaf`, no `latexdiff`: the rest still works, and the tool
    says what is switched off.
-6. **Nothing hosted, no secrets handled.** Credentials stay with git and `olcli`; this tool never reads them.
+6. **Nothing hosted, no secrets handled.** Credentials stay with git and `olmcp-overleaf`; this tool never reads them.
 
 ## The shape of it
 
@@ -23,7 +23,7 @@ MCP SDK. For the reasoning behind decisions and the options that were rejected, 
    mcp_server.py ──► review_tools.py (PaperTools)   local.py (pull / push)
    (MCP tools)            │                              │
                           ├── store.py (comment files)   ├── sync.py / markers.py   %% markers
-                          ├── modes.py                   ├── overleaf.py            native comments via olcli
+                          ├── modes.py                   ├── overleaf.py            native comments (node client)
                           ├── markers.py                 ├── apply.py               decisions → cherry-pick
                           └── local.py (branches)        ├── redline.py             latexdiff + annotations
                                                          ├── changelog.py
@@ -41,7 +41,7 @@ implements agent-facing operations, used by both the MCP server and the `address
 | `config.py` | `.olmcp.yml` (and the legacy name), main-file and engine detection, the `Config` dataclass |
 | `store.py` | One JSON file per comment under `review/comments/`; merging two edits of one file |
 | `markers.py`, `sync.py` | Parse `%% @agent:` markers; reconcile them with the store |
-| `overleaf.py` | Native comments through `olcli`: parse its JSON, import threads, post replies, derive decisions from threads |
+| `overleaf.py` | Native comments through `olmcp-overleaf` (`node/`): parse its JSON, import threads, post replies, derive decisions from threads |
 | `modes.py` | `direct` / `suggest`, tag parsing, writing the default mode |
 | `review_tools.py` | `PaperTools`: list/show comments, read files, `address_comment`, `reply_to_comment`, `set_mode` |
 | `mcp_server.py` | Registers `PaperTools` as MCP tools (needs the `mcp` extra); translates errors for the agent |
@@ -116,7 +116,7 @@ network or a real Overleaf.
 | `test_basics.py` | Markers, anchors, config, sync lifecycle, text diff |
 | `test_redline_flow.py` | Redline generation and annotation, accept/reject/pending, rollback, CI entry points |
 | `test_local.py` | `pull`/`push` against a bare repo imitating Overleaf's remote |
-| `test_overleaf.py` | Native comments against a fake `olcli` (`fake_olcli.py`), decisions in threads |
+| `test_overleaf.py` | Native comments against a fake client (`fake_overleaf_client.py`), decisions in threads |
 | `test_mcp.py` | The tools, path confinement, and a real stdio MCP session |
 | `test_modes.py`, `test_tags.py` | Mode tags, hashtags (`#agent`, `#no-agent`), mixed rounds, the mode command |
 | `test_build.py` | Rendering (needs `latexmk`) |
@@ -125,7 +125,7 @@ network or a real Overleaf.
 clone playing the researcher in Overleaf) and the `needs_latexdiff` / `needs_latexmk` skip markers. Tests that
 need a missing tool are skipped, not failed.
 
-**What no test can cover:** the real Overleaf and the real `olcli` output. Anything touching them needs the
+**What no test can cover:** the real Overleaf and the real Overleaf client output. Anything touching them needs the
 manual checklist in [CONTRIBUTING.md](../CONTRIBUTING.md#testing-against-real-overleaf).
 
 ## Extending it

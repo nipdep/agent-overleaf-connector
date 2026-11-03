@@ -1,12 +1,12 @@
 # The Overleaf client (`olmcp-overleaf`)
 
 A small Node program in `node/` that talks to Overleaf's web interface for what Git cannot carry: **comments** and
-**tracked changes**. It replaces `olcli`, has no runtime dependencies, and needs Node 20 or later. Its Overleaf
+**tracked changes**. It is the only Overleaf client the tool uses (it replaced `olcli`), has no runtime dependencies, and needs Node 20 or later. Its Overleaf
 protocol handling follows the approach in [olcli](https://github.com/aloth/olcli) by Alexander Loth (MIT); see
 `node/THIRD_PARTY_NOTICES.md`.
 
-**Status: built and tested against a fake Overleaf only. Run the scratch-project checklist below before using it on
-a real paper.** `olcli` remains the verified path until then.
+**Status: reading comments is verified on a real project (the author's `check`). Tracked-change edits are tested
+against a fake Overleaf only: run the scratch-project checklist below before using them on a real paper.**
 
 ## Install and sign in
 
@@ -16,13 +16,8 @@ olmcp-overleaf auth --cookie "<value of the overleaf_session2 cookie>"
 ```
 
 The cookie is stored in `~/.config/olmcp-overleaf/config.json` with mode 0600 (or give it in `OVERLEAF_SESSION`).
-Use `--base-url` for a self-hosted Overleaf. To switch the Python tool over, set in `.olmcp.yml`:
-
-```yaml
-olcli: olmcp-overleaf
-```
-
-The comment commands accept the same arguments as `olcli`, so nothing else changes.
+Use `--base-url` for a self-hosted Overleaf. `.olmcp.yml` needs nothing: the command name is the default of
+`overleaf_client`.
 
 ## What it can and cannot do
 

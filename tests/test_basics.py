@@ -162,7 +162,7 @@ def test_word_diff_ignores_whitespace_and_keeps_punctuation_attached():
     assert word_diff("use \\emph{old} text", "use \\emph{new} text") == "use \\emph{[-old-]{+new+}} text"
 
 
-def test_guard_denies_olcli_without_clobbering_settings(repo, tmp_path):
+def test_guard_denies_the_overleaf_client_without_clobbering_settings(repo, tmp_path):
     import json
 
     from olmcp.config import load_config
@@ -175,8 +175,9 @@ def test_guard_denies_olcli_without_clobbering_settings(repo, tmp_path):
     protect_claude(cfg)
     protect_claude(cfg)   # idempotent
     data = json.loads(path.read_text())
-    assert data["permissions"]["deny"] == ["Bash(rm:*)", "Bash(olcli:*)"]
+    assert data["permissions"]["deny"] == ["Bash(rm:*)", "Bash(olmcp-overleaf:*)", "Bash(olcli:*)"]
     assert data["permissions"]["allow"] == ["Bash(ls:*)"] and data["x"] == 1
     protect_codex(cfg, home=tmp_path)
     rule = (tmp_path / ".codex" / "rules" / "olmcp.rules").read_text()
+    assert 'prefix_rule(pattern=["olmcp-overleaf"], decision="forbidden")' in rule
     assert 'prefix_rule(pattern=["olcli"], decision="forbidden")' in rule

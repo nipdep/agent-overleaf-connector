@@ -13,6 +13,13 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
   `address_comment(mode="review")` writes the edit through `olmcp-overleaf edit` (Reviewing mode) and records only the
   conversation in git; you accept or reject in Overleaf. Native comments only. Not yet verified on real Overleaf.
 
+## 0.12.0
+- **`olcli` is gone.** The Overleaf client is `olmcp-overleaf` (`node/`) and the default; the config key is now
+  `overleaf_client` (the old `olcli` key is still read). Install with `npm install -g .` in `node/`.
+- **`auto_resolve_threads` is removed**: the tool never resolves, reopens or deletes a thread (the client has no such
+  command). The key is ignored and `doctor` says so.
+- `olmcp guard` now denies `olmcp-overleaf` and the legacy `olcli` for agents.
+
 ## Unreleased
 - **`olmcp-overleaf`** (`node/`): our own Overleaf client in plain Node (credit to olcli, MIT): comments, replies,
   tracked changes, and edits written as tracked changes (Reviewing mode). No resolve/reopen/delete commands by

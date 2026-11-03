@@ -81,7 +81,7 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
     _write(root / ".claude" / "commands" / "address-comments.md", _template("address-comments.md"), actions, force,
            ".claude/commands/address-comments.md (/address-comments)")
     actions.append(protect_claude(cfg))
-    actions.append("note: block Codex from running olcli too: olmcp guard --codex")
+    actions.append("note: block Codex from running the Overleaf client too: olmcp guard --codex")
     actions.append("note: the MCP server needs the extra: pipx install --force "
                    '"agent-overleaf-connector[mcp] @ git+https://github.com/nipdep/agent-overleaf-connector@main"; '
                    "Codex: codex mcp add olmcp -- olmcp mcp")
@@ -89,7 +89,7 @@ def init(cfg: Config, *, mode: str = "direct", uses: str = DEFAULT_USES, workflo
 
     gi = root / ".gitignore"
     existing = gi.read_text(encoding="utf-8") if gi.exists() else ""
-    for entry in (f"{cfg.build_dir}/", ".olauth"):  # .olauth: olcli's plaintext credentials, never commit
+    for entry in (f"{cfg.build_dir}/", ".olauth"):  # .olauth: a credentials file the old olcli could write, never commit
         if entry not in existing.split():
             existing += ("" if existing.endswith("\n") or not existing else "\n") + entry + "\n"
             gi.write_text(existing, encoding="utf-8")

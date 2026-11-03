@@ -87,13 +87,13 @@ guess, which mode to choose for untagged comments, "never push a branch to Overl
 
 ## Stop an agent resolving threads
 
-The tool never resolves an Overleaf thread unless `auto_resolve_threads: true`. An agent with a shell can still
-run `olcli comments resolve` itself, using the same cookie as you; nothing in the tool can tell that apart from
+The tool never resolves an Overleaf thread, and `olmcp-overleaf` has no command to. An agent with a shell can
+still use the old `olcli` if it is installed, or anything else holding your cookie; nothing in the tool can tell that apart from
 you resolving. `olmcp init` adds the Claude Code rule for you; `olmcp guard` does it on an existing clone and `olmcp guard --codex`
 writes the Codex rule (user-wide, in its own file). By hand, the rules are:
 
-- Claude Code, `.claude/settings.json`: `{ "permissions": { "deny": ["Bash(olcli:*)"] } }`
-- Codex, a rule in `~/.codex/rules/default.rules` such as `prefix_rule(pattern=["olcli"], decision="forbidden")`
+- Claude Code, `.claude/settings.json`: `{ "permissions": { "deny": ["Bash(olmcp-overleaf:*)", "Bash(olcli:*)"] } }`
+- Codex, a rule in `~/.codex/rules/default.rules` such as `prefix_rule(pattern=["olmcp-overleaf"], decision="forbidden")` (and one for `olcli`)
   (check the syntax against your Codex version). `olmcp pull` and `push` still work: they run outside the agent.
 
 `olmcp doctor` also warns about a stale `AGENTS.md` (written by `olmcp init`, never updated automatically).

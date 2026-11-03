@@ -8,7 +8,7 @@ Supported: Linux and macOS. Windows is not supported yet (WSL2 may work, unteste
 |---|---|
 | Python 3.10+, `git`, `pipx` | Everything |
 | An Overleaf project with **Git integration** (a premium feature; a free account can use it inside a project owned by a premium user) | Reaching the project |
-| Node.js and the `olcli` command | Native Overleaf comments (select text, comment). Optional: `%%` markers work without it |
+| Node.js 20+ and the `olmcp-overleaf` command (in `node/` of this repository) | Native Overleaf comments and tracked-change edits. Optional: `%%` markers work without it |
 | `latexdiff` | The typeset redline in `suggest` mode only |
 | TeX Live (`latexmk` and packages) | Only for local page renders (`olmcp build`). Optional |
 
@@ -27,7 +27,8 @@ If you had the tool under its old name, run `pipx uninstall paper-review` first 
 Optional parts:
 
 ```bash
-npm install -g @aloth/olcli        # native Overleaf comments
+git clone https://github.com/nipdep/agent-overleaf-connector ~/agent-overleaf-connector
+(cd ~/agent-overleaf-connector/node && npm install -g .)   # native Overleaf comments: gives olmcp-overleaf
 sudo apt install -y latexdiff       # redline for suggest mode (macOS: brew install latexdiff)
 ```
 
@@ -45,21 +46,22 @@ git config --global credential.helper 'cache --timeout=14400'
 (`store` also works but saves the token in plain text in `~/.git-credentials`, readable by any program you
 run, including an agent.)
 
-**Overleaf session cookie** (for `olcli`, native comments only): in your browser's developer tools open
+**Overleaf session cookie** (for `olmcp-overleaf`, native comments only): in your browser's developer tools open
 Application, Cookies, `overleaf.com`, and copy the value of `overleaf_session2`:
 
 ```bash
-olcli auth --cookie "<paste cookie value here>"
+olmcp-overleaf auth --cookie "<paste cookie value here>"
 ```
 
-This cookie gives full access to your Overleaf account, `olcli` stores it in plain text, and it expires after a
-few days. When `olmcp pull` warns about a session, repeat this step. Never run `olcli auth --save-local`
-inside a project you will commit (`olmcp init` adds `.olauth` to `.gitignore` as a safeguard).
+This cookie gives full access to your Overleaf account. It is stored in `~/.config/olmcp-overleaf/config.json`
+(mode 0600, outside any project) and it expires after a few days. When `olmcp pull` warns about a session,
+repeat this step. If you ever pasted it into a chat, log out of Overleaf in the browser (that ends the session)
+and sign in again for a new one.
 
-Check `olcli` on its own first:
+Check the client on its own first:
 
 ```bash
-olcli comments list <project-id> --status all --json | head -40
+olmcp-overleaf check <project-id>      # ok: N comment thread(s) readable
 ```
 
 ## 3. Clone the project
@@ -140,9 +142,9 @@ More in [agents.md](agents.md).
 |---|---|
 | Clone hangs with no prompt | VS Code's credential helper; use the second clone command above |
 | `Authentication failed` / 403 on clone | Wrong or revoked token, or Git integration not available for that project (premium) |
-| `pull` prints `Overleaf comments: off (...)` | The remote is not an Overleaf URL, or `olcli` is not installed; the message says which |
-| `olcli ... failed` or a session warning | The cookie expired: run `olcli auth --cookie ...` again |
-| `pull` finds no threads you can see | Run `olmcp overleaf-check --raw` and look at what `olcli` returns (remove names and emails before sharing it) |
+| `pull` prints `Overleaf comments: off (...)` | The remote is not an Overleaf URL, or `olmcp-overleaf` is not installed; the message says which |
+| `Overleaf client ... failed` or a session warning | The cookie expired: run `olmcp-overleaf auth --cookie ...` again |
+| `pull` finds no threads you can see | Run `olmcp overleaf-check --raw` and look at what the client returns (remove names and emails before sharing it) |
 | The agent says it has no tools | Run `claude mcp list` / `codex mcp list`, restart the agent, and check `which olmcp` in the terminal the agent uses; use the full path from `which olmcp` in the `mcp add` command |
 | `error: ... needs the optional 'mcp' extra` | Reinstall with `[mcp]`, as in step 1 |
 | `redline.tex` is empty or has no changes | The agent's commit changed files the paper does not use, or only comments; the redline lists a `WARNING` with the files |
