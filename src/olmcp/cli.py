@@ -140,7 +140,8 @@ def cmd_pull(args, cfg):
     if args.json:
         print(json.dumps(r, indent=2, ensure_ascii=False))
         return
-    lines = [f"pulled {r['fetched_commits']} commit(s) from {r['remote']}"
+    lines = [f"olmcp {__version__}",
+             f"pulled {r['fetched_commits']} commit(s) from {r['remote']}"
              + (f" (changed: {', '.join(r['files'][:8])}{' ...' if len(r['files']) > 8 else ''})" if r["files"] else "")]
     c = r["comments"]
     lines.append("comments: " + ", ".join(f"{len(v)} {k.replace('_', ' ')} ({', '.join(v)})" for k, v in c.items() if v)
@@ -250,6 +251,7 @@ def cmd_overleaf_check(args, cfg):
 
 def cmd_doctor(args, cfg):
     ok = True
+    print(f"olmcp {__version__} at {Path(__file__).resolve().parent}")
 
     def check(label: str, good: bool, detail: str = "") -> None:
         nonlocal ok
