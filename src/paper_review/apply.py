@@ -14,7 +14,7 @@ import json
 from datetime import datetime, timezone
 
 from .config import Config
-from .gitutil import GitError, commit_paths, current_branch, default_branch, git, is_clean, resolve_ref, rev_parse
+from .gitutil import GitError, auto_resolve_comment_conflicts, commit_paths, current_branch, default_branch, git, is_clean, resolve_ref, rev_parse
 from .redline import RedlineError, generate, parse_decisions
 from .store import Store
 
@@ -38,17 +38,27 @@ def pending_decisions(cfg: Config) -> bool:
     return any(d["decision"] != "pending" for d in parse_decisions(tex.read_text(encoding="utf-8")).values())
 
 
-def _cherry_pick(root, shas: list[str], undo_to: str) -> None:
+def _cherry_pick(root, shas: list[str], undo_to: str, review_dir: str = "review") -> None:
     for sha in shas:
         try:
             git(root, "cherry-pick", "--allow-empty", "--keep-redundant-commits", sha)
         except GitError as exc:
+            # a follow-up from the researcher and the agent's reply can both have edited one comment
+            # file; merge those. A conflict in the paper itself still stops everything.
+            if auto_resolve_comment_conflicts(root, review_dir):
+                try:
+                    git(root, "-c", "core.editor=true", "cherry-pick", "--continue")
+                    continue
+                except GitError as exc2:
+                    exc = exc2
             git(root, "cherry-pick", "--abort", check=False)
             git(root, "reset", "--hard", undo_to)
             raise ApplyError(f"conflict applying {sha[:7]}: {exc}") from exc
 
 
-def apply(cfg: Config, message_suffix: str = "") -> dict:
+def apply(cfg: Config, message_suffix: str = "", extra_decisions: dict | None = None) -> dict:
+    """``extra_decisions`` (e.g. from Overleaf threads) fill in entries still ``pending`` in redline.tex;
+    a decision typed in redline.tex wins."""
     root = cfg.root
     ensure_identity(root)
     meta_path = cfg.review_path / "redline.json"
@@ -69,6 +79,9 @@ def apply(cfg: Config, message_suffix: str = "") -> dict:
         raise ApplyError("the agent branch moved since this redline was generated; regenerate it first")
 
     decisions = parse_decisions(cfg.redline_path.read_text(encoding="utf-8"))
+    for key, d in (extra_decisions or {}).items():
+        if decisions.get(key, {}).get("decision", "pending") == "pending":
+            decisions[key] = d
     star = decisions.get("*", {}).get("decision")
     accepted, rejected, pending = [], [], []
     for e in entries:
@@ -79,7 +92,7 @@ def apply(cfg: Config, message_suffix: str = "") -> dict:
         if value in {"accept", "accept-all"}:
             accepted.append(e)
         elif value in {"reject", "reject-all"}:
-            rejected.append((e, d.get("reason", "")))
+            rejected.append((e, d))
         else:
             pending.append(e)
     if not accepted and not rejected:
@@ -90,7 +103,7 @@ def apply(cfg: Config, message_suffix: str = "") -> dict:
     git(root, "tag", tag, pre)
 
     for e in accepted:
-        _cherry_pick(root, e["shas"], pre)
+        _cherry_pick(root, e["shas"], pre, cfg.review_dir)
 
     store = Store(cfg)
     for e in accepted:
@@ -99,11 +112,13 @@ def apply(cfg: Config, message_suffix: str = "") -> dict:
                 store.set_status(cid, "resolved", by="human", decision="accept", commit=e["shas"][-1])
             except KeyError:
                 pass
-    for e, reason in rejected:
+    for e, d in rejected:
+        reason = d.get("reason", "")
         for cid in e["comment_ids"]:
             try:
                 store.set_status(cid, "open")
-                store.reply(cid, "human", "Rejected" + (f": {reason}" if reason else "."))
+                if d.get("source") != "overleaf":  # a reply typed in Overleaf is already in the thread
+                    store.reply(cid, "human", "Rejected" + (f": {reason}" if reason else "."))
             except KeyError:
                 pass
     names = lambda items: ", ".join(i["key"] if isinstance(i, dict) else i[0]["key"] for i in items) or "none"  # noqa: E731
@@ -112,7 +127,8 @@ def apply(cfg: Config, message_suffix: str = "") -> dict:
 
     branch_action = "deleted"
     if pending:
-        branch_action = _recreate_branch(root, default, branch, [s for e in pending for s in e["shas"]])
+        branch_action = _recreate_branch(root, default, branch, [s for e in pending for s in e["shas"]],
+                                         cfg.review_dir)
     else:
         git(root, "branch", "-D", branch, check=False)
 
@@ -131,12 +147,12 @@ def apply(cfg: Config, message_suffix: str = "") -> dict:
     }
 
 
-def _recreate_branch(root, default: str, branch: str, shas: list[str]) -> str:
+def _recreate_branch(root, default: str, branch: str, shas: list[str], review_dir: str = "review") -> str:
     base = rev_parse(root, "HEAD")
     tmp = "paper-review-tmp"
     git(root, "checkout", "-q", "-B", tmp, base)
     try:
-        _cherry_pick(root, shas, base)
+        _cherry_pick(root, shas, base, review_dir)
     except ApplyError:
         git(root, "checkout", "-q", default)
         git(root, "branch", "-D", tmp, check=False)

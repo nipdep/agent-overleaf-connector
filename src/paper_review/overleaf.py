@@ -16,6 +16,7 @@ is how they are told apart from yours and never re-imported as new feedback.
 from __future__ import annotations
 
 import json
+import re
 import shlex
 import shutil
 import subprocess
@@ -28,6 +29,8 @@ from .gitutil import git, rev_parse
 from .store import Store
 
 AGENT_PREFIX = "[agent] "
+DECIDE_HINT = ("\n\n(Proposed change, not applied yet: resolve this thread to accept it, or reply here "
+               "to reject or adjust it. The redline is in redline.tex.)")
 INSTALL_HINT = ("install olcli (npm install -g @aloth/olcli), then run: olcli auth --cookie "
                 "\"<your overleaf_session2 cookie>\"  (or set OVERLEAF_SESSION)")
 
@@ -36,8 +39,50 @@ class OverleafError(RuntimeError):
     pass
 
 
+_ID = re.compile(r"(?<![0-9a-f])([0-9a-f]{24})(?![0-9a-f])")
+ACCEPT_WORDS = {"accept", "accepted", "approve", "approved", "ok", "okay", "lgtm", "yes", "good",
+                "looks good", "\U0001F44D"}
+
+
+def project_id(cfg: Config) -> str | None:
+    """The Overleaf project id: ``overleaf_project`` if set, else read from the git remote URL
+    (``https://git.overleaf.com/<id>``, or a self-hosted ``.../git/<id>``)."""
+    if cfg.overleaf_project:
+        return str(cfg.overleaf_project)
+    url = git(cfg.root, "remote", "get-url", cfg.remote, check=False).strip()
+    if _host_looks_like_overleaf(url):
+        found = _ID.findall(url)
+        if found:
+            return found[-1]
+    return None
+
+
+def _host_looks_like_overleaf(url: str) -> bool:
+    """The *host* must mention overleaf, so github.com/overleaf-fan/... is not mistaken for Overleaf.
+    A local path (a mirror or a test) has no host, so the whole string is checked."""
+    from urllib.parse import urlparse
+
+    if "://" in url:
+        return "overleaf" in (urlparse(url).hostname or "").lower()
+    m = re.match(r"^[\w.-]+@([\w.-]+):", url)  # scp-like: git@host:path
+    return "overleaf" in (m.group(1) if m else url).lower()
+
+
+def state(cfg: Config) -> tuple[str, str]:
+    """``("on", project_id)`` or ``("off", why)``. Detection is automatic; nothing to configure."""
+    if not cfg.overleaf_comments:
+        return "off", "turned off (overleaf_comments: false)"
+    pid = project_id(cfg)
+    if not pid:
+        return "off", ("this clone's remote is not an Overleaf Git URL "
+                       "(clone https://git.overleaf.com/<project-id>, or set overleaf_project)")
+    if not cfg.overleaf_project and not (cfg.olcli.split() and shutil.which(cfg.olcli.split()[0])):
+        return "off", "olcli is not installed (to read the Review panel: npm install -g @aloth/olcli, then olcli auth)"
+    return "on", pid
+
+
 def enabled(cfg: Config) -> bool:
-    return bool(cfg.overleaf_project)
+    return state(cfg)[0] == "on"
 
 
 def _base(cfg: Config) -> list[str]:
@@ -100,7 +145,7 @@ def parse_threads(raw: str) -> list[dict]:
 
 
 def list_threads(cfg: Config, status: str = "all") -> list[dict]:
-    args = ["comments", "list", cfg.overleaf_project, "--status", status, "--json"]
+    args = ["comments", "list", project_id(cfg), "--status", status, "--json"]
     raw = _run(cfg, args)
     try:
         return parse_threads(raw)
@@ -110,11 +155,11 @@ def list_threads(cfg: Config, status: str = "all") -> list[dict]:
 
 
 def reply(cfg: Config, thread_id: str, text: str) -> None:
-    _run(cfg, ["comments", "reply", thread_id, text, cfg.overleaf_project, "--json"])
+    _run(cfg, ["comments", "reply", thread_id, text, project_id(cfg), "--json"])
 
 
 def resolve(cfg: Config, thread_id: str) -> None:
-    _run(cfg, ["comments", "resolve", thread_id, cfg.overleaf_project, "--json"])
+    _run(cfg, ["comments", "resolve", thread_id, project_id(cfg), "--json"])
 
 
 # ------------------------------------------------------------------------------ import
@@ -127,6 +172,7 @@ class OverleafSync:
     reopened_in_overleaf: list[str] = field(default_factory=list)
     deleted_in_overleaf: list[str] = field(default_factory=list)
     changed: bool = False
+    threads: dict = field(default_factory=dict)  # thread_id -> normalised thread (not part of the summary)
 
 
 def _locate(cfg: Config, rel: str, quote: str, line: int | None) -> tuple[int | None, float]:
@@ -164,6 +210,8 @@ def import_comments(cfg: Config) -> OverleafSync:
     pages = load_text(cfg)
     threads = list_threads(cfg, "all")
     result.threads_checked = len(threads)
+    result.threads = {t["thread_id"]: t for t in threads}
+    pending_ids = _pending_comment_ids(cfg)
     present: set[str] = set()
 
     for t in threads:
@@ -201,7 +249,9 @@ def import_comments(cfg: Config) -> OverleafSync:
                 result.reopened_in_overleaf.append(existing["id"])
             result.followups.append(existing["id"])
             dirty = True
-        if t["resolved"] and existing["status"] in {"open", "addressed"}:
+        if t["resolved"] and existing["status"] in {"open", "addressed"} and existing["id"] in pending_ids:
+            pass  # the agent's change is waiting for a decision: resolving the thread means "accept"
+        elif t["resolved"] and existing["status"] in {"open", "addressed"}:
             existing["status"] = "resolved"
             existing["resolution"] = {"by": "human", "note": "Resolved in Overleaf.", "at": ""}
             origin["resolve_pushed"] = True
@@ -268,14 +318,16 @@ def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
         t = threads.get(origin.get("thread_id", ""))
         if t is None:
             continue
-        have = {m["text"].strip() for m in t["messages"]}
-        for text in _agent_replies(c):
-            msg = AGENT_PREFIX + text
-            if msg.strip() not in have:
-                reply(cfg, t["thread_id"], msg)
-                have.add(msg.strip())
-                posted.append(c["id"])
+        have = [m["text"].strip() for m in t["messages"]]
         stored = store.get(c["id"])
+        proposal = cfg.mode == "suggest" and stored["status"] != "resolved"
+        for text in _agent_replies(c):
+            head = (AGENT_PREFIX + text).strip()
+            if not any(h.startswith(head) for h in have):  # matches with or without the footer
+                msg = AGENT_PREFIX + text + (DECIDE_HINT if proposal else "")
+                reply(cfg, t["thread_id"], msg)
+                have.append(msg.strip())
+                posted.append(c["id"])
         if stored["status"] == "resolved" and not t["resolved"] and not stored["origin"].get("resolve_pushed"):
             resolve(cfg, t["thread_id"])
             stored["origin"]["resolve_pushed"] = True
@@ -287,6 +339,65 @@ def reconcile(cfg: Config, agent_branch: str | None = None) -> dict:
 def check(cfg: Config) -> dict:
     """Used by ``overleaf-check``: can we reach the project's threads?"""
     threads = list_threads(cfg, "all")
-    return {"project": cfg.overleaf_project, "threads": len(threads),
+    return {"project": project_id(cfg), "threads": len(threads),
             "open": sum(1 for t in threads if not t["resolved"]),
             "with_selected_text": sum(1 for t in threads if t["quote"])}
+
+
+# ------------------------------------------------------------------------------ decisions
+def _pending_comment_ids(cfg: Config) -> set[str]:
+    """Comments that have a change waiting in the current redline."""
+    path = cfg.review_path / "redline.json"
+    if not path.exists():
+        return set()
+    try:
+        entries = json.loads(path.read_text(encoding="utf-8")).get("entries", [])
+    except json.JSONDecodeError:
+        return set()
+    return {cid for e in entries for cid in e.get("comment_ids", [])}
+
+
+def classify_reply(text: str) -> tuple[str, str]:
+    """A researcher's reply under a proposed change: ``("accept", "")`` or ``("reject", reason)``.
+
+    "accept", "ok", "lgtm", a thumbs-up and the like accept. "reject: ..." rejects with that reason.
+    Any other reply rejects the current proposal and is the instruction for the next attempt.
+    """
+    t = text.strip()
+    low = t.lower().rstrip(".! ")
+    if low in ACCEPT_WORDS or low.startswith(("accept", "lgtm", "approve")):
+        return "accept", ""
+    m = re.match(r"(?is)\s*reject(?:ed)?\b\s*[:\-\u2013]?\s*(.*)", t)
+    return "reject", (m.group(1).strip() if m else t)
+
+
+def thread_decisions(cfg: Config, entries: list[dict], threads: dict[str, dict]) -> dict[str, dict]:
+    """Accept/reject decisions the researcher made in Overleaf, keyed like redline.tex's.
+
+    Resolving the thread accepts the agent's pending change; a reply after the agent's message rejects
+    it (or accepts, if it says so). Nothing counts until the agent has answered in the thread.
+    """
+    store = Store(cfg)
+    out: dict[str, dict] = {}
+    for e in entries:
+        for cid in e.get("comment_ids", []):
+            try:
+                origin = store.get(cid).get("origin") or {}
+            except KeyError:
+                continue
+            t = threads.get(origin.get("thread_id", "")) if origin.get("type") == "overleaf" else None
+            if t is None:
+                continue
+            msgs = t["messages"]
+            agent_at = [i for i, m in enumerate(msgs) if m["text"].startswith(AGENT_PREFIX)]
+            if not agent_at:
+                continue
+            later = [m for m in msgs[agent_at[-1] + 1:] if not m["text"].startswith(AGENT_PREFIX)]
+            if later:  # the latest word wins
+                decision, reason = classify_reply(later[-1]["text"])
+                out[e["key"]] = {"decision": decision, "reason": reason, "source": "overleaf"}
+                break
+            if t["resolved"]:
+                out[e["key"]] = {"decision": "accept", "reason": "", "source": "overleaf"}
+                break
+    return out

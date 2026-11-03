@@ -25,7 +25,7 @@ from . import overleaf
 from .apply import ApplyError, apply, ensure_identity, pending_decisions
 from .changelog import write_changelog
 from .config import Config
-from .gitutil import (GitError, commit_paths, commits_between, current_branch, default_branch, git,
+from .gitutil import (GitError, auto_resolve_comment_conflicts, commit_paths, commits_between, current_branch, default_branch, git,
                       has_changes_outside, is_clean, rev_parse)
 from .redline import RedlineError, generate
 from .store import Store
@@ -90,6 +90,25 @@ def _integrate(cfg: Config, remote: str, rbranch: str) -> dict:
     return {"fetched_commits": behind, "files": files}
 
 
+def _rebase(cfg: Config, onto: str, branch: str) -> None:
+    """Rebase ``branch`` onto ``onto``, merging conflicts that are only in comment files."""
+    root = cfg.root
+    try:
+        git(root, "rebase", "-q", onto, branch)
+        return
+    except GitError:
+        pass
+    for _ in range(50):  # one stop per replayed commit at most
+        if not auto_resolve_comment_conflicts(root, cfg.review_dir):
+            raise GitError("rebase stopped on a conflict in the paper itself")
+        try:
+            git(root, "-c", "core.editor=true", "rebase", "--continue")
+            return
+        except GitError:
+            continue
+    raise GitError("rebase did not finish")
+
+
 def _refresh_agent(cfg: Config, default: str) -> dict:
     """Keep the agent branch based on the default branch and the redline current."""
     root = cfg.root
@@ -106,7 +125,7 @@ def _refresh_agent(cfg: Config, default: str) -> dict:
         fork = git(root, "merge-base", default, branch).strip()
         if has_changes_outside(root, fork, default, generated):
             try:
-                git(root, "rebase", "-q", default, branch)
+                _rebase(cfg, default, branch)
             except GitError as exc:
                 git(root, "rebase", "--abort", check=False)
                 git(root, "switch", "-q", default, check=False)
@@ -151,23 +170,42 @@ def pull(cfg: Config) -> dict:
                            "markers_removed": res.addressed, "updated": res.updated}
 
     summary["overleaf"] = None
-    summary["overleaf_enabled"] = overleaf.enabled(cfg)
-    if overleaf.enabled(cfg):  # native comments: select text in Overleaf's Review panel
+    summary["overleaf_note"] = None
+    thread_decs: dict = {}
+    entries: list[dict] = []
+    ov_state, ov_detail = overleaf.state(cfg)
+    if ov_state == "on":  # native comments: select text in Overleaf's Review panel
         try:
             ov = overleaf.import_comments(cfg)
             if ov.changed:
                 commit_paths(root, [f"{cfg.review_dir}/comments"],
                              f"paper-review: sync Overleaf comments (+{len(ov.created)} new)")
-            summary["overleaf"] = {k: v for k, v in asdict(ov).items() if k != "changed"}
+            summary["overleaf"] = {k: v for k, v in asdict(ov).items() if k not in ("changed", "threads")}
+            meta_path = cfg.review_path / "redline.json"
+            if meta_path.exists():
+                entries = json.loads(meta_path.read_text(encoding="utf-8")).get("entries", [])
+                thread_decs = overleaf.thread_decisions(cfg, entries, ov.threads)
         except overleaf.OverleafError as exc:
             summary["warnings"].append(f"Overleaf comments were not synced: {exc}")
+    else:
+        summary["overleaf_note"] = ov_detail
+    summary["decisions_from_overleaf"] = {k: v["decision"] for k, v in thread_decs.items()}
 
     summary["decisions"] = None
-    if pending_decisions(cfg):
+    if pending_decisions(cfg) or thread_decs:
         try:
-            summary["decisions"] = apply(cfg)
+            summary["decisions"] = apply(cfg, extra_decisions=thread_decs)
         except ApplyError as exc:
-            summary["warnings"].append(f"decisions in redline.tex were not applied: {exc}")
+            summary["warnings"].append(f"decisions were not applied: {exc}")
+        else:
+            done = (summary["decisions"] or {}).get("accepted", [])
+            store = Store(cfg)
+            for e in entries:  # a thread the researcher resolved is already closed in Overleaf
+                if e["key"] in done and e["key"] in thread_decs:
+                    for cid in e.get("comment_ids", []):
+                        c = store.get(cid)
+                        c.setdefault("origin", {})["resolve_pushed"] = True
+                        store.save(c)
 
     summary["overleaf_sync_back"] = _overleaf_back(cfg, summary["warnings"])  # resolves accepted threads
 

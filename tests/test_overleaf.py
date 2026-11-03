@@ -224,4 +224,175 @@ def test_pull_says_whether_overleaf_comments_are_on_and_what_it_found(ov, world,
     (ov.repo / ".paper-review.yml").write_text("mode: direct\n")
     sh(ov.repo, "git", "commit", "-qam", "turn Overleaf comments off")
     assert main(["--root", str(ov.repo), "pull"]) == 0
-    assert "Overleaf comments: off (add overleaf_project" in capsys.readouterr().out
+    assert "Overleaf comments: off (this clone's remote is not an Overleaf Git URL" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------ decisions made in the thread
+def _suggest(w):
+    cfgfile = w.repo / ".paper-review.yml"
+    cfgfile.write_text(cfgfile.read_text() + "mode: suggest\n")
+    sh(w.repo, "git", "commit", "-qam", "suggest mode")
+    w.cfg = load_config(w.repo)
+
+
+def _proposal(w):
+    """An Overleaf thread, a pending agent proposal for it, published with its reply."""
+    w.state_write([thread("T1", "make this less absolute", "always outperforms the baselines")])
+    pull(w.cfg)
+    PaperTools(w.repo).address_comment("C-0003", [SOFTEN], "Softened to 'most baselines'.")
+    push(w.cfg)
+
+
+def _says(w, text, mid="m9"):
+    ts = w.state_read()
+    ts[0]["messages"].append({"id": mid, "content": text, "user": {"email": "researcher@example.com"}})
+    w.state_write(ts)
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("accept", ("accept", "")), ("Accepted.", ("accept", "")), ("OK", ("accept", "")), ("lgtm!", ("accept", "")),
+    ("\U0001F44D", ("accept", "")), ("reject: keep my wording", ("reject", "keep my wording")),
+    ("Rejected - too long", ("reject", "too long")), ("reject", ("reject", "")),
+    ("too strong, say some baselines", ("reject", "too strong, say some baselines")),
+])
+def test_how_a_reply_is_read(text, expected):
+    assert overleaf.classify_reply(text) == expected
+
+
+@needs_latexdiff
+def test_resolving_the_thread_in_overleaf_accepts_the_proposed_change(ov):
+    w = ov
+    _suggest(w)
+    _proposal(w)
+    posted = w.state_read()[0]["messages"][-1]["content"]
+    assert posted.startswith("[agent] Softened") and "resolve this thread to accept it" in posted
+    assert "always outperforms" in (w.repo / "sections" / "results.tex").read_text()  # not applied yet
+
+    ts = w.state_read()
+    ts[0]["resolved"] = True  # the researcher clicks the check mark in the Review panel
+    w.state_write(ts)
+    out = pull(w.cfg)
+    assert out["decisions_from_overleaf"] == {"C-0003": "accept"}
+    assert out["decisions"]["accepted"] == ["C-0003"]
+    assert "outperforms most baselines" in (w.repo / "sections" / "results.tex").read_text()
+    c = Store(w.cfg).get("C-0003")
+    assert c["status"] == "resolved" and c["origin"]["resolve_pushed"] is True
+    assert sh(w.repo, "git", "status", "--porcelain").strip() == ""
+    assert agent_branch(w.cfg) is None
+    assert push(w.cfg)["overleaf"] == {"replies_posted": [], "threads_resolved": []}  # nothing posted twice
+    assert "outperforms most baselines" in w.remote_file("sections/results.tex")
+
+
+@needs_latexdiff
+def test_replying_in_the_thread_rejects_and_the_agent_tries_again(ov):
+    w = ov
+    _suggest(w)
+    _proposal(w)
+    _says(w, "too strong, say 'some baselines' instead")
+    out = pull(w.cfg)
+    assert out["decisions_from_overleaf"] == {"C-0003": "reject"}
+    assert out["decisions"]["rejected"] == ["C-0003"]
+    assert "always outperforms" in (w.repo / "sections" / "results.tex").read_text()  # nothing applied
+    c = Store(w.cfg).get("C-0003")
+    assert c["status"] == "open" and agent_branch(w.cfg) is None
+    assert [t["body"] for t in c["thread"]] == ["too strong, say 'some baselines' instead"]  # once, not echoed
+
+    # the next round answers the reply in the same thread
+    PaperTools(w.repo).address_comment("C-0003", [{**SOFTEN, "new": "outperforms some baselines"}], "Now 'some baselines'.")
+    push(w.cfg)
+    agent_msgs = [m["content"] for m in w.state_read()[0]["messages"] if m["content"].startswith("[agent]")]
+    assert len(agent_msgs) == 2 and agent_msgs[1].startswith("[agent] Now 'some baselines'.")
+
+
+@needs_latexdiff
+@pytest.mark.parametrize("reply_text", ["accept", "lgtm", "\U0001F44D"])
+def test_an_accepting_reply_in_the_thread_accepts(ov, reply_text):
+    w = ov
+    _suggest(w)
+    _proposal(w)
+    _says(w, reply_text)
+    out = pull(w.cfg)
+    assert out["decisions"]["accepted"] == ["C-0003"]
+    assert "outperforms most baselines" in (w.repo / "sections" / "results.tex").read_text()
+
+
+@needs_latexdiff
+def test_a_decision_typed_in_redline_tex_wins_over_the_thread(ov):
+    w = ov
+    _suggest(w)
+    _proposal(w)
+    sh(w.user, "git", "pull", "-q", "--rebase", "origin", "master")
+    tex = w.user / "redline.tex"
+    tex.write_text(tex.read_text().replace("decision[C-0003]: pending", "decision[C-0003]: reject"))
+    sh(w.user, "git", "commit", "-qam", "reject in the file")
+    sh(w.user, "git", "push", "-q", "origin", "master")
+    ts = w.state_read()
+    ts[0]["resolved"] = True  # the thread says accept, the file says reject
+    w.state_write(ts)
+    out = pull(w.cfg)
+    assert out["decisions"]["rejected"] == ["C-0003"] and out["decisions"]["accepted"] == []
+
+
+# ------------------------------------------------------------------ project id is automatic
+@pytest.mark.parametrize("url, expected", [
+    ("https://git@git.overleaf.com/6ae8eca020f2e6cc79d3e5a2", "6ae8eca020f2e6cc79d3e5a2"),
+    ("https://git.overleaf.com/6ae8eca020f2e6cc79d3e5a2.git", "6ae8eca020f2e6cc79d3e5a2"),
+    ("https://overleaf.example.org/git/6ae8eca020f2e6cc79d3e5a2", "6ae8eca020f2e6cc79d3e5a2"),
+    ("https://github.com/nipdep/repo.git", None),
+    ("https://github.com/overleaf-fan/6ae8eca020f2e6cc79d3e5a2", None),  # "overleaf" only in the path
+    ("git@github.com:overleaf/6ae8eca020f2e6cc79d3e5a2", None),
+    ("https://git.overleaf.com/6ae8eca020f2e6cc79d3e5a2x", "6ae8eca020f2e6cc79d3e5a2"),
+    ("https://git.overleaf.com/not-an-id", None),
+])
+def test_the_project_id_is_read_from_the_remote_url(repo, url, expected):
+    sh(repo, "git", "remote", "add", "origin", url)
+    assert overleaf.project_id(load_config(repo)) == expected
+
+
+def test_an_explicit_project_id_overrides_the_remote(repo):
+    sh(repo, "git", "remote", "add", "origin", "https://git.overleaf.com/6ae8eca020f2e6cc79d3e5a2")
+    (repo / ".paper-review.yml").write_text("overleaf_project: aaaaaaaaaaaaaaaaaaaaaaaa\n")
+    assert overleaf.project_id(load_config(repo)) == "aaaaaaaaaaaaaaaaaaaaaaaa"
+
+
+def test_comments_can_be_turned_off_and_a_missing_olcli_is_a_quiet_note_when_auto_detected(repo, tmp_path):
+    sh(repo, "git", "remote", "add", "origin", "https://git.overleaf.com/6ae8eca020f2e6cc79d3e5a2")
+    (repo / ".paper-review.yml").write_text("olcli: definitely-not-installed-xyz\n")
+    st, why = overleaf.state(load_config(repo))
+    assert st == "off" and "olcli is not installed" in why
+    (repo / ".paper-review.yml").write_text("overleaf_comments: false\n")
+    assert overleaf.state(load_config(repo)) == ("off", "turned off (overleaf_comments: false)")
+
+
+def test_comments_work_with_no_configuration_when_the_clone_is_an_overleaf_clone(world, tmp_path, monkeypatch):
+    """Clone URL .../git.overleaf.com/<id> + olcli on the PATH is all it takes."""
+    import shutil
+
+    w = world
+    state = tmp_path / "olcli_state.json"
+    state.write_text(json.dumps({"threads": [thread("T1", "make this less absolute", "always outperforms the baselines")]}))
+    monkeypatch.setenv("FAKE_OLCLI_STATE", str(state))
+    moved = tmp_path / "git.overleaf.com" / PROJECT  # looks like an Overleaf Git URL
+    moved.parent.mkdir()
+    shutil.move(str(w.bare), str(moved))
+    sh(w.repo, "git", "remote", "set-url", "origin", str(moved))
+    (w.repo / ".paper-review.yml").write_text(f"olcli: {json.dumps(shlex.join([sys.executable, str(FAKE)]))}\n")  # no project id
+    sh(w.repo, "git", "add", "-A")
+    sh(w.repo, "git", "commit", "-qm", "only the olcli command")
+    out = pull(load_config(w.repo))
+    assert out["overleaf"]["created"] == ["C-0003"] and out["warnings"] == []
+
+
+def test_two_edits_of_one_comment_file_merge_without_losing_either_conversation():
+    from paper_review.store import merge_comments
+
+    ours = {"status": "open", "resolution": None, "thread": [{"author": "human:a", "body": "accept"}],
+            "origin": {"type": "overleaf", "messages_seen": ["m1", "m9"], "thread_id": "T1"}}
+    theirs = {"status": "addressed", "resolution": {"by": "agent"},
+              "thread": [{"author": "agent", "body": "Softened."}],
+              "origin": {"type": "overleaf", "messages_seen": ["m1"], "thread_id": "T1"}}
+    m = merge_comments(ours, theirs)
+    assert [t["body"] for t in m["thread"]] == ["accept", "Softened."]
+    assert m["status"] == "addressed" and m["resolution"] == {"by": "agent"}
+    assert m["origin"]["messages_seen"] == ["m1", "m9"]
+    assert merge_comments(ours, ours)["thread"] == ours["thread"]  # no duplicates

@@ -149,9 +149,11 @@ def cmd_pull(args, cfg):
                  if isinstance(v, list) and v]
         lines.append(f"Overleaf comments: {ov['threads_checked']} thread(s) checked"
                      + (": " + ", ".join(parts) if parts else ", nothing new"))
-    elif not r.get("overleaf_enabled"):
-        lines.append("Overleaf comments: off (add overleaf_project: <project id> to .paper-review.yml to read "
-                     "comments made in Overleaf's Review panel)")
+    elif r.get("overleaf_note"):
+        lines.append(f"Overleaf comments: off ({r['overleaf_note']})")
+    if r.get("decisions_from_overleaf"):
+        lines.append("decided in Overleaf threads: " + ", ".join(f"{k} -> {v}" for k, v
+                                                                  in r["decisions_from_overleaf"].items()))
     d = r["decisions"]
     if d and d.get("status") == "applied":
         lines.append(f"decisions applied: accepted {d['accepted'] or 'none'}, rejected {d['rejected'] or 'none'}, "
@@ -207,12 +209,12 @@ def cmd_mcp(args, cfg):
 def cmd_overleaf_check(args, cfg):
     from . import overleaf
 
-    if not overleaf.enabled(cfg):
-        print("overleaf_project is not set in .paper-review.yml, so native Overleaf comments are off.\n"
-              "Set it to the project id (the 24-character id in the Overleaf URL).")
+    st, detail = overleaf.state(cfg)
+    if st != "on":
+        print(f"Overleaf comments are off: {detail}")
         return 1
     if args.raw:
-        print(overleaf._run(cfg, ["comments", "list", cfg.overleaf_project, "--status", "all", "--json"]))
+        print(overleaf._run(cfg, ["comments", "list", detail, "--status", "all", "--json"]))
         return 0
     try:
         info = overleaf.check(cfg)
@@ -245,10 +247,11 @@ def cmd_doctor(args, cfg):
     except FileNotFoundError as exc:
         check("main file", False, str(exc))
     check("config", (cfg.root / CONFIG_NAME).exists(), "" if (cfg.root / CONFIG_NAME).exists() else "(run: paper-review init)")
-    if cfg.overleaf_project:
-        found = shutil.which(cfg.olcli.split()[0]) if cfg.olcli.strip() else None
-        print(f"[{'ok' if found else 'warn'}] olcli {'found' if found else 'not found (native Overleaf comments need it: ' + 'npm install -g @aloth/olcli)'}"
-              f"; project {cfg.overleaf_project}")
+    from . import overleaf
+
+    st, detail = overleaf.state(cfg)
+    print(f"[{'ok' if st == 'on' else 'info'}] Overleaf comments: "
+          + (f"on, project {detail}" if st == "on" else f"off ({detail})"))
     print(f"[info] mode {cfg.mode}, default branch {default_branch(cfg.root, cfg.default_branch)}")
     return 0 if ok else 1
 

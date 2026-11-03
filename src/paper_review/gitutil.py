@@ -112,6 +112,30 @@ def export_tree(root: Path, ref: str, dest: Path) -> None:
         tar.extractall(dest, filter="data")
 
 
+def auto_resolve_comment_conflicts(root: Path, review_dir: str) -> bool:
+    """During a cherry-pick or rebase stopped on conflicts: if every conflicted file is a comment
+    file, merge each (see ``store.merge_comments``), stage it and return True. Any other conflict
+    (the paper itself) returns False and is left untouched."""
+    import json
+
+    from .store import merge_comments
+
+    files = git(root, "diff", "--name-only", "--diff-filter=U", check=False).split()
+    prefix = f"{review_dir}/comments/"
+    if not files or any(not (f.startswith(prefix) and f.endswith(".json")) for f in files):
+        return False
+    merged: dict[str, dict] = {}
+    for f in files:
+        ours, theirs = git(root, "show", f":2:{f}", check=False), git(root, "show", f":3:{f}", check=False)
+        if not ours.strip() or not theirs.strip():
+            return False
+        merged[f] = merge_comments(json.loads(ours), json.loads(theirs))
+    for f, data in merged.items():
+        (root / f).write_text(json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+        git(root, "add", "--", f)
+    return True
+
+
 def commit_paths(root: Path, paths: list[str], message: str) -> str | None:
     """Stage ``paths`` and commit if anything changed. Returns the new sha or None."""
     for p in paths:  # `add -A` also stages deletions of tracked files; unknown paths are ignored

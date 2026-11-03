@@ -2,6 +2,21 @@
 
 Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
 
+## 0.5.0
+- **Decide in the Overleaf thread.** When the agent has proposed a change (`suggest` mode) its reply in the
+  thread says so; **resolving the thread accepts the change** and **replying rejects or adjusts it** (a reply
+  that says "accept", "ok", "lgtm" or a thumbs-up accepts; "reject: reason" rejects with that reason; any other
+  reply rejects and is the instruction for the next attempt). It feeds the same `apply` step as the
+  `decision[...]` lines in `redline.tex`; a decision typed in the file wins. Nothing counts until the agent has
+  answered in the thread.
+- **The project id is automatic**: read from the clone's Overleaf remote URL (`git.overleaf.com/<id>`, or a
+  self-hosted `.../git/<id>`); `overleaf_project` is only an override and `overleaf_comments: false` turns the
+  feature off. Detection looks at the host, so a GitHub URL is never mistaken for Overleaf. If `olcli` is not
+  installed, `pull` says so in one line instead of warning.
+- Fix: comment-file conflicts (a researcher's reply and the agent's reply both editing one comment's JSON)
+  are merged automatically when accepting or rebasing, keeping both conversations; conflicts in the paper
+  itself still stop and report.
+
 ## 0.4.1
 - `pull` now always says whether Overleaf comments are on ("N thread(s) checked, ...") or off (with the setting
   to add); before, "off" and "on but nothing found" both printed nothing.

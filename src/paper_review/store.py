@@ -21,6 +21,28 @@ def now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def merge_comments(ours: dict, theirs: dict) -> dict:
+    """Merge two edits of one comment file (``ours`` = the default branch, ``theirs`` = the agent's).
+
+    Both conversations are kept (ours first, then the entries only the agent has); the agent's status and
+    resolution win, because an accepted change is applied right after this; the Overleaf bookkeeping
+    (messages seen) is the union.
+    """
+    merged = dict(ours)
+    seen = {(t.get("author"), t.get("body")) for t in ours.get("thread", [])}
+    merged["thread"] = list(ours.get("thread", [])) + [
+        t for t in theirs.get("thread", []) if (t.get("author"), t.get("body")) not in seen]
+    for key in ("status", "resolution"):
+        merged[key] = theirs.get(key, ours.get(key))
+    o, t = ours.get("origin") or {}, theirs.get("origin") or {}
+    if o or t:
+        merged["origin"] = {**t, **o}
+        ms = sorted(set(o.get("messages_seen", [])) | set(t.get("messages_seen", [])))
+        if ms:
+            merged["origin"]["messages_seen"] = ms
+    return merged
+
+
 class Store:
     def __init__(self, cfg: Config):
         self.cfg = cfg

@@ -30,7 +30,8 @@ class Config:
     review_dir: str = "review"
     build_dir: str = "build"
     default_branch: str | None = None
-    overleaf_project: str | None = None  # Overleaf project id: enables native Overleaf comments (via olcli)
+    overleaf_project: str | None = None  # override; normally read from the git remote URL
+    overleaf_comments: bool = True  # set false to turn native Overleaf comments off
     olcli: str = "olcli"  # command used to reach Overleaf's comment API
     remote: str = "origin"  # git remote used by `pull` / `push` (e.g. Overleaf's git.overleaf.com)
     remote_branch: str | None = None  # branch on that remote (Overleaf: master or main); default: the default branch

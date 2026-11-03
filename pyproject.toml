@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "paper-review"
-version = "0.4.1"
+version = "0.5.0"
 description = "Review-and-revise loop for LaTeX papers: comments, agent edits, redlines, accept/reject, change log."
 readme = "README.md"
 requires-python = ">=3.10"
