@@ -12,7 +12,7 @@ that moves something between columns.
 | `review` mode: tracked deletion and insertion with a thread reply, reject/accept in Overleaf | The author, on a real project |
 | Use from Claude Code and Codex | The author (earlier with the Python version; the Node server was used with Codex) |
 | MCP protocol | Tests, and the official Python MCP SDK's client against the server |
-| Everything above except real Overleaf | 31 automated tests against a fake Overleaf (`npm test`) |
+| Everything above except real Overleaf | 46 automated tests against a fake Overleaf (`npm test`), including a regression suite: the packed program installed into a clean prefix and run end to end, the cookie never appearing in output, no resolve/reopen/delete anywhere, a stable tool surface, docs commands that exist, a 24-document project |
 
 ## Not verified
 

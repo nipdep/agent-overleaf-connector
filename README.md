@@ -21,6 +21,9 @@ dependencies. No git, no CI, no copies of your paper.
 > The command is `olmcp` (earlier versions were a Python tool of the same name, now on the `python-legacy` branch:
 > uninstall it with `pipx uninstall agent-overleaf-connector` first).
 
+> **Alpha** (0.7.0-alpha.1). Trying it on your own project? Follow [docs/alpha-test-plan.md](docs/alpha-test-plan.md).
+> Install a pinned alpha with `npm install -g github:nipdep/agent-overleaf-connector#v0.7.0-alpha.1`.
+
 > Status: early. Verified by the author on a real project with Claude Code and Codex (comments, tracked-change
 > edits, replies, tags). See [docs/status-and-roadmap.md](docs/status-and-roadmap.md).
 

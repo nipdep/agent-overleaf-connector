@@ -9,6 +9,7 @@ import { PROJECT_FILE, resolveProject } from './project.js';
 import { Tools } from './tools.js';
 import { serve } from './mcp.js';
 import { AGENTS_MD } from './agents-md.js';
+import { VERSION } from './version.js';
 
 const USAGE = `olmcp <command>
 
@@ -35,6 +36,7 @@ function parse(argv) {
     if (a.startsWith('--')) {
       const key = a.slice(2);
       if (['json', 'stdin', 'direct', 'dry-run', 'changes', 'draft', 'all'].includes(key)) flags[key] = true;
+      else if (key === 'version') flags.version = true;
       else flags[key] = argv[++i];
     } else if (a === '-o') flags.o = argv[++i];
     else positional.push(a);
@@ -47,6 +49,7 @@ const print = (data, json, text) => console.log(json ? JSON.stringify(data, null
 async function main(argv) {
   const { positional: p, flags } = parse(argv);
   const cmd = p[0];
+  if (cmd === '--version' || cmd === 'version' || flags.version) { console.log(VERSION); return 0; }
   if (!cmd || cmd === 'help' || flags.help) { console.log(USAGE); return 0; }
   if (cmd === 'auth') {
     if (!flags.cookie) throw new Error('usage: olmcp auth --cookie <value>');

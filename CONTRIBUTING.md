@@ -35,7 +35,7 @@ Overleaf's behaviour, so it cannot prove the real service agrees.
 2. Write the test first or alongside the change.
 3. Keep the docs true: `README.md`, `docs/usage.md`, `docs/agents.md`, `src/agents-md.js` (what agents are told),
    `docs/status-and-roadmap.md` (move things between "verified" and "not verified"), `CHANGELOG.md`.
-4. Add a `CHANGELOG.md` entry and bump `version` in `package.json` (and the server version in `src/mcp.js`). While the
+4. Add a `CHANGELOG.md` entry and bump `version` in `package.json` (the only place). While the
    project is 0.x: a feature or behaviour change is a minor bump, a fix is a patch.
 5. Conventions: ES modules, no shell strings for subprocesses, the `mcp` command must keep stdout clean (it is the
    protocol channel), and agent-facing refusals are `ToolError` messages that say how to retry.

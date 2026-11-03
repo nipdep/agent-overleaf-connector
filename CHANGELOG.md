@@ -3,6 +3,10 @@
 Bump `version` in `package.json` for every change that users can notice, and add a line here.
 
 
+## 0.7.0-alpha.1
+- First alpha. Adds a regression suite (packed install end to end, secret hygiene, stable tool surface, docs match the CLI,
+  many-document project), `olmcp --version`, one version source (`package.json`), and `docs/alpha-test-plan.md`.
+
 ## 0.6.1
 - In `review` mode the thread reply is only the agent's words: Overleaf already shows the tracked change, so the
   Before/After block and the footer are gone. `direct` edits keep Before/After, because they leave no visible trace.
