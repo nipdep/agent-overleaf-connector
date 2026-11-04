@@ -18,6 +18,9 @@ for what is open.
 
 ## Development
 
+CI runs the tests on Linux and macOS with Node 20 and 22. Windows is untested: `test/regression.test.js` assumes npm's
+Unix layout (`<prefix>/bin/olmcp`), so a Windows job needs that test adapted first.
+
 ```bash
 git clone https://github.com/nipdep/agent-overleaf-connector && cd agent-overleaf-connector
 npm test                       # node --test, against a fake Overleaf; nothing needs the network

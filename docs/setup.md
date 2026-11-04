@@ -4,9 +4,15 @@
 
 | Needed | For |
 |---|---|
-| Node.js 20 or later | Running `olmcp` |
+| Node.js 20 or later, on Linux, macOS or Windows | Running `olmcp`. Nothing else: no Python, no Git, no TeX |
 | An Overleaf account and project | Comments, tracked changes, the PDF. **Git integration is not needed** |
 | Claude Code, Codex or another MCP client | The agent |
+
+> **Platforms.** Nothing in the program is OS-specific: it speaks HTTPS to Overleaf and everything else (reading files,
+> compiling, the diff) happens on Overleaf's servers. CI runs the tests on Linux and macOS. Windows is not tested yet;
+> the one command in this guide that is bash syntax is `"$(which olmcp)"`, which in PowerShell is
+> `(Get-Command olmcp).Source`, and the 0600 permission on the cookie file has no effect there, so keep your user
+> folder private.
 
 ## 1. Install
 

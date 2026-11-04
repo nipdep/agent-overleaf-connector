@@ -22,7 +22,7 @@ that moves something between columns.
 | `render_pdf` | Tested against the fake only |
 | Documents in Overleaf's newer history format | Refused for editing; reading untested |
 | Large projects | Every call joins every document |
-| macOS, Windows | Linux only so far |
+| macOS (CI runs the tests there, never run by hand), Windows (not tested; the docs' `$(which olmcp)` is bash) | Nothing in the code is OS-specific, but only Linux has been used for real |
 | Claude Code through this server; other MCP clients | |
 
 ## Known limits
