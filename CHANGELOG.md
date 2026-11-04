@@ -3,7 +3,10 @@
 Bump `version` in `package.json` for every change that users can notice, and add a line here.
 
 
-## 0.7.0-alpha.1
+## 1.0.0-alpha.1
+- Numbered as the first major release line: the public surface (the `olmcp` command, the MCP tools and their arguments,
+  the tag syntax) is what 1.x keeps stable. Bugs found in the alpha are fixed in `1.0.0-alpha.N`, then `1.0.0-beta.N`,
+  then `1.0.0`; after that, features are minor releases (1.1.0) and fixes are patches (1.0.1).
 - First alpha. Adds a regression suite (packed install end to end, secret hygiene, stable tool surface, docs match the CLI,
   many-document project), `olmcp --version`, one version source (`package.json`), and `docs/alpha-test-plan.md`.
 

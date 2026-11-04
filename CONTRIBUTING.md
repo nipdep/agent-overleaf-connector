@@ -60,6 +60,10 @@ Record the result in `docs/status-and-roadmap.md`.
 
 ## Releasing
 
+Versions: `1.0.0-alpha.N` while real-Overleaf bugs are still being found, `1.0.0-beta.N` when the alpha scenarios pass
+on several projects and computers, then `1.0.0`. After 1.0.0: new features are minor (`1.1.0`), fixes are patches
+(`1.0.1`), and anything that breaks the command, a tool's arguments or the tag syntax is a major release.
+
 1. Everything merged; CI green on `main`.
 2. `CHANGELOG.md` has the version; `package.json` has that version.
 3. Tag and publish (users can then pin `npm install -g github:nipdep/agent-overleaf-connector#vX.Y.Z`):

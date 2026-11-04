@@ -47,7 +47,7 @@ test('the version has one source and the commands report it', async () => {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8')).version;
   assert.equal((await run(['--version'])).out.trim(), pkg);
   assert.equal((await run(['version'])).out.trim(), pkg);
-  assert.match(pkg, /^\d+\.\d+\.\d+(-[a-z]+\.\d+)?$/);
+  assert.match(pkg, /^\d+\.\d+\.\d+(-(alpha|beta|rc)\.\d+)?$/);
 });
 
 test('the package contains only what it needs', () => {
