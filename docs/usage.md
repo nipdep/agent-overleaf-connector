@@ -1,16 +1,16 @@
-# Using it
+# Use `olmcp`
 
-## The loop
+Most of the time, your workflow is simple:
 
+```text
+Leave a comment in Overleaf → ask the agent to address it → review the result
 ```
-you comment in Overleaf  →  olmcp pull  →  agent addresses comments  →  olmcp push  →  you review
-```
 
-The agent runs `pull` first and `push` last (through MCP tools or the CLI), so normally you only comment,
-say "address the review comments", and review. `pull` fetches what you did in Overleaf; `push` publishes the
-agent's work. There is no daemon and no polling.
+Behind the scenes, the agent starts with `olmcp pull` and ends with `olmcp push`. Pulling brings your latest Overleaf edits and comments into the local clone. Pushing sends the agent's edits and replies back to Overleaf.
 
-## Making a comment
+Nothing runs continuously in the background. The connector only checks Overleaf when a pull or push happens.
+
+## Ask for a change
 
 **Native Overleaf comment** (needs `olmcp-overleaf`, see [setup](setup.md)): select text, add a Review comment. The agent
 receives your message, the selected text (`selected_text`), and the thread. Later messages you write in the
@@ -32,14 +32,11 @@ agent removes the marker when it has handled it.
 
 Only files the paper uses are scanned; keep comments out of `archive/` or `sample/` copies.
 
-## Direct or suggest
+## Choose how edits are applied
 
-- **`direct`** applies an edit to your files at once, as a normal Overleaf edit.
-- **`suggest`** holds the edit for you to accept or reject in `redline.tex`.
-- **`review`** writes the edit into Overleaf as a **tracked change** (Reviewing mode); you accept or reject it in
-  Overleaf's Review panel. Needs a native comment and the Node client (see
-  [overleaf-client.md](overleaf-client.md)); **not yet verified on real Overleaf**. Git is not touched: the accepted
-  text arrives with your next `olmcp pull`.
+- **`direct`** applies the edit immediately as a normal Overleaf edit.
+- **`suggest`** holds the edit until you accept or reject it. You review these changes in `redline.tex`.
+- **`review`** sends the edit to Overleaf as a tracked change. You accept or reject it in the Review panel. This mode needs a native comment and the Node client; see the [Overleaf client guide](overleaf-client.md). The tracked edit does not use Git. Once you accept it in Overleaf, your next `olmcp pull` brings the text into the local clone.
 
 Default: `olmcp mode` shows it, `olmcp mode suggest` (or `direct`) sets it (a committed one-line change; run
 `olmcp push` to publish it), or tell the agent "switch to suggest mode".
@@ -79,7 +76,7 @@ Our method [-always-] outperforms [-the-]{+most+} baselines on the benchmarks
 is an inline word diff. The agent never resolves a thread: **a handled comment stays open until you resolve it**
 (there is no setting that changes this).
 
-## Deciding on a held change (suggest)
+## Accept or reject a suggested edit
 
 | How | Accept | Reject or adjust |
 |---|---|---|
@@ -110,7 +107,7 @@ blue). It sits beside your main file. Above every change a note says where it is
 Edit only the `decision[...]` and `reason[...]` lines; valid values are `accept`, `reject`, `pending`. If a
 change has no visible effect on the paper, its decision lines are at the top under a `WARNING`.
 
-## Undoing
+## Undo an applied change
 
 - Direct edit: reply in the thread, `git revert` the commit (it carries `Resolves: C-xxxx`), or Overleaf's History.
 - An accepted change: the same. A local rollback tag `olmcp/pre-apply-...` marks the state before each accept.

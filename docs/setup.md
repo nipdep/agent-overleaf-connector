@@ -1,16 +1,20 @@
-# Setting up a new Overleaf project
+# Set up a new Overleaf project
 
-Supported: Linux and macOS. Windows is not supported yet (WSL2 may work, untested).
+This guide takes you from installation to your first agent-assisted edit.
 
-## What you need
+The connector currently supports Linux and macOS. Windows is not supported yet; WSL2 may work, but has not been tested.
 
-| Needed | For |
+## Before you begin
+
+| You need | Why |
 |---|---|
-| Python 3.10+, `git`, `pipx` | Everything |
-| An Overleaf project with **Git integration** (a premium feature; a free account can use it inside a project owned by a premium user) | Reaching the project |
-| Node.js 20+ and the `olmcp-overleaf` command (in `node/` of this repository) | Native Overleaf comments and tracked-change edits. Optional: `%%` markers work without it |
-| `latexdiff` | The typeset redline in `suggest` mode only |
-| TeX Live (`latexmk` and packages) | Only for local page renders (`olmcp build`). Optional |
+| Python 3.10+, Git, and `pipx` | To install and run the connector |
+| An Overleaf project with **Git integration** | To move paper changes between your computer and Overleaf |
+| Node.js 20+ and `olmcp-overleaf` | Optional: needed for native Overleaf comments and tracked changes |
+| `latexdiff` | Optional: needed for the typeset redline in `suggest` mode |
+| TeX Live (`latexmk` and packages) | Optional: needed only to render pages locally with `olmcp build` |
+
+Overleaf Git integration is a premium feature. A free account can still use it in a project owned by a premium user. If you skip the Node client, you can give the agent instructions with `%% @agent:` markers instead of native comments.
 
 `olmcp doctor` reports what is present and what each missing tool would disable.
 
@@ -32,11 +36,13 @@ git clone https://github.com/nipdep/agent-overleaf-connector ~/agent-overleaf-co
 sudo apt install -y latexdiff       # redline for suggest mode (macOS: brew install latexdiff)
 ```
 
-## 2. Credentials
+## 2. Add your Overleaf credentials
 
-Never paste either of these into a chat, an issue or a commit.
+You need two separate Overleaf credentials. Never paste either one into a chat, issue, or commit.
 
-**Overleaf Git token** (to clone, pull and push): Overleaf, Account settings, Git integration, create a token.
+### Git token
+
+This token lets Git clone, pull, and push your project. In Overleaf, open **Account Settings → Git Integration** and create a token.
 Keep it in memory only instead of letting git write it to disk:
 
 ```bash
@@ -46,8 +52,11 @@ git config --global credential.helper 'cache --timeout=14400'
 (`store` also works but saves the token in plain text in `~/.git-credentials`, readable by any program you
 run, including an agent.)
 
-**Overleaf session cookie** (for `olmcp-overleaf`, native comments only): in your browser's developer tools open
-Application, Cookies, `overleaf.com`, and copy the value of `overleaf_session2`:
+### Session cookie
+
+This cookie lets `olmcp-overleaf` read and reply to native comments. You do not need it if you only use `%% @agent:` markers.
+
+In your browser's developer tools, open **Application → Cookies → overleaf.com**, then copy the value of `overleaf_session2`:
 
 ```bash
 olmcp-overleaf auth --cookie "<paste cookie value here>"
@@ -81,7 +90,7 @@ env -u GIT_ASKPASS -u SSH_ASKPASS GIT_TERMINAL_PROMPT=1 git clone https://git@gi
 
 The first clone of a large project can take minutes.
 
-## 4. Set it up in the clone
+## 4. Prepare the cloned project
 
 Pick the default mode (you can change it any time with `olmcp mode`, and per comment with a tag):
 
@@ -126,7 +135,7 @@ codex mcp add olmcp -- "$(which olmcp)" mcp       # Codex
 
 More in [agents.md](agents.md).
 
-## 6. First test
+## 6. Try your first comment
 
 1. In Overleaf, select a sentence, open Review and add a comment such as "make this shorter".
 2. In the clone run `olmcp pull`. Expect `Overleaf comments: 1 thread(s) checked: 1 created` and an

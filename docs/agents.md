@@ -1,9 +1,10 @@
-# Connecting an AI agent
+# Connect an AI agent
 
-The agent talks to your Overleaf project only through this tool. The tool does the git work, the comment
-handling and the bookkeeping; the agent supplies the edits and the wording.
+`olmcp` is the bridge between your agent and Overleaf. It handles Git, comments, and review state; the agent focuses on reading and editing the paper.
 
-## How the pieces fit
+Run the agent from inside your cloned Overleaf project. The setup command `olmcp init` adds the project files described below.
+
+## What `olmcp init` adds
 
 | Piece | What it is |
 |---|---|
@@ -56,7 +57,7 @@ would need an HTTP mode, a tunnel you run yourself, and real authentication, bec
 paper and push to Overleaf; an open URL would hand that to anyone who finds it. That authentication is the
 unbuilt, hard part. See `design.md` section 19. Until then the OpenAI route is **Codex**.
 
-## The tools
+## What the agent can do
 
 | Tool | Does |
 |---|---|
@@ -69,7 +70,7 @@ unbuilt, hard part. See `design.md` section 19. Until then the OpenAI route is *
 | `push` | Refresh the redline and change log, post replies into Overleaf threads, publish. Last |
 | `build`, `view_page` | Optional: render the paper and look at a page (needs TeX) |
 
-## What the tools enforce (so the agent cannot get it wrong)
+## Safety rules enforced by the connector
 
 - `address_comment` is atomic: every edit's `old` text must match exactly once, or nothing changes and the
   error says how to retry.
@@ -98,7 +99,7 @@ writes the Codex rule (user-wide, in its own file). By hand, the rules are:
 
 `olmcp doctor` also warns about a stale `AGENTS.md` (written by `olmcp init`, never updated automatically).
 
-## No MCP? Use the CLI
+## If your agent does not support MCP
 
 An agent with only a shell can follow the same loop:
 
