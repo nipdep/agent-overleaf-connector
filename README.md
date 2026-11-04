@@ -2,98 +2,53 @@
 
 [![tests](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml)
 
-`olmcp` lets an AI coding agent work on your Overleaf paper without taking you out of the review loop.
+`olmcp` lets an AI coding agent work on your Overleaf paper without taking you out of the review loop. You leave a comment in Overleaf; the agent reads it with its selected text, edits the paper as **tracked changes** you accept or reject, and replies in the same thread. Open source (Apache 2.0); nothing is hosted for you.
 
-You leave a comment in Overleaf. The agent reads the comment and its selected text, edits the paper as **tracked changes** you can accept or reject, and replies in the same thread. You stay in charge of every change.
+- **Ask where you already work.** Select text and leave a normal Review comment.
+- **Review where you already review.** The agent's edit appears as a tracked deletion and insertion with Accept and Reject buttons. Reject restores your text.
+- **Steer per comment, optionally.** `#direct` applies an edit immediately, `#no-agent` keeps the agent away, `#agent` focuses it on selected threads.
+- **You close the threads.** The agent replies in plain words but never resolves, closes, or approves a thread; the tool has no such command.
+- **Any MCP agent.** Claude Code, Codex, or any client that can start a local MCP server. The agent can also compile the project with Overleaf's compiler and read the PDF.
 
-The project is open source under Apache 2.0. Nothing is hosted for you: it runs on your computer and connects to your own Overleaf project.
+> **Status:** 1.0.0-alpha.1. Used by the author with Claude Code and Codex on a real project, and covered by automated tests; it relies on Overleaf's unofficial web interface and needs wider testing. Want to help? See the [alpha test plan](docs/alpha-test-plan.md) and [Status and roadmap](docs/status-and-roadmap.md).
 
-## What it gives you
+## Set up (once per computer)
 
-- **A familiar way to ask for changes.** Select text and leave a normal Overleaf Review comment.
-- **Edits that appear where you already review.** In the default `review` mode the agent's change shows up in the editor as a tracked deletion and insertion, with Accept and Reject buttons. Reject restores your text.
-- **Control over every comment.** Add `#direct` to apply an edit immediately, `#no-agent` to keep the agent away from a thread, or `#agent` to focus it on selected threads. Tags are always optional.
-- **Replies that stay with the discussion.** The agent answers in the original thread in plain words. It never resolves, closes, or approves a thread; the tool has no such command.
-- **A look at the result.** The agent can compile the project with Overleaf's own compiler and read the PDF.
-- **Support for different agents.** The same local MCP server works with Claude Code, Codex, and other clients that can start a local MCP server.
-
-```text
-You comment in Overleaf
-        ↓
-Your AI agent reads the comment through olmcp
-        ↓
-olmcp writes the edit into Overleaf as a tracked change
-        ↓
-You accept, reject, or reply in the thread
-```
-
-> **Project status:** version 1.0.0-alpha.1. The author uses it with Claude Code and Codex on a real project, and the core workflow has automated test coverage. The tool relies on Overleaf's unofficial web interface, so it needs broader real-world testing. Want to help? Follow the [alpha test plan](docs/alpha-test-plan.md). See [Status and roadmap](docs/status-and-roadmap.md) for details.
-
-## Before you start
-
-You need **Node.js 20 or newer** and an Overleaf account. That is all: there is no Python, no Git, no TeX to install, and no paid Overleaf plan or Git integration is required. Nothing needs to be cloned or set up per project.
-
-Everything heavy (reading the document, tracking changes, compiling, rendering) happens on Overleaf's servers. The program only talks to Overleaf over HTTPS and to your agent over a local pipe, so it is not tied to an operating system. The tests run on Linux and macOS; Windows has not been tested yet.
-
-## Quick start
-
-For explanations and troubleshooting, follow the [full setup guide](docs/setup.md). The short version is:
-
-### 1. Install `olmcp`
+You need **Node.js 20 or newer** and an Overleaf account. No Python, Git, TeX, or paid Overleaf plan is required, and nothing runs in the background. Everything heavy (reading, tracking changes, compiling) happens on Overleaf's servers, so the program is not tied to an operating system (tested on Linux and macOS; Windows is untested).
 
 ```bash
-npm install -g github:nipdep/agent-overleaf-connector
-olmcp --version
+npm install -g github:nipdep/agent-overleaf-connector        # 1. install
+olmcp auth --cookie "<overleaf_session2 cookie value>"          # 2. sign in (never paste the cookie into a chat)
+claude mcp add --scope user olmcp -- "$(which olmcp)" mcp       # 3. connect your agent (restart it afterwards)
+codex mcp add olmcp -- "$(which olmcp)" mcp                     #    ...or Codex
 ```
 
-If you used the earlier Python version of `olmcp`, uninstall it first with `pipx uninstall agent-overleaf-connector`.
+Where to find the cookie, and troubleshooting: [setup guide](docs/setup.md).
 
-### 2. Sign in to Overleaf
+## Connect a project (pick one)
 
-```bash
-olmcp auth --cookie "<overleaf_session2 cookie value>"
-```
+- **A. Just use the project URL.** Nothing to set up. You paste the URL when you ask (see below).
+- **B. Work from a clone.** If you want a local folder per paper, clone it with the Git command Overleaf shows (**Menu → Sync → Git**, a premium feature) and start the agent in that folder:
 
-Never paste this cookie into a chat, issue, or commit. It gives access to your Overleaf account. The [setup guide](docs/setup.md#2-sign-in-with-your-session-cookie) explains where to find it and how it is stored.
+  ```bash
+  git clone https://git@git.overleaf.com/<project-id> my-paper && cd my-paper
+  ```
 
-### 3. Connect your agent
+  `olmcp` finds the project from the clone, so you never have to name it. The agent's edits still go into the live Overleaf project, not the clone (`git pull` to catch up).
 
-Run one of these commands once, then restart the agent:
+`olmcp doctor --project <project-id>` checks that everything works.
 
-```bash
-claude mcp add --scope user olmcp -- "$(which olmcp)" mcp
-codex mcp add olmcp -- "$(which olmcp)" mcp
-```
+## Use it (every time)
 
-### 4. Ask for your first change
+1. In Overleaf, select text and leave a comment such as “make this clearer.”
+2. Tell your agent, in its chat or from the command line:
 
-In Overleaf, select a sentence and leave a comment such as “make this clearer.” Then tell the agent which project to work on. There are two ways to do that, and you can use either.
+   > Address the review comments.
 
-**Option A: give the agent the project URL. Nothing to clone.**
+   With option A, add the project: *“Address the review comments in https://www.overleaf.com/project/&lt;project-id&gt;”*. To run it without opening a chat, use your agent's one-shot mode, for example `claude -p "Address the review comments"` or `codex exec "Address the review comments"`.
+3. Back in Overleaf, accept or reject each tracked change, reply in the thread, or resolve it.
 
-Start the agent in any folder and paste the project's address (the project URL, the project id, or the Git URL Overleaf shows you all work):
-
-> Address the review comments in https://www.overleaf.com/project/&lt;project-id&gt;
-
-The agent passes the project to `olmcp` itself. It reads the live document through the connector and writes its edits straight into Overleaf. This needs no paid Overleaf plan.
-
-**Option B: work from a clone of the project.**
-
-If you like having a local folder per paper, clone the project with the Git command Overleaf gives you (in Overleaf: **Menu → Sync → Git**; Git integration is a premium Overleaf feature):
-
-```bash
-git clone https://git@git.overleaf.com/<project-id> my-paper
-cd my-paper
-olmcp doctor
-```
-
-Start the agent in that folder. `olmcp` recognises the project from the clone's Git remote, so you can simply say:
-
-> Address the review comments.
-
-Two things to know about the clone. First, the agent's edits still go into the live Overleaf project, not into your local files, so run `git pull` when you want the clone to catch up. Second, the agent should read the paper with the connector's `read_file` tool (the live text), not the local copy, which can be behind.
-
-Either way, `olmcp doctor --project <project-id>` checks your setup. Optionally, `olmcp init <project-id>` in any folder saves the project, the default mode, and an `AGENTS.md` there, so you do not have to name the project each time.
+That is the whole loop. Setup never has to be repeated, except to refresh the cookie when it expires after a few days.
 
 ## Common tasks
 

@@ -41,7 +41,7 @@ self-hosted Overleaf add `--base-url https://your.overleaf.example`. The cookie 
 expires after a few days; repeat this step when the tool says the session expired. Never paste it into a chat, an
 issue or a commit. If you did, log out of Overleaf in the browser (that ends the session) and sign in again.
 
-## 3. Connect your agent (once)
+## 3. Connect your agent
 
 ```bash
 claude mcp add --scope user olmcp -- "$(which olmcp)" mcp
@@ -52,7 +52,7 @@ These register the server for all your folders; restart the agent afterwards. Ot
 servers: command `olmcp`, argument `mcp`. ChatGPT's chat apps need a remote HTTPS server and are not supported; use
 Codex. (Claude Code without `--scope user` registers it for the current folder only.)
 
-## 4. Tell the agent which project
+## 4. Connect a project (pick one)
 
 Nothing needs to be configured per project. You can name the project in one of two ways.
 
@@ -82,10 +82,19 @@ folder writes `.olmcp.json` (project and default mode) and an `AGENTS.md` with t
 `AGENTS.md` is left alone. Without it, the same instructions come from the server itself. `--project` and the
 `OVERLEAF_PROJECT` variable also name a project.
 
-## 5. Try your first comment
+## 5. Use it (every time)
 
-Comment in Overleaf, then tell the agent "address the review comments". It lists the comments, edits the live
-document as tracked changes, replies in each thread, and leaves the threads open for you.
+Steps 1 to 3 are one-time setup per computer, and step 4 is only about how the agent learns the project. From then on
+the loop is:
+
+1. Comment in Overleaf.
+2. Tell the agent, in its chat or from the command line: "Address the review comments." (With option A, add the
+   project URL.) For a command-line one-shot, use your agent's non-interactive mode, for example
+   `claude -p "Address the review comments"` or `codex exec "Address the review comments"`.
+3. Accept or reject the tracked changes in Overleaf, and resolve the threads yourself.
+
+The agent lists the comments, edits the live document as tracked changes, replies in each thread, and leaves the
+threads open for you. Only the cookie ever needs refreshing (it expires after a few days).
 
 ## Troubleshooting
 
