@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/olmcp-logo.png" alt="Agent standing over a leaf" width="220">
+</p>
+
 # Agent–Overleaf Connector (`olmcp`)
 
 [![tests](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml)
@@ -75,6 +79,8 @@ See [Use `olmcp`](docs/usage.md) for modes, comment tags, the tools, and setting
 - [Contribute to the project](CONTRIBUTING.md)
 
 Release-by-release changes are listed in the [changelog](CHANGELOG.md). The earlier Python version (Git sync, `%% @agent:` markers, `redline.tex`, GitHub CI mode) lives on the [`python-legacy`](https://github.com/nipdep/agent-overleaf-connector/tree/python-legacy) branch.
+
+Logo files are available as [PNG](docs/assets/olmcp-logo.png) and [SVG](docs/assets/olmcp-logo.svg).
 
 ## Credits and license
 

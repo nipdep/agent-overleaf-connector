@@ -1,5 +1,9 @@
 # Documentation
 
+<p align="center">
+  <img src="assets/olmcp-logo.png" alt="Agent standing over a leaf" width="140">
+</p>
+
 New to the project? Read the [main README](../README.md) first, then follow the [setup guide](setup.md).
 
 ## For people using the connector
