@@ -52,24 +52,35 @@ These register the server for all your folders; restart the agent afterwards. Ot
 servers: command `olmcp`, argument `mcp`. ChatGPT's chat apps need a remote HTTPS server and are not supported; use
 Codex. (Claude Code without `--scope user` registers it for the current folder only.)
 
-## 4. Name the project
+## 4. Tell the agent which project
 
-Nothing needs to be cloned or configured per project. Either tell the agent the project when you ask:
+Nothing needs to be configured per project. You can name the project in one of two ways.
+
+**Option A: give the agent the project URL (no clone).** Start the agent in any folder and say:
 
 > Address the review comments in https://www.overleaf.com/project/&lt;id&gt;
 
-(the id, the project URL or the git URL all work; the tools take a `project` argument and the server's own instructions
-tell the agent to pass it), or save it for a folder:
+The project id, the project URL, and the Git URL all work. The tools take a `project` argument, and the server's own
+instructions tell the agent to pass it. This works on any Overleaf plan.
+
+**Option B: clone the project and work from the clone.** Use the Git command Overleaf gives you (Menu, Sync, Git; a
+premium feature):
 
 ```bash
-mkdir my-paper-agent && cd my-paper-agent
-olmcp init <project-id> --mode review        # or --mode direct
+git clone https://git@git.overleaf.com/<project-id> my-paper
+cd my-paper
 olmcp doctor
 ```
 
-`init` writes `.olmcp.json` (project and default mode) and an `AGENTS.md` with the agent's instructions (an existing
-`AGENTS.md` is left alone). Without it the same instructions come from the server itself. A folder that is a clone of the
-project's Overleaf git remote is recognised too, and `--project` / `OVERLEAF_PROJECT` also work.
+Start the agent in that folder. `olmcp` reads the project id from the clone's Git remote (only when the remote's host
+is an Overleaf server), so you can just say "Address the review comments." The agent's edits still go into the live
+Overleaf project, not the clone: run `git pull` to bring the clone up to date, and have the agent read the paper
+with the `read_file` tool so it sees the live text.
+
+**Saving the project for a folder.** In either option, `olmcp init <project-id> --mode review` (or `--mode direct`) in a
+folder writes `.olmcp.json` (project and default mode) and an `AGENTS.md` with the agent's instructions. An existing
+`AGENTS.md` is left alone. Without it, the same instructions come from the server itself. `--project` and the
+`OVERLEAF_PROJECT` variable also name a project.
 
 ## 5. Try your first comment
 

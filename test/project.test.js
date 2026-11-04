@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resolveProject } from '../src/project.js';
@@ -24,4 +25,17 @@ test('no project is a clear error', () => {
   const root = mkdtempSync(join(tmpdir(), 'olmcp-'));
   const saved = process.env.OVERLEAF_PROJECT; delete process.env.OVERLEAF_PROJECT;
   try { assert.throws(() => resolveProject({ cwd: root }), /olmcp init/); } finally { if (saved) process.env.OVERLEAF_PROJECT = saved; }
+});
+
+test('a clone made with the git command Overleaf gives is recognised, and a GitHub remote is not', () => {
+  const root = mkdtempSync(join(tmpdir(), 'olmcp-clone-'));
+  const git = (...args) => execFileSync('git', args, { cwd: root, stdio: 'ignore' });
+  git('init', '-q');
+  const saved = process.env.OVERLEAF_PROJECT; delete process.env.OVERLEAF_PROJECT;
+  try {
+    git('remote', 'add', 'origin', `https://git@git.overleaf.com/${ID}`);
+    assert.equal(resolveProject({ cwd: root }).project, ID);
+    git('remote', 'set-url', 'origin', `https://github.com/someone/overleaf-fan-notes.git`);
+    assert.throws(() => resolveProject({ cwd: root }), /olmcp init/);
+  } finally { if (saved) process.env.OVERLEAF_PROJECT = saved; }
 });

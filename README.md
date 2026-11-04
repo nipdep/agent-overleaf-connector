@@ -67,11 +67,33 @@ codex mcp add olmcp -- "$(which olmcp)" mcp
 
 ### 4. Ask for your first change
 
-Select a sentence in Overleaf, leave a comment such as “make this clearer,” and tell the agent, with the project's id, URL, or Git URL:
+In Overleaf, select a sentence and leave a comment such as “make this clearer.” Then tell the agent which project to work on. There are two ways to do that, and you can use either.
+
+**Option A: give the agent the project URL. Nothing to clone.**
+
+Start the agent in any folder and paste the project's address (the project URL, the project id, or the Git URL Overleaf shows you all work):
 
 > Address the review comments in https://www.overleaf.com/project/&lt;project-id&gt;
 
-You can check your setup at any time with `olmcp doctor --project <project-id>`. If you would rather not name the project each time, run `olmcp init <project-id>` in a folder: it saves the project, the default mode, and an `AGENTS.md` there.
+The agent passes the project to `olmcp` itself. It reads the live document through the connector and writes its edits straight into Overleaf. This needs no paid Overleaf plan.
+
+**Option B: work from a clone of the project.**
+
+If you like having a local folder per paper, clone the project with the Git command Overleaf gives you (in Overleaf: **Menu → Sync → Git**; Git integration is a premium Overleaf feature):
+
+```bash
+git clone https://git@git.overleaf.com/<project-id> my-paper
+cd my-paper
+olmcp doctor
+```
+
+Start the agent in that folder. `olmcp` recognises the project from the clone's Git remote, so you can simply say:
+
+> Address the review comments.
+
+Two things to know about the clone. First, the agent's edits still go into the live Overleaf project, not into your local files, so run `git pull` when you want the clone to catch up. Second, the agent should read the paper with the connector's `read_file` tool (the live text), not the local copy, which can be behind.
+
+Either way, `olmcp doctor --project <project-id>` checks your setup. Optionally, `olmcp init <project-id>` in any folder saves the project, the default mode, and an `AGENTS.md` there, so you do not have to name the project each time.
 
 ## Common tasks
 
