@@ -4,7 +4,7 @@
 
 ## Checklist
 
-- [ ] Tests added or updated; `pytest -q` passes locally (note any that were skipped for missing tools)
+- [ ] Tests added or updated; `npm test` passes locally
 - [ ] Docs updated where behaviour changed (`README.md`, `docs/usage.md`, `docs/agents.md`, `templates/AGENTS.md`, `docs/design.md`)
 - [ ] `CHANGELOG.md` entry and `version` bump in `pyproject.toml` (for anything a user can notice)
 - [ ] `docs/status-and-roadmap.md` updated if something is now verified or newly unverified

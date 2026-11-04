@@ -1,124 +1,25 @@
 # Connect an AI agent
 
-`olmcp` is the bridge between your agent and Overleaf. It handles Git, comments, and review state; the agent focuses on reading and editing the paper.
+`olmcp mcp` is a local MCP server (stdio) that the agent client starts. See [setup](setup.md) for the two
+registration commands; the tools are listed in [usage](usage.md).
 
-Run the agent from inside your cloned Overleaf project. The setup command `olmcp init` adds the project files described below.
+| Client | Registration | Notes |
+|---|---|---|
+| Claude Code | `claude mcp add --scope user olmcp -- "$(which olmcp)" mcp` | Restart it after adding; `--scope user` makes it available in every folder |
+| Codex | `codex mcp add olmcp -- "$(which olmcp)" mcp` | Reads the folder's `AGENTS.md` |
+| Others that start local servers | command `olmcp`, arguments `mcp` | Untested |
+| ChatGPT chat apps | not supported | They need a remote HTTPS server with authentication |
 
-## What `olmcp init` adds
+Name the project when you ask (the tools take a `project` argument: id, project URL or git URL), or run the agent
+from a folder where you ran `olmcp init`, which holds the project id and an `AGENTS.md`. Keep any older MCP server for the same project removed, so the agent has one set of tools.
 
-| Piece | What it is |
-|---|---|
-| `olmcp mcp` | A local MCP server (stdio) exposing the tools below. The agent client starts it |
-| `AGENTS.md` | The protocol, in plain text. Codex reads it; `CLAUDE.md` imports it for Claude Code |
-| `.mcp.json` | Claude Code's project entry for the server (it asks you to approve it) |
-| `.claude/commands/address-comments.md` | The `/address-comments` command |
+## What the tools enforce, and what is only instruction
 
-All four are written into your clone by `olmcp init`. Run the agent from inside the clone.
+Enforced in code: edits validated before anything is written, `#no-agent` refusal, the researcher's tag beating the
+agent's mode, no way to resolve, reopen or delete a thread. Only instruction (in `AGENTS.md`, which you can
+edit): how to word replies, when to ask instead of guess, "do not use another way to reach Overleaf".
 
-## Claude Code
-
-```bash
-claude mcp add olmcp -- "$(which olmcp)" mcp
-claude mcp list                  # olmcp should show as connected
-```
-
-Restart Claude Code afterwards. Then say "address the review comments", or type `/address-comments`.
-Using the full path from `which olmcp` avoids problems when the agent's shell has a different `PATH`.
-
-## Codex (CLI, IDE extension, app)
-
-```bash
-codex mcp add olmcp -- "$(which olmcp)" mcp
-codex mcp list
-```
-
-Or in `~/.codex/config.toml` (a project-level `.codex/config.toml` also works for trusted projects):
-
-```toml
-[mcp_servers.olmcp]
-command = "olmcp"
-args = ["mcp"]
-```
-
-Codex reads `AGENTS.md` automatically. These are the author's tested setups (Codex "works well"); the details
-come from Codex's documentation, which the maintainer could not fetch while writing this page, so correct
-this page if the commands differ in your version.
-
-## Other MCP clients that start local servers
-
-Claude Desktop, Cursor and similar: command `olmcp`, arguments `["mcp"]`, working directory the clone (or add
-`--root <clone>` before `mcp`). Untested.
-
-## ChatGPT (chat in the browser or desktop app): not supported yet
-
-ChatGPT's custom connectors need a **remote** MCP server over HTTPS (Developer Mode, plan dependent; OAuth or no
-authentication) and cannot start a local program. This server speaks over a local pipe only. Supporting it
-would need an HTTP mode, a tunnel you run yourself, and real authentication, because the server can edit your
-paper and push to Overleaf; an open URL would hand that to anyone who finds it. That authentication is the
-unbuilt, hard part. See `design.md` section 19. Until then the OpenAI route is **Codex**.
-
-## What the agent can do
-
-| Tool | Does |
-|---|---|
-| `pull` | Fetch your edits from Overleaf, import comments, apply your decisions, report what happened. Always first |
-| `list_comments`, `show_comment` | Open comments with their request, selected text, mode and thread |
-| `read_file`, `list_paper_files` | Read parts of the paper's text files |
-| `address_comment` | Address one comment: apply edits, remove its marker, record the reply, mark it addressed, commit. All or nothing |
-| `reply_to_comment` | Reply (a question or explanation) without changing the paper; the comment stays open |
-| `set_mode` | Change the default mode; only when you ask |
-| `push` | Refresh the redline and change log, post replies into Overleaf threads, publish. Last |
-| `build`, `view_page` | Optional: render the paper and look at a page (needs TeX) |
-
-## Safety rules enforced by the connector
-
-- `address_comment` is atomic: every edit's `old` text must match exactly once, or nothing changes and the
-  error says how to retry.
-- One comment per commit, with the `Resolves: C-NNNN` trailer; the reply is recorded with the edit.
-- Your `#suggest` / `#direct` tag beats the agent's `mode` argument.
-- A `#no-agent` comment cannot be edited or replied to; with any open `#agent` comment, `list_comments` returns
-  only those unless the agent passes `include_skipped`.
-- Paths stay inside the repository; only `.tex`, `.bib` and `.sty` can be edited; `.git`, `build/` and `review/`
-  cannot; symlinks out of the repository are refused. There is no tool that runs arbitrary commands.
-- The agent never creates branches, pushes by itself, or resolves a thread.
-- Errors from the tools reach the agent with their message.
-
-What is only *instruction* (in `AGENTS.md`, which you can edit): how to word replies, when to ask instead of
-guess, which mode to choose for untagged comments, "never push a branch to Overleaf".
-
-## Stop an agent resolving threads
-
-The tool never resolves an Overleaf thread, and `olmcp-overleaf` has no command to. An agent with a shell can
-still use the old `olcli` if it is installed, or anything else holding your cookie; nothing in the tool can tell that apart from
-you resolving. `olmcp init` adds the Claude Code rule for you; `olmcp guard` does it on an existing clone and `olmcp guard --codex`
-writes the Codex rule (user-wide, in its own file). By hand, the rules are:
-
-- Claude Code, `.claude/settings.json`: `{ "permissions": { "deny": ["Bash(olmcp-overleaf:*)", "Bash(olcli:*)"] } }`
-- Codex, a rule in `~/.codex/rules/default.rules` such as `prefix_rule(pattern=["olmcp-overleaf"], decision="forbidden")` (and one for `olcli`)
-  (check the syntax against your Codex version). `olmcp pull` and `push` still work: they run outside the agent.
-
-`olmcp doctor` also warns about a stale `AGENTS.md` (written by `olmcp init`, never updated automatically).
-
-## If your agent does not support MCP
-
-An agent with only a shell can follow the same loop:
-
-```bash
-olmcp pull
-olmcp list
-olmcp show C-0001
-olmcp address C-0001 edit.json     # JSON: {"edits": [{"file", "old", "new"}], "reply": "...", "mode": "..."}
-olmcp push
-```
-
-## Changing how the agent behaves
-
-Edit `AGENTS.md` in your clone. Examples: "for any change that deletes text, use `mode: suggest`", "ask me
-before touching the abstract", "always explain in one sentence". The tool does not prescribe a review policy;
-your instructions and your comment tags do.
-
-## What has been verified
-
-The real server driven over stdio by the MCP SDK's own client (tool list, a full address-and-push round, error
-messages reaching the agent), and use with Claude Code and Codex on a real project by the author. Other
-clients and other agents' adherence to `AGENTS.md` are untested.
+An agent with a shell can still read your cookie file or call Overleaf by other means; the tool does not claim to
+prevent that. If you want to reduce the risk, deny shell access to `olmcp` and `~/.config/olmcp`
+in your agent's permission settings (Claude Code: `permissions.deny` such as `Bash(olmcp:*)`; the MCP server is
+unaffected). Codex has command rules for the same purpose; check its documentation for the syntax.

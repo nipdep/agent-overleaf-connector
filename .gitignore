@@ -1,7 +1,4 @@
-__pycache__/
-*.egg-info/
-.pytest_cache/
-build/
-dist/
-.venv/
-!src/olmcp/templates/CLAUDE.md
+node_modules/
+*.tgz
+overleaf-output.pdf
+.olmcp-overleaf.json

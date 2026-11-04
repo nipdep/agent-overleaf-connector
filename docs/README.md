@@ -6,18 +6,11 @@ New to the project? Read the [main README](../README.md) first, then follow the 
 
 | Guide | What you will find there |
 |---|---|
-| [Set up a project](setup.md) | Installation, Overleaf credentials, your first connection, and troubleshooting |
-| [Use `olmcp`](usage.md) | The normal workflow, edit modes, comment tags, accepting changes, commands, and settings |
-| [Connect an AI agent](agents.md) | Instructions for Claude Code, Codex, and other local MCP clients |
-| [Use GitHub Actions](ci-mode.md) | An alternative workflow when you do not want to run the connector locally |
+| [setup.md](setup.md) | You are installing, signing in, or something in setup fails |
+| [usage.md](usage.md) | You want to know how comments, tags and modes work, or look up a tool or command |
+| [agents.md](agents.md) | You are connecting Claude Code, Codex or another MCP client |
+| [alpha-test-plan.md](alpha-test-plan.md) | You are trying the alpha on your own project or computer |
+| [status-and-roadmap.md](status-and-roadmap.md) | You want to know what is proven, what is open, what comes next |
+| [design.md](design.md) | You want the reasoning behind a decision (it also records the earlier Python version) |
 
-## Reference and project details
-
-| Document | What you will find there |
-|---|---|
-| [Overleaf client](overleaf-client.md) | How native comments and tracked changes work through the Node client |
-| [Architecture](architecture.md) | A code-level tour for contributors |
-| [Status and roadmap](status-and-roadmap.md) | What has been verified, current limits, and planned work |
-| [Design record](design.md) | The reasoning behind the design, including alternatives that were not chosen |
-
-For changes between versions, see the [changelog](../CHANGELOG.md). Stable versions are marked with Git tags and GitHub releases when available.
+Following changes: the [CHANGELOG](../CHANGELOG.md) lists every user-visible change by version.

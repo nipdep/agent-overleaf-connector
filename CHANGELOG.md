@@ -1,6 +1,45 @@
 # Changelog (the tool, not your paper's change log)
 
-Bump `version` in `pyproject.toml` for every change that users can notice, and add a line here.
+Bump `version` in `package.json` for every change that users can notice, and add a line here.
+
+
+## 1.0.0-alpha.1
+- Numbered as the first major release line: the public surface (the `olmcp` command, the MCP tools and their arguments,
+  the tag syntax) is what 1.x keeps stable. Bugs found in the alpha are fixed in `1.0.0-alpha.N`, then `1.0.0-beta.N`,
+  then `1.0.0`; after that, features are minor releases (1.1.0) and fixes are patches (1.0.1).
+- First alpha. Adds a regression suite (packed install end to end, secret hygiene, stable tool surface, docs match the CLI,
+  many-document project), `olmcp --version`, one version source (`package.json`), and `docs/alpha-test-plan.md`.
+
+## 0.6.1
+- In `review` mode the thread reply is only the agent's words: Overleaf already shows the tracked change, so the
+  Before/After block and the footer are gone. `direct` edits keep Before/After, because they leave no visible trace.
+
+## 0.6.0
+- **Clearer agent replies.** The thread reply is the agent's one-to-three plain sentences, then **Before / After** of the
+  changed passage (cropped to the changed words plus context) and one line on what to do next. The `[-old-]{+new+}`
+  diff markup and the long footer are gone. The tool description and `AGENTS.md` tell the agent to write short, plain
+  replies and not to paste diffs.
+
+## 0.5.0
+- **No clone or per-folder setup.** Every tool takes an optional `project` argument (an id, a project URL or a git
+  URL), so the server can be registered once for all folders and the agent told which project to work on; the
+  server's own instructions carry the rules. `olmcp init` is now optional. `olmcp mcp` starts without a project.
+
+## 0.4.0
+- **The command is now `olmcp`** (package `olmcp`). `olmcp-overleaf` stays as an alias so existing registrations keep
+  working. The project file is `.olmcp.json` and the cookie file `~/.config/olmcp/config.json`; the old names
+  (`.olmcp-overleaf.json`, `~/.config/olmcp-overleaf/config.json`) are still read. If the Python tool is still
+  installed, uninstall it: `pipx uninstall agent-overleaf-connector`.
+
+## 0.3.0 (Node-only)
+- **The tool is now only the Node program `olmcp-overleaf`.** Install with `npm install -g github:nipdep/agent-overleaf-connector`.
+  It works on the live Overleaf project: comments (selected text, threads), edits as **tracked changes** (`review`,
+  default) or plain edits (`direct`), replies with a word diff, PDF from Overleaf's compiler, tags (`#agent`,
+  `#no-agent`, `#review`/`#suggest`, `#direct`), an MCP server and a CLI, `init` and `doctor`. No Git integration or
+  paid Overleaf plan is needed; no local state (a comment's status comes from its thread).
+- **Removed** (still on the `python-legacy` branch): the Python tool, Git sync, `%% @agent:` markers, `redline.tex`,
+  the branch-based suggest mode, GitHub CI mode.
+- Earlier entries below describe the Python version (0.1.0 to 0.12.0) and the `olmcp-overleaf` client builds.
 
 ## 0.10.0
 - **Optional hashtags in comments.** `#agent` (focus), `#no-agent` (hands off, enforced by the tools),
@@ -20,7 +59,7 @@ Bump `version` in `pyproject.toml` for every change that users can notice, and a
   command). The key is ignored and `doctor` says so.
 - `olmcp guard` now denies `olmcp-overleaf` and the legacy `olcli` for agents.
 
-## Unreleased
+## Node client history (before 0.3.0)
 - **`olmcp-overleaf` 0.2.0 is a Node-only tool of its own**: an MCP server (`olmcp-overleaf mcp`) and CLI with
   `list_comments`, `show_comment`, `read_file`, `list_files`, `address_comment` (tracked changes or plain edits plus the
   thread reply), `reply_to_comment`, `list_tracked_changes`, `render_pdf`; `#agent` / `#no-agent` / `#review` /
