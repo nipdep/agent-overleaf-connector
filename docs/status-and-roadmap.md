@@ -1,7 +1,8 @@
 # Status and roadmap
 
-Version 0.3.x. Early: used by the author on a real project; not yet by anyone else. Update this page with every change
-that moves something between columns.
+The project is at version 1.0.0-alpha.1 and is still early. The author uses it on a real project, but it has not yet been tested by a wider group of users.
+
+This page separates what has been verified from what still needs real-world testing. It also records current limitations and the next planned work. Update it with every change that moves something between columns.
 
 ## Verified
 

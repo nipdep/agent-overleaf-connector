@@ -9,8 +9,6 @@ you comment in Overleaf  →  tell the agent "address the review comments"  → 
 The agent lists your open comments, and for each one makes the edit and replies in the thread. There is nothing to
 pull or push: the tool works on the live project, so your edits and the agent's are in the same document.
 
-Nothing runs continuously in the background. The connector only checks Overleaf when a pull or push happens.
-
 ## Ask for a change
 
 Select text in Overleaf's editor and add a Review comment. The agent receives your message, the selected text, the
@@ -20,7 +18,7 @@ agent had already answered, the comment is open again.
 A comment's status is derived from its thread: **open** (needs the agent), **addressed** (the agent's reply is the
 last message), **resolved** (you closed it).
 
-## Review or direct
+## Choose how edits are applied
 
 - **`review`** (default): the edit is written into Overleaf as a **tracked change**: a tracked deletion of the old
   text and a tracked insertion of the new, which you accept or reject in the Review panel. Reject restores your text.

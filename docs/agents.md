@@ -1,6 +1,6 @@
 # Connect an AI agent
 
-`olmcp mcp` is a local MCP server (stdio) that the agent client starts. See [setup](setup.md) for the two
+`olmcp` is the bridge between your agent and Overleaf. It handles the connection, the edits, and the thread replies; the agent focuses on reading and editing the paper. `olmcp mcp` is a local MCP server (stdio) that the agent client starts. See [setup](setup.md) for the two
 registration commands; the tools are listed in [usage](usage.md).
 
 | Client | Registration | Notes |
@@ -13,7 +13,7 @@ registration commands; the tools are listed in [usage](usage.md).
 Name the project when you ask (the tools take a `project` argument: id, project URL or git URL), or run the agent
 from a folder where you ran `olmcp init`, which holds the project id and an `AGENTS.md`. Keep any older MCP server for the same project removed, so the agent has one set of tools.
 
-## What the tools enforce, and what is only instruction
+## Safety rules enforced by the connector
 
 Enforced in code: edits validated before anything is written, `#no-agent` refusal, the researcher's tag beating the
 agent's mode, no way to resolve, reopen or delete a thread. Only instruction (in `AGENTS.md`, which you can

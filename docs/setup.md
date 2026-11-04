@@ -1,6 +1,6 @@
-# Setup
+# Set up the connector
 
-The connector currently supports Linux and macOS. Windows is not supported yet; WSL2 may work, but has not been tested.
+This guide takes you from installation to your first agent-assisted edit.
 
 ## Before you begin
 
@@ -71,7 +71,7 @@ olmcp doctor
 `AGENTS.md` is left alone). Without it the same instructions come from the server itself. A folder that is a clone of the
 project's Overleaf git remote is recognised too, and `--project` / `OVERLEAF_PROJECT` also work.
 
-## 5. Use it
+## 5. Try your first comment
 
 Comment in Overleaf, then tell the agent "address the review comments". It lists the comments, edits the live
 document as tracked changes, replies in each thread, and leaves the threads open for you.
