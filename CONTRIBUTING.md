@@ -2,7 +2,7 @@
 
 Thanks for helping. This project is small and the maintainer reads every issue and pull request.
 Read [docs/usage.md](docs/usage.md) for what the tool does, [docs/design.md](docs/design.md) for the reasoning behind
-decisions (it also records the earlier Python version), and [docs/status-and-roadmap.md](docs/status-and-roadmap.md)
+decisions and the alternatives they replaced (the earlier Python design is in [docs/history](docs/history/design-python.md)), and [docs/status-and-roadmap.md](docs/status-and-roadmap.md)
 for what is open.
 
 ## Ground rules

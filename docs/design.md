@@ -1,664 +1,191 @@
-> **Historical.** This is the design record of the earlier Python version (still on the `python-legacy` branch).
-> The current tool is the Node program `olmcp-overleaf`; see sections 20-26 for the Overleaf client, tags and
-> review mode, and [usage.md](usage.md) for what exists now. Commands such as `olmcp pull` below belong to the
-> Python version.
+# olmcp: design
 
-# olmcp: design (v2)
+How the current tool works and why. It is the Node program `olmcp` (also installed as `olmcp-overleaf`). The design
+record of the earlier Python version, with the options it weighed, is kept in
+[history/design-python.md](history/design-python.md).
 
-An open-source toolkit for the review-and-revise loop on LaTeX papers when the editor is
-Overleaf, the agent is an LLM, and neither can see the other's view of the paper.
-
-Status tags used below: **[built]** exists and is tested, **[planned]** agreed, not built,
-**[spike]** needs a quick experiment before it can be designed, **[unverified]** a claim about
-something outside this repository that has not been tried.
-
----
-
-## 0. What changed in v2
-
-v1 was built around a flattened latexdiff redline and a CI pipeline. Working with the real
-project showed what hurt, and these decisions replace v1's centre of gravity:
-
-| # | Decision | Replaces |
-|---|---|---|
-| D1 | The **core needs only Python and git**. Rendering (TeX) and typeset redlines (Perl `latexdiff`) are optional layers. | TeX and latexdiff as hard requirements |
-| D2 | **Changes are code diffs** from git, identified by content hashes, shown at word level. The diff is the authority. | latexdiff + a `git log -G` guess to attribute changes to commits |
-| D3 | **The agent replies on the comment** for every change, so each comment holds the whole conversation (request, reply, decision, follow-up). | Comment-to-change mapping heuristics |
-| D4 | **The paper is a dependency tree** found from a main file (`--main`, default `main.tex` at the root); only files in it are scanned, diffed and reviewed. | Scanning every `.tex` in the repo |
-| D5 | **Review happens in a generated text file** (`review/REVIEW.md`); the typeset redline is optional. | `redline.tex` as the only review surface |
-| D6 | **Local mode** is the primary transport: a clone of Overleaf's Git remote, `pull` before and `push` after an agent task. No daemon, no polling, no CI, no push/pull buttons. | CI + GitHub sync as the primary path |
-| D7 | **Rendering has pluggable providers**: none, local TeX, CI mirror, Docker. | One build path |
-| D8 | Linux and macOS first; Windows later (WSL2 as an interim route). | Cross-platform from day one |
-| D10 | **Native Overleaf comments are supported** (select text in the Review panel), through the community CLI `olcli`. The `%%` marker stays as a no-dependency alternative. | `%%` markers as the only way to comment on a range of text |
-| D9 | **The protocol is enforced by tools, not instructions.** An MCP server and `olmcp address` apply edits, write the reply, resolve, commit and handle branches atomically; the agent never runs git. | An `AGENTS.md` loop the agent had to follow step by step (a real agent pushed a branch to Overleaf and left the comment open) |
-
-Not changed: git is the database, the CLI is the agent interface, comments are `%% @agent:`
-marker lines typed in Overleaf, Apache-2.0, Python.
-
-### Implementation status
-
-| Area | Status |
-|---|---|
-| Build (`latexmk`, page PNGs, `text.json`), comment store, markers, `sync` | **[built]** |
-| Hashtags `#agent` `#no-agent` `#suggest` `#direct` in comments (optional) | **[built]**, unverified on real Overleaf |
-| `direct` / `suggest` modes, `apply` (per comment), rollback tag, conflict rollback | **[built]** |
-| Flattened latexdiff `redline.tex` (beside the main file) with `decision[...]` lines | **[built]** (becomes optional, see 8) |
-| CI mode (reusable workflow, verified on real GitHub Actions) | **[built]** |
-| Local mode: `pull` / `push`, `init --local` (tested against a bare repo imitating Overleaf) | **[built]** |
-| Change log from `Resolves:` trailers | **[built]** |
-| MCP server (`olmcp mcp`) and the atomic `olmcp address` for shell agents | **[built]**, tested with the SDK client, not yet inside Claude Code / Codex |
-| ChatGPT web/desktop connector (remote MCP over HTTPS) | **[planned]**, blocked on an authentication decision (19) |
-| Direct vs suggest: one-command default switch, per-comment tags, mixed rounds | **[built]** (24) |
-| Native Overleaf comments via `olcli`: import with selected text, replies and resolve written back, accept/reject by resolving or replying in the thread, project id automatic | **[built]**; import and replies confirmed by the user on a real project, thread decisions tested against a fake olcli only (20) |
-| Optional rendering, `setup`, paper-aware `doctor` | **[planned]** |
-| `--main`, dependency tree | **[planned]** |
-| Diff-based changes, hunk ids, `REVIEW.md`, typed thread, reply gate | **[planned]** |
-| CI mirror for renders (`renders`, `push --mirror`) | **[planned]** |
-| Typeset redline: main file beside the real main, counterparts under `review/redline/` | **[planned]**, later |
-| Docker runner, Windows, PyPI release | **[planned]**, later |
+Status tags: **[built]** exists and is tested against a fake Overleaf, **[verified]** the author has seen it work on a
+real project, **[planned]** agreed but not built, **[open]** undecided. What is verified and what is not is tracked
+in [status-and-roadmap.md](status-and-roadmap.md).
 
 ---
 
 ## 1. Problem
 
-Papers live in Overleaf and are reachable by an agent only through Overleaf's Git or GitHub
-sync. That leaves three gaps:
-
-1. **No eyes.** The agent cannot see the rendered PDF or figures.
-2. **No comments.** Overleaf's review comments live in its database, not in git, and there is
-   no public API. There is no way to say "improve this paragraph" and have an agent pick it up.
-3. **No audit trail.** It is hard to see what changed, why, and in response to what.
+Overleaf holds your paper and your review comments; an AI agent cannot see either. Overleaf's Git integration (a
+premium feature) carries only the files, not the comments or tracked changes, and the agent has no way to be told
+"improve this paragraph" where you are already commenting. The goal is the shortest loop between **a comment in
+Overleaf** and **a reviewable change in Overleaf**.
 
 ## 2. Goals and non-goals
 
 Goals
-- G1. The whole comment, edit, review, accept loop works with **Python and git alone**.
-- G2. One conversation per request: the researcher's comment, the agent's replies, decisions
-  and follow-ups, all stored in git and never deleted.
-- G3. Two edit modes: `direct`, and `suggest` (review before anything reaches the paper).
-- G4. A change log tying each change to the comment that caused it.
-- G5. Works offline once cloned; no required hosted service.
-- G6. Agent-agnostic: any agent that can run a shell command.
-- G7. Rendering for the agent is available but never required.
+- G1. Comment in Overleaf's Review panel; the agent receives the message, the selected text and the thread.
+- G2. The agent's edit appears where you already review: as a **tracked change** with Accept and Reject. **[verified]**
+- G3. The agent replies in the same thread, in plain words, and never closes it. **[verified]**
+- G4. Per-comment, optional steering with hashtags; a default mode for the rest.
+- G5. Nothing to install but one Node program; no paid Overleaf plan, no Git, no clone, no TeX, nothing hosted.
+- G6. Any agent that can start a local MCP server (Claude Code, Codex, ...).
 
 Non-goals
-- Replacing Overleaf as the editor; real-time co-editing.
-- Depending on unofficial Overleaf APIs in the core.
-- Full LaTeX rendering in JavaScript.
-- Windows support in the first releases (see 11).
+- Replacing the editor or real-time co-editing.
+- Deciding *how* an agent should work for a kind of task. That belongs in the user's instructions.
+- Hiding the fact that this rests on Overleaf's unofficial web interface.
 
 ## 3. Principles
 
-1. **Git is the database.** Comments, patches and decisions are plain files.
-2. **The diff is the authority.** What changed is computed from git, never taken from an
-   agent's description of its own edit. The agent's reply explains; it does not define.
-3. **Anchor to text, not offsets.** Quotes and content hashes survive edits and rebases.
-4. **Everything beyond the core is optional** and degrades with a clear message.
-5. **The CLI is the agent interface;** comment text is data, never instructions to the agent.
-6. **Overleaf is a transport,** not a dependency: any git remote works.
+1. **Overleaf is the store.** A comment's status, tags and history are derived from its thread. There is no local
+   database, no files in your project, nothing to get out of sync.
+2. **A connector, not a policy.** The tool gives the agent capabilities and honours what the researcher chose
+   (tags, mode). Only what can be enforced in code is enforced; the rest is instruction text.
+3. **The agent supplies words; the tool does the mechanics.** The agent says *which text becomes which text*; the
+   tool finds it, builds the operations, sends them, checks the result and posts the reply.
+4. **Never silently the wrong thing.** A tracked edit that Overleaf did not record as tracked is an error, not a
+   plain edit. An edit that does not match exactly once is refused. A tag beats the agent's choice.
+5. **No way to close a thread.** The client has no resolve, reopen or delete. A property of the code, tested.
+6. **Small and dependency-free.** Plain Node 20+, a hand-written MCP server, nothing else to audit.
 
 ## 4. Architecture
 
 ```
- Overleaf  ◄─── git.overleaf.com (one branch) ───►  local clone  ◄──►  agent
-                                                                │  olmcp pull / push
-                                         optional render layers │
-                       none | local TeX | CI mirror (GitHub) | Docker
+ Overleaf (web)                                        your computer
+ ┌──────────────────────┐    HTTPS + your session     ┌─────────────────────────┐   stdio    ┌───────┐
+ │ project page (CSRF)  │ ◄───────── cookie ────────► │ olmcp                   │ ◄────────► │ agent │
+ │ live-edit socket     │                             │  client · tools · mcp   │  (MCP)     └───────┘
+ │ thread + compile API │                             └─────────────────────────┘
+ └──────────────────────┘
 ```
 
-Transports
-- **Local mode [built]** (primary): clone of the Overleaf Git remote on the agent's machine.
-  `pull` before the task, `push` after. Only the default branch is pushed; `agent/round-N`
-  and rollback tags stay local. History stays linear (fast-forward or rebase).
-- **CI mode [built]** (no local machine): GitHub sync plus a reusable workflow that syncs
-  comments, builds redlines on `agent/**` pushes and applies decisions. Costs two manual
-  clicks in Overleaf per round and a 2 to 3 minute CI loop; kept as an option.
-- **CI mirror [planned]**: in local mode the clone also pushes to a GitHub repo whose only
-  job is rendering (see 8). It never touches the default branch there.
-
-Overleaf's Git facts (from its [docs](https://docs.overleaf.com/integrations-and-add-ons/git-integration-and-github-synchronization/git)):
-premium feature, token authentication, URL `https://git.overleaf.com/<project-id>`, one branch
-named `master` in its docs (**observed `main` on a real project**), commits created just-in-time. The tool detects the branch name and never hard-codes it. **[unverified]** that a fetch sees text you just
-typed in the editor, and how fast an open editor refreshes after a push.
-
-## 5. The paper: `--main` and the dependency tree  [planned]
-
-`--main <file|dir>` (also `main:` in `.olmcp.yml`) names the main file or the folder
-holding it. Default: `main.tex` at the repository root. The **paper root** is the main file's
-folder; everything below (tree, scanning, diffs, mirror paths) is relative to it, so a paper in
-a subfolder of a larger repo works the same.
-
-The **dependency tree** is the set of files the paper actually uses, found like arXiv does:
-
-- static parse from the main file: `\input`, `\include`, `\subfile`, `\import`/`\subimport`,
-  `\includegraphics` (honouring `\graphicspath`, extension-less names), `\bibliography`,
-  `\addbibresource`, `\lstinputlisting`, `\verbatiminput`, `\includepdf`, and local
-  `.cls`/`.sty` files;
-- when a build exists, `latexmk`'s `.fls` file lists every file TeX really read and corrects
-  anything the static parse missed (paths hidden inside macros).
-
-Uses: only tree files are scanned for markers and appear in diffs (this excludes the
-`sample/` and `archive/` copies in the test project); the tree defines "the paper" for the
-agent; `doctor --main paper/` prints which files are in and out so the researcher can check.
-
-## 6. Comments and conversations
-
-### 6.1 Writing a comment (in Overleaf)  [built]
-```latex
-%% @agent: soften this claim and add a citation
-%% | (continuation lines start with "%% |")
-Our method always outperforms the baselines.
-```
-A marker applies to the paragraph below it. A single `%` also works. Its identity is a hash of
-file and text, so moving it does not duplicate it.
-
-### 6.2 Follow-ups in the same thread  [planned]
-```latex
-%% @agent C-0001: no, keep the original wording here
-```
-A marker that names an existing id appends to that comment's thread instead of creating a new
-comment, and reopens it if it was closed.
-
-### 6.3 Comment file: `review/comments/C-0001.json`
-`status`: `open` → `addressed` (agent changed it) → `resolved` (researcher accepted);
-`wontfix`; `stale` **[planned]**: set when the quote can no longer be found.
-
-The thread is **typed [planned]** (today entries are `author`, `at`, `body`):
-```json
-{ "type": "comment | reply | change | decision | follow-up",
-  "author": "human:nipun | agent:claude", "at": "2026-11-03T10:12:00Z", "body": "...",
-  "commit": "ab12cd3",            // change/reply entries
-  "hunks": ["h-3f9a2c1e"],         // change entries
-  "decision": "accept | reject" }  // decision entries
-```
-Nothing is ever deleted from a thread. A rejected change keeps its patch and its reason.
-
-### 6.4 The agent must reply  [planned]
-For each comment the agent (1) edits, (2) runs `olmcp reply C-0001 "what I changed and
-why"`, (3) commits one comment per commit with `Resolves: C-0001`. The reply is a summary; the
-diff (7) is the record. **Reply gate:** `push` refuses a `Resolves:` commit whose comment has
-no agent reply, because agents do not reliably follow instructions they are not forced to.
-
-## 7. Changes as diffs  [planned]
-
-**Unit.** One commit per comment (as today). A commit's diff is split into **hunks**: a
-contiguous changed region in one file of the dependency tree.
-
-**Identity.** `hunk id = "h-" + first 8 hex of sha1(file, old text, new text)`, after
-whitespace normalisation. It does not depend on line numbers or commit shas, so it survives
-rebases (commit shas do not; that already broke decision carry-over in v1). `git patch-id`
-gives the same stability for whole patches.
-
-**Display.** LaTeX paragraphs are single long lines, so a line diff marks a whole paragraph.
-Changed lines are shown at **word level**, e.g. `This creates [-an-]{+a genuine+} enforcement
-dilemma.` (git's `--word-diff` or Python `difflib`; `diff-match-patch` is an alternative,
-**[unverified]** as a better fit).
-
-**Storage.** Each proposed change is saved as a patch so it stays readable and re-applicable
-even after a reject or a rebase:
-```
-review/changes/C-0001/sections/03_model.tex.diff      same relative path as the source
-```
-**Binary files (figures).** A changed image is a binary change. The review lists
-`figures/fig2.png: changed (old hash, new hash)`; optionally before/after copies are kept under
-`review/changes/` so both open in Overleaf's file viewer. The agent's reply says what changed
-inside the image. A comment placed above a figure block tells the agent where to look.
-
-**Decisions** apply per comment, or per hunk when hunks are independent; overlapping or
-dependent hunks fall back to the whole comment. Accept applies the patch to the default branch
-(`git apply --3way` / cherry-pick) and adds a `decision` entry; reject adds a `decision` entry
-with the reason and reopens the comment. A rollback tag is made first and a conflict undoes the
-whole operation (as built today).
-
-## 8. The review surface
-
-### 8.1 `review/REVIEW.md`  [planned, default]
-Generated; opened and edited in Overleaf's text editor. For every pending comment: the
-researcher's request, the agent's reply, the word-level diff and decision lines:
-```
-## C-0001 · sections/03_model.tex:11
-You: soften this claim and add a citation
-Agent: Softened to "most baselines" and cited p_argos_onto; see hunk h-3f9a2c1e.
-  - [-always outperforms the-]{+outperforms most+} baselines on all benchmarks
-decision[C-0001]: pending           <- accept | reject
-decision[C-0001/h-3f9a2c1e]: pending  (optional, per hunk)
-reason[C-0001]:
-```
-No TeX, no Perl, no compile: works anywhere git works.
-
-### 8.2 Typeset redline  [built as `redline.tex`, later optional]
-Today: flattened `latexdiff` of base vs agent branch, written to `redline.tex` **beside the real main file**, with the same decision lines (needs
-`latexdiff`; Overleaf compiles it). It stays as an optional layer.
-
-Planned replacement, built on one invariant: **the redline's main file lives in the same folder
-as the real main file** (the paper root; e.g. `<paper-root>/redline.tex`, name configurable).
-Whatever way Overleaf resolves relative paths for the real main, it resolves them the same way
-for the redline main, so `\includegraphics`, `\bibliography` and `\input` of unchanged files keep
-working untouched. For each changed text file the tool writes a latexdiff-marked counterpart at
-`review/redline/<same relative path>`, and the redline main `\input`s it by a path relative to
-the paper root (`review/redline/sections/03_model`), the same base the paper's own relative
-references use. No flattening, no copy of unchanged files or assets, and **no assumption about
-Overleaf's path resolution**, so no probe is needed. Each counterpart starts with a visible stamp
-as a cheap guard against compiling an unmarked original by mistake.
-
-Status: the **invariant is built** for the flattened redline: `redline.tex` is written beside the
-main file, new figures referenced as `review/assets/...` use the same base as the paper's own
-references, and a pre-move `review/redline.tex` is removed on the next refresh (decisions typed
-in it are carried over). Verified: it compiles from the repository root on the real 31-page
-paper, figures and bibliography resolved. **[unverified]** inside Overleaf itself. The per-file
-counterparts under `review/redline/` (no flattening) are still **[planned]**.
-
-## 9. Modes and the loop
-
-`mode: direct` commits on the current branch. `mode: suggest` works on a local
-`agent/round-N`; nothing reaches the paper until the researcher accepts.
-
-```
-olmcp pull    # fetch the researcher's edits; sync markers; apply decisions; report
-   agent: edit, reply on the comment, commit "Resolves: C-NNNN" (one comment per commit)
-olmcp push    # refresh REVIEW.md (and optional redline), change log; publish the branch
-```
-`pull` reports what happened to every comment: new, reopened, removed by the researcher,
-accepted, rejected with a reason. Both commands are idempotent and refuse a dirty tree. If the
-researcher edited the paper while a branch is open, `pull` rebases the branch onto it and
-regenerates the review file so it shows only the agent's changes. A conflict is reported and
-nothing is changed. **[built]**, except `REVIEW.md` and hunk-level decisions.
-
-The change log (`review/CHANGELOG.md`) is generated from `Resolves:` trailers, enriched with
-the thread's reply. **[built]**, reply enrichment **[planned]**.
-
-## 10. Rendering is optional  [planned]
-
-The agent sees the paper only if a **render provider** is configured (`render:` in
-`.olmcp.yml`, auto-detected otherwise):
-
-| Provider | Needs | Notes |
-|---|---|---|
-| `none` (default if nothing found) | nothing | Everything except page images works. |
-| `local` | TeX (`latexmk`) | `olmcp build`; page PNGs, `text.json`. **[built]** |
-| `ci` | a GitHub repo as a mirror | `push --mirror` sends the default and agent branches to GitHub; the workflow runs in render-only mode (never touches the default branch there) and publishes PDF + PNGs to branch `olmcp/build`; `olmcp renders` fetches them. 2 to 3 minute latency, mostly the TeX Live image pull (caching unmeasured). |
-| `docker` | Docker | Same toolchain on every OS; optional. |
-
-Pin the TeX Live image to Overleaf's version: on the TGDK class, `texlive:latest` failed
-(`Command \c@lemma already defined`) while `TL2025-historic` built it. **[built]** (workflow
-input).
-
-## 11. Installation, with reasons  [planned]
-
-`olmcp setup` (and the README) list every dependency with why it is needed and what is
-lost without it; it prints OS-specific commands and never runs `sudo` itself. `doctor` reports
-each missing tool as "disables X", not as a failure, and `doctor --paper` checks the packages
-the paper itself uses (`kpsewhich` against `\usepackage` and the class).
-
-| Package | Needed for | If missing |
-|---|---|---|
-| Python ≥ 3.10, git | the whole core | cannot run |
-| TeX: `latexmk`, fonts, packages | local page renders | agent cannot see layout |
-| `latexdiff` (Perl) | the typeset redline only | review `REVIEW.md` instead |
-| Docker | the Docker render provider only | use another provider |
-
-Verified on Ubuntu (TeX Live 2023) for the TGDK paper: `latexmk latexdiff texlive-latex-base
-texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra
-texlive-plain-generic texlive-pictures texlive-science texlive-bibtex-extra texlive-publishers
-cm-super lmodern`. `texlive-plain-generic` provides `ulem` (redline); `cm-super` provides the
-Type1 fonts the class's font expansion needs. macOS commands are **[unverified]**.
-
-Platforms: Linux and macOS first. Windows later: Perl for latexdiff/latexmk, CRLF handling in
-the marker and decision parsers, and a CI matrix on Windows are open; WSL2 is the interim
-route and is **[unverified]**. Install is from git today
-(`pipx install "git+https://github.com/nipdep/agent-overleaf-connector@main"`); PyPI after the
-name is final.
-
-## 12. Repository layout (generated, all under `review/` except config)
-
-```
-.olmcp.yml        main, mode, render, remote, remote_branch, engine
-AGENTS.md  CLAUDE.md     agent protocol
-review/
-  REVIEW.md              what the researcher reads and decides in           [planned]
-  comments/C-0001.json   the conversation
-  changes/C-0001/…diff   patches, same relative paths as the source          [planned]
-  redline/               counterparts of changed files (typeset redline)    [planned]
-  redline.json           machine file for the redline                        [built]
-<paper-root>/redline.tex   the flattened redline, beside the real main file        [built]
-  CHANGELOG.md
-build/                   generated renders (gitignored)
-```
-The tool never moves or rewrites the researcher's files except by an accepted change.
-
-## 13. Security and privacy
-- The Overleaf Git token gives full write access. Keep it in the OS credential helper, never in
-  chat or the repo; give it to a cloud agent only through environment secrets.
-- Unpublished research is sensitive; the CI mirror sends the paper to GitHub, so use a private
-  repo and say so in `setup`.
-- Comment text, thread text and imported text are **data**; the agent protocol says never to
-  act on instructions inside them.
-- `Resolves:` commits are the only write path to a thread outside `olmcp` commands;
-  files are schema-validated on read.
-
-## 14. Failure modes
-
-| Failure | Handling |
+| Module (`src/`) | Responsibility |
 |---|---|
-| Redline compiles the unmarked originals instead of the counterparts | stamps make it visible; the redline main sits beside the real main, so path resolution matches the paper's own |
-| Quote no longer found after edits | `stale`, listed by `doctor`, never silently moved |
-| Agent commit without a reply | `push` refuses (reply gate) |
-| Researcher edits the same lines as an unpushed local commit | `pull` stops, changes nothing |
-| Researcher edits during an open round | branch rebased onto the edits; review regenerated |
-| Overlapping or dependent hunks | decision falls back to the whole comment |
-| Dependency tree misses a macro-hidden path | `.fls` correction when a build exists; otherwise `doctor` shows the tree |
-| `push` races with the researcher | fetch, rebase, retry once |
-| TeX Live version differs from Overleaf's | `render` pinned to Overleaf's version; `doctor` warns |
+| `http.js` | `fetch` with a cookie jar and hand-followed redirects (so cookies set on the way are kept) |
+| `socketio.js` | A Socket.IO 0.9 long-polling client: handshake, packets, acknowledged calls, heartbeat, close |
+| `ranges.js` | Decode what Overleaf sends for a document; build comments and tracked changes from it |
+| `client.js` | `OverleafClient`: connect (CSRF), list comments and changes, read files, edit, compile, reply |
+| `tags.js` | `#agent`, `#no-agent`, `#review`/`#suggest`, `#direct`; focus and hands-off rules |
+| `textdiff.js` | The Before/After shown for direct edits |
+| `tools.js` | The agent-facing operations and their refusals (`ToolError`) |
+| `mcp.js` | The MCP server: JSON-RPC over stdio |
+| `project.js`, `config.js` | Which project (argument, file, variable, Git remote); where the cookie lives |
+| `cli.js` | The commands (`auth`, `init`, `doctor`, `list`, `address`, `pdf`, `mcp`, ...) |
 
-## 15. Verification status
+## 5. How the Overleaf side works  [built, partly verified]
 
-Verified here (30 tests, real git and TeX Live): markers, comment lifecycle, build outputs,
-flattened redline compiles, accept/reject/pending, conflict rollback, stale-redline refusal,
-local-mode round without CI against a bare repo imitating Overleaf, linear history, no churn on
-repeated runs, CI entry points against a bare remote. On real GitHub Actions: full round,
-mixed accept/reject, bot commits not re-triggering, rollback tag pushed. On the real 31-page
-TGDK paper: build, redline generation and compile, `pull` (0.5 s) and `push` (1.3 s).
+There is no public API for comments or tracked changes, so the client does what Overleaf's own editor does.
 
-**Not verified:** anything against the real `git.overleaf.com`; Overleaf compiling `redline.tex` (it does compile locally on the real paper);
-Overleaf compiling the redline (the built flat redline sits in `review/`, so its figure and bibliography paths are unverified); agent behaviour with `AGENTS.md` across vendors; macOS; Windows;
-private repositories and protected branches.
+- **Session.** Your `overleaf_session2` cookie, plus the CSRF token scraped from the `/project` page (needed for
+  writes). An expired cookie shows up as the login form, and the error says so.
+- **The live-edit socket.** Overleaf's editor uses Socket.IO 0.9 over long polling. The client opens it per project
+  (`joinProjectResponse` carries the folder tree), joins a document (`joinDoc` returns the lines, the version, and
+  the ranges: comments and tracked changes) and sends `applyOtUpdate`. One socket cannot overlap requests, so reading
+  many documents uses a small pool of sockets.
+- **Comments.** A comment's selected text and position come from the document's ranges; its messages come from the
+  threads endpoint. The client reads both and joins them.
+- **Edits.** An edit is a ShareJS operation list stamped with the document version: delete the old text, insert the
+  new. Sent with a tracking id (`meta.tc`, an 18-hex seed, the same marker the editor uses in Reviewing mode), the
+  server records a *tracked* deletion and insertion instead of changing the text. If someone else edited meanwhile the
+  version no longer matches and Overleaf rejects the update.
+- **Verification.** After a tracked edit the client re-joins the document and requires changes carrying its seed. If
+  there are none it fails loudly, because the edit may have been applied as a plain one.
+- **PDF.** `POST /project/<id>/compile`, then download `output.pdf` (with the compile server id); on failure, the TeX
+  log's error lines are returned.
+- **Not supported.** Documents in Overleaf's newer history format are read but not edited; the client refuses rather
+  than guess.
 
-## 16. Milestones (revised)
+The approach follows [olcli](https://github.com/aloth/olcli) (MIT; see `THIRD_PARTY_NOTICES.md`). Writing tracked
+changes is new here.
 
-1. **Optional TeX.** `doctor` reports what is disabled; `build` fails helpfully; `setup`;
-   paper-aware package check; `render:` setting.
-2. **`--main` and the dependency tree.** Scoped scanning and diffs; `doctor` prints the tree.
-3. **Diff-based review.** Typed thread, `reply` gate, hunk ids, patches under
-   `review/changes/`, `REVIEW.md`, per-hunk decisions, follow-up markers.
-4. **CI mirror renders.** Render-only workflow mode, `olmcp/build` branch, `renders`,
-   `push --mirror`.
-5. **Typeset redline mirror**, and move the redline main beside the real main.
-6. **Platforms and release.** macOS check, Windows CI matrix, PyPI, optional Docker runner.
+## 6. Comments, status and tags  [built]
 
-## 17. Open questions
-1. ~~Overleaf path semantics~~ resolved by design: the redline main sits beside the real main (8.2).
-2. Per-hunk decisions or per-comment only? Per-hunk is designed; start per-comment if simpler.
-3. Final project name (repo is `agent-overleaf-connector`, CLI is `olmcp`).
-4. Replace `latexdiff` with a Python diff to drop Perl entirely (riskier: latexdiff is careful
-   with math and tikz); separate spike.
-5. Real `git.overleaf.com` behaviour: edit visibility on fetch, editor refresh, acceptance of
-   the generated files.
-6. Whether `.fls` is always produced by the build providers (CI mirror yes; local yes).
+Everything is read from the thread, so it is stateless.
 
-## 18. Overleaf compatibility and plans
+- **Status.** `resolved` if the thread is resolved; `addressed` if the last message is the agent's (starts with
+  `[agent] `); otherwise `open`. A researcher reply after the agent reopens it by itself.
+- **The request** is the first researcher message with tags removed; later messages are follow-ups the agent sees.
+- **Tags** (any researcher message, case-insensitive, not inside URLs; the latest message mentioning a tag decides):
+  `#no-agent` hides the comment and makes the tools refuse it, always; `#agent` is focus: while any open comment has it
+  only those are listed (advisory, the agent can be told otherwise); `#review` / `#suggest` mean tracked change;
+  `#direct` means plain edit. Conflicts take the safe side: `#no-agent` over `#agent`, `#suggest`/`#review` over
+  `#direct`. `commentTags: false` in `.olmcp.json` turns tag reading off.
+- **Mode precedence.** The comment's tag, else the agent's `mode` argument, else the folder's default (`review`).
+  A tag that disagrees with the agent's argument is refused with a message saying so.
 
-- **Native Overleaf comments are not in git.** Overleaf's own docs warn that pulling from
-  GitHub can lose or displace tracked changes and comments, which is why comments are plain
-  `%% @agent:` marker lines in the source: they live in the file and survive sync.
-- **Plans.** Overleaf's Git integration and GitHub synchronization are premium features. Per
-  Overleaf's docs, a free user invited to a project owned by a premium subscriber can use them
-  inside that project. Institutional and group plans also include them.
-- **Free routes without a premium owner [unverified]:** community bridges that use Overleaf's
-  web API (for example olgitbridge) or a self-hosted Overleaf Community Edition. They are
-  unofficial, depend on Overleaf internals and, for some, session cookies; treat them as
-  best-effort and keep them out of the core.
-- **Local mode** needs Overleaf's Git integration (clone URL and token); **CI mode** needs the
-  GitHub sync. Either way the core never assumes more than "a git remote".
-- **GitHub sync is manual** in both directions (Overleaf's push/pull buttons) and, as far as
-  known, follows only the default branch **[unverified]**. Overleaf's Git has one branch,
-  `master`, and no tags.
+## 7. The tools and what they enforce  [built]
 
-## 19. Agent connectors
+`list_comments`, `show_comment`, `list_files`, `read_file`, `address_comment`, `reply_to_comment`,
+`list_tracked_changes`, `render_pdf`; each takes an optional `project`. `address_comment(comment_id, edits, reply,
+mode?)` is the one that matters:
 
-**Why tools.** A real Claude Code run on the test project, without the CLI available, created
-`agent/round-1`, edited the abstract, tried `git push origin agent/round-1` (Overleaf accepts only the
-default branch: "wrong branch"), left the comment unresolved and asked what to do. Each step was
-reasonable given the instructions, and all of it is mechanical. Handing the agent one operation that
-does it all removes the failure surface.
+1. Refuse `#no-agent`, resolved comments, a tag/mode clash, an empty reply or no edits.
+2. Validate every edit against the live document (a dry run per file): `old` must occur exactly once and must not
+   overlap an existing tracked change; several files are all checked before any is written.
+3. Write the edits (tracked in `review`, plain in `direct`).
+4. Post the reply, only now: an edit that failed never leaves a reply claiming it happened.
 
-**Tools [built].** `pull`, `list_comments`, `show_comment`, `read_file`, `list_paper_files`,
-`address_comment(comment_id, edits[{file, old, new}], reply, commit_message?)`, `reply_to_comment`,
-`push`, optional `build` and `view_page`. `address_comment` is all-or-nothing:
-- every `old` must match exactly once (otherwise nothing is written; the message says how to retry);
-- the comment's marker is removed, the reply recorded, status set (`resolved` in `direct`,
-  `addressed` in `suggest`), and one commit created with the `Resolves:` trailer;
-- in `suggest` mode the first call creates the local `agent/round-N` branch and later calls continue
-  it; a failure deletes a branch it just created;
-- paths are relative, inside the repository, only `.tex/.bib/.sty` are editable, `.git`, `build/` and
-  `review/` are not; symlinks out of the repository are refused; there is no command-execution tool.
-`olmcp address C-0001 edit.json` is the same operation for agents with only a shell.
+The reply is the agent's one to three sentences. In `review` nothing is added, because Overleaf already shows the
+change. In `direct` a Before / After of the changed passage is appended, because a plain edit leaves no visible trace.
 
-**Error visibility.** The MCP SDK shows an agent only its own `ToolError`; any other exception is a
-generic "Error executing tool", which would hide "old must match exactly once". The server translates
-its refusals, and a test asserts the message reaches the client.
+**Enforced in code:** validation above, `#no-agent`, tag precedence, no resolve/reopen/delete, the "tracked means
+tracked" check. **Instruction only** (the server's own instructions and `AGENTS.md`): how to word replies, when to
+ask instead of guess, not to reach Overleaf by other means. The tool does not claim to stop an agent that can read
+your cookie file.
 
-**Per client.** Claude Code: `.mcp.json` (project scope, user approves), `/address-comments`,
-`CLAUDE.md` importing `AGENTS.md`. Codex: `codex mcp add`, `AGENTS.md`. Both start the server over
-stdio. Other stdio clients: command `olmcp`, args `["mcp"]`.
+## 8. Which project  [built]
 
-**ChatGPT web/desktop [planned, undecided].** Per third-party documentation (not OpenAI's own pages,
-**[unverified]**), custom connectors need a remote MCP endpoint over HTTPS, behind Developer Mode and a
-plan that allows it, with OAuth or no authentication; they do not start local servers. Supporting it
-means an HTTP transport plus making the local server reachable (a tunnel the user runs; the project
-hosts nothing). The blocker is authentication: an unauthenticated public URL would give anyone write
-access to the paper and, through `push`, the Overleaf credential in the credential helper. Options:
-(a) implement a minimal single-user OAuth flow in the server (strongest, largest); (b) a
-secret-in-URL path (simple, weak: URLs leak); (c) restrict to read-only tools for this client.
-None is built. Until one is chosen, ChatGPT users use Codex.
+The tools take a `project` argument (an id, a project URL or a Git URL; the 24-hex id is extracted). If omitted: the
+`--project` flag, `OVERLEAF_PROJECT`, `.olmcp.json` found in the folder or above (`olmcp init`), or the Git remote
+of the current folder when its host is an Overleaf server. So there are two natural uses: name the project in the
+chat (no setup), or work from a clone (the project is recognised). The clone is optional and never written to by the
+tool: the live project is the only thing edited.
 
-**Not verified.** Behaviour inside Claude Code and Codex themselves (only the SDK's own client has
-driven the server); whether agents reliably choose the tools over improvised git.
+## 9. Security and privacy  [built]
 
-## 20. Native Overleaf comments  [built, unverified against the real service]
+- The cookie gives full access to the account. It is stored in `~/.config/olmcp/config.json` with mode 0600 (no
+  effect on Windows) or read from `OVERLEAF_SESSION`; it is never printed, logged or put in an error (a test checks
+  every command's output).
+- Document text and comments go to the agent you chose, as with any MCP tool. Nothing goes anywhere else; nothing is
+  hosted.
+- Comment text is data, not instructions: the server's instructions say so, and the tools carry no capability beyond
+  the listed ones.
+- Tracked changes carry **your** Overleaf identity, because the tool acts with your cookie.
 
-**Why.** `%%` markers cover a paragraph, not a selected range, and are clumsy to type. The experience
-the researcher wants is Overleaf's own: select text, add a comment. Those comments live in Overleaf's
-database, not in git, so the only route is the web editor's own API.
+## 10. Failure modes
 
-**How the existing tools do it** (read from their source, not tried): comment threads come from
-`GET /project/<id>/threads` (messages), the commented text range from a Socket.IO `joinDoc` per file
-(ranges with the thread id, position and text); writes are `POST .../thread/<id>/messages`
-(`{content}`) and `POST .../doc/<doc>/thread/<id>/resolve|reopen`, with the session cookie and a CSRF
-token read from the `/project` page. Two community implementations exist: **olcli** (MIT, Node CLI,
-`comments list|reply|resolve|reopen|delete`) and netique's **overleaf-mcp** (AGPL-3.0, an MCP server).
-We use olcli through its CLI: MIT is compatible with Apache-2.0, a subprocess keeps the licenses
-separate, and re-implementing a Socket.IO 0.9 client blind, without a session to test against, would
-be riskier than depending on a tool that already does it. netique's tool is not used (AGPL, MCP-only).
+| Failure | Behaviour |
+|---|---|
+| Cookie expired or missing | A clear error; `olmcp doctor` says what to do |
+| `old` text not found / found more than once | Nothing written; the error says how to retry |
+| `old` overlaps an existing tracked change | Refused; accept or reject that change first |
+| Document edited by someone meanwhile | Overleaf rejects the stale version; nothing written |
+| Overleaf did not record the edit as tracked | Error, no reply posted, check History |
+| Several-file edit fails part-way | The error names what was already written |
+| Document in the newer history format | Read allowed, edit refused |
+| Overleaf changes its unofficial interface | Calls fail with HTTP errors; the fake-server tests cannot catch it |
+| Rate limiting on the socket (HTTP 429) | Extra sockets are dropped, reading continues on fewer |
 
-**Contract.** `olcli comments list <project-id> --status <s> --json` prints an array of
-`{threadId, docId, path, position, line, column, selectedText, resolved, messages[{id, content,
-timestamp, user}]}` (types from olcli's `client.ts`; the exact `--json` output is undocumented, so the
-parser also accepts aliases and `{comments, changes}`). `reply <thread> <body> <project>`,
-`resolve <thread> <project>`. Credentials stay with olcli (`OVERLEAF_SESSION` / `olcli auth`); this
-tool never reads, stores or logs the cookie.
+## 11. Decisions and the alternatives they replaced
 
-**Mapping.**
-- `pull` imports each open thread as a comment: `origin = {type: overleaf, thread_id, doc_id}`,
-  `body` = the first human message, `anchor.quote` = the selected text, `anchor.source` = file and line
-  (olcli's line is trusted only if the quote is on it, otherwise the quote is searched in the file).
-  Threads already resolved are not imported. Later human messages become thread entries and reopen a
-  comment that was handled; resolving a thread in Overleaf resolves the local comment; deleting it
-  marks the comment `wontfix`; reopening a thread we had resolved reopens the comment.
-- **Telling the agent's messages apart.** Posted messages appear under the researcher's account, so every
-  agent message is prefixed `[agent] ` and never imported as feedback.
-- `push` (and `pull`, for accepted changes) **reconciles idempotently without local state**: an agent
-  reply is posted only if no message with exactly that text is in the thread. In `suggest` mode replies
-  are read from the agent branch's copy of the comment, so the researcher sees the reply before deciding.
-  **The tool never closes a thread by default**: closing ("approving") is the researcher's act. Status
-  meanings: `addressed` = the agent has handled it (direct or proposed), `resolved` = a human closed it or
-  accepted the change. `auto_resolve_threads: true` restores closing the thread when its change is applied.
-- No marker exists for these comments, so there is nothing to remove from the source.
+| Decision | Instead of | Why |
+|---|---|---|
+| Talk to Overleaf's web interface with a session cookie | Git sync, GitHub sync + CI | Comments and tracked changes are not in Git; no premium plan or manual push/pull; no round trip through a CI run |
+| Overleaf is the store; derive status from threads | Comment files in the repo | Nothing to sync, nothing in the paper's repo; the reply is the state |
+| Tracked changes (`review`) as the default | A held branch plus a generated `redline.tex` | Overleaf already has a review UI with Accept and Reject; the redline was a workaround for not having it |
+| A hand-written MCP server | The official SDK | No dependencies; a small, well-specified protocol; cross-tested with the official Python client |
+| `old`/`new` text edits | Offsets or patches from the agent | Agents are good at wording, bad at positions; the tool computes and verifies positions |
+| No resolve/reopen/delete | An opt-in "auto resolve" | The researcher decides when a thread is done; an agent that can close threads hides its own work |
+| Node, not Python | Python plus Node (`olcli`) | The one hard piece (the live-edit protocol) is JavaScript-shaped; one language and one install |
+| The Python tool retired to `python-legacy` | Porting Git sync, markers, `redline.tex` | `review` covers the main use; those can be ported if someone needs them |
 
-**Deciding in the thread [built].** The Review panel is also the accept/reject interface. When a change
-for a comment is pending (it is in `redline.json`, and the agent has answered in the thread):
-resolving the thread is an **accept**; a reply after the agent's message is a **reject**, and its text is
-the instruction for the next attempt, unless it reads as an acceptance ("accept", "ok", "lgtm", a
-thumbs-up; "reject: reason" gives an explicit reason). Resolving a thread when nothing is pending still just
-closes the comment, and a thread resolved before the agent has answered counts for nothing. These decisions
-are fed to the same `apply` as the `decision[...]` lines in `redline.tex`; a typed decision wins. The agent's
-reply carries a one-line footer saying how to decide. Replies typed in Overleaf are not echoed back as
-"Rejected: ..." entries (they are already in the thread).
+## 12. Open questions
 
-**Merging comment files.** A researcher's reply (stored in the comment's JSON on the default branch) and the
-agent's reply (stored in the same JSON on the agent branch) both edit one file, so accepting used to hit a
-cherry-pick conflict. Conflicts confined to comment files are now merged (both conversations kept, the
-agent's status wins because the acceptance follows, bookkeeping unioned); a conflict in the paper still
-aborts and rolls back. The same applies when the agent branch is rebased onto the researcher's edits.
-
-**Project id.** Read from the clone's remote URL (the host must mention overleaf, so a GitHub URL is never
-mistaken for it; local paths are matched on the whole string for mirrors and tests). `overleaf_project`
-overrides, `overleaf_comments: false` disables. With an auto-detected id and no `olcli` installed, `pull`
-prints one line and carries on; an explicit id with a missing `olcli` is a warning.
-
-**Failure handling.** Every olcli problem (missing binary, expired cookie, API change, timeout) becomes
-a warning in `pull`/`push` and never blocks the git side. `overleaf-check` verifies access;
-`overleaf-check --raw` prints olcli's JSON for diagnosing schema differences.
-
-**Risks.** Unofficial API and a session cookie with full account access, stored in plain text by olcli
-and expiring after days; `olcli auth --save-local` writes `.olauth` into the project (now gitignored by
-`init`). Reading project documents for ranges is slow for large projects (olcli fetches every document;
-each `reply`/`resolve` re-lists). Tracked changes are a separate, premium-dependent feature and unused here.
-
-**Not verified.** Everything against the real olcli and Overleaf: the actual JSON, that `line` and
-`selectedText` match a git clone's content, that replies render as expected, olcli's behaviour when
-given a project id positionally for `reply`/`resolve` (its source says a 24-hex id is accepted).
-
-## 21. The agent's edits as Overleaf tracked changes  [investigated, not built]
-
-**Wanted.** Suggestions as tracked changes ("Reviewing" mode) in `main.tex` itself, next to the comments,
-and in direct mode a plain edit.
-
-**Direct mode already is a plain edit:** the agent commits, `push` goes to Overleaf's Git, and the file
-changes in place.
-
-**Findings for Reviewing mode** (read from sources, not tried):
-- **olcli cannot author tracked changes.** Its `tracked-changes.ts` only lists them and rejects them (OT ops
-  carrying the editor's undo flag); there is no accept path and nothing that creates a suggestion.
-- **Git cannot create them either.** Overleaf's docs say pushes from Git can lose or displace tracked
-  changes and comments and recommend not mixing active Git use with track changes and comments.
-- **The only known writer** is netique's `overleaf-mcp` (AGPL-3.0, an MCP server, Chrome-based login): it
-  sends edits over the editor's live Socket.IO channel (`applyOtUpdate`) with track-change metadata.
-  Using it means running it as a separate process (license stays separate) or a clean-room implementation of
-  the write path, which cannot be verified without a live session and can corrupt a document if the OT ops
-  are wrong.
-
-**What is unknown, and decides the design.** (1) What a git clone shows for a file that holds pending tracked
-changes: are tracked deletions still in the text? Both versions of a sentence side by side would break our
-whole git-based flow. (2) Whether `olmcp push` of other files, or the next `pull`, disturbs pending
-suggestions or comment anchors.
-
-**Consequence if built.** The model flips for files with pending suggestions: Overleaf is the source of
-truth, the agent edits through the live channel, git is pull-only for those files, and `apply` /
-cherry-picks / the local agent branch are replaced by Overleaf's own accept and reject (observed through
-`olcli comments list --changes`). A different architecture for suggest mode, not an add-on.
-
-**Decision.** Not built. Interim, shipped in 0.7.0: the proposed edit appears inside the comment thread as a
-word diff, so comment and change are together and accept/reject is already in the Review panel (section 20).
-
-**Experiment that would settle the unknowns** (on a scratch copy of a project, with netique's tool): make a
-suggestion with `edit_file` (`track: on`); look at it in the editor; `git pull` and read the file; push an
-unrelated change and re-check the suggestion and a comment anchor.
-
-## 22. Redline annotations  [built]
-
-`redline.tex` used to put one block ("C-0005 - <commit subject>", the decision lines) above the first change of
-a comment and a bare "change continues" above the others, so the reader could not tell which words a decision
-was about. Every change location now gets a note: the comment id, "change i of n", the real file and line
-(found with `git grep` in the version where the change lives, so it points into the file that is `\\input`,
-not into the flattened redline), `asked:` (the comment's text), and `edit:` (a one-line word diff cropped to
-the changed words plus some context). The decision lines still sit with the first change and say how many
-changes they decide; later changes name the decision that covers them.
-
-The word diff compares words, LaTeX commands and single punctuation marks, never whitespace, and keeps the
-original spacing (an earlier version diffed whitespace tokens and produced scrambled output such as
-`in{+one+} [-a long-]`). latexdiff leaves doubled spaces where it substitutes text, so the file search
-normalises whitespace first. The same helper produces the diff shown in Overleaf comment threads (20).
-
-## 23. The agent never approves  [built]
-
-In direct mode `address_comment` used to mark the comment `resolved`, and `push` then resolved the Overleaf
-thread, so a handled comment vanished from the Review panel (Overleaf shows only open threads there) and
-looked approved by the agent. Approving is a human act, so now: the agent's edit sets the status to
-`addressed`, the reply is posted, and the thread stays open; the researcher resolves it when satisfied, which
-`pull` mirrors as `resolved`. A follow-up reply reopens an `addressed` comment for the agent. The agent
-protocol says never to resolve, close, approve or dismiss a thread. `auto_resolve_threads` (default false)
-is the opt-in for the old behaviour. In `suggest` mode an accepted change also stays open in Overleaf until
-the researcher resolves it.
-
-## 24. Direct vs suggest, per comment  [built]
-
-**Why.** The mode was one setting in a config file: changing it meant editing a file, and a round could not
-mix a trivial typo fix (apply now) with a rewrite (hold for review).
-
-**Mechanism.**
-- Default: `mode:` in `.olmcp.yml`, changed by `olmcp mode [direct|suggest]` (or the `set_mode` tool): it
-  rewrites only that line, keeps the rest of the file and commits.
-- Per comment: a tag at the very start of the comment text, `[suggest]`, `[direct]`, `suggest:` or `direct:`
-  (case-insensitive; an ordinary sentence that merely begins with the word is not a tag because the colon or
-  brackets are required). Read when a comment is created (Overleaf thread or `%%` marker) and updated by a later
-  tagged message in the thread. Stored as `mode` on the comment; absent means "use the default".
-- Resolution: the researcher's tag wins. `address_comment(..., mode=)` / `olmcp address` (`"mode"` in the JSON)
-  may choose only for an untagged comment; asking for a different mode than the tag is refused with a message
-  saying so. `list_comments` / `show_comment` report the comment's mode and whether the researcher chose it.
-  This keeps the connector principle: the tool provides the knob and honours the researcher's explicit
-  choice; how an agent chooses when nobody did stays in its instructions.
-- Mixing: `direct` edits commit on the default branch, `suggest` edits on the local round branch. Before a
-  suggest edit the round branch is rebased onto the default branch if direct edits landed meanwhile (so the
-  agent never edits a stale file); a conflict is reported and nothing is changed. The redline is the difference
-  between the default branch and the round branch, so it shows only the suggestions.
-- Each agent reply records the mode its change was made in, so the Overleaf thread says "Proposed edit" (with
-  the decide-here footer) or "Edit applied" per comment, whatever the current default is.
-
-**Limits.** The tag must be at the start; one mode per comment (not per edit); an existing comment's mode
-changes only through a later tagged message; the redline's decision lines still decide a whole comment.
-
-## 25. Comment hashtags  [built, unverified on real Overleaf]
-
-**Why.** The researcher should be able to steer the agent from inside the Overleaf comment itself: skip a
-comment, focus on a few, choose the mode, without editing config or talking to the agent.
-
-**Tags** (case-insensitive, anywhere in the text, not inside URLs): `#agent`, `#no-agent` (or `#noagent`),
-`#suggest`, `#direct`. All optional; `comment_tags: false` turns parsing off.
-
-**Semantics.**
-- `#no-agent` is enforced: `list_comments` hides the comment, and `address_comment` / `reply_to_comment`
-  refuse it with a message saying why. `include_skipped` never lifts this.
-- `#agent` is focus: while any open comment has it, untagged open comments are reported as skipped ("focus")
-  and `list_comments` returns only the focused ones; `include_skipped=true` returns the rest. Focus clears
-  itself when the `#agent` comments are no longer open. It is advisory because the agent can be told otherwise.
-- `#suggest` / `#direct` set the mode, exactly as the 0.9 start-of-comment tags did (those forms still work).
-- Conflicts resolve to the safe side: `#no-agent` over `#agent`, `#suggest` over `#direct`, hashtag over legacy.
-- The latest human message that mentions a tag decides; agent messages are ignored. Tags are stripped from the
-  request text shown in the redline.
-
-**Not done.** A tag cannot be set from the agent side, and there is no per-edit tagging.
-
-## 26. An own Overleaf client, and tracked-change edits  [built, unverified against the real service]
-
-(Update: `review` is now a third edit mode, see the end of this section.)
-
-**Why.** `olcli` is a separate command that an agent with a shell can use to resolve threads, and it cannot write
-tracked changes. A client of our own can leave resolve, reopen and delete out entirely and can make edits as
-Overleaf tracked changes ("Reviewing" mode) instead of only through Git.
-
-**What.** `node/` is the package `olmcp-overleaf`: plain JavaScript, no dependencies, Node 20+. It reads comments
-(project socket, `joinDoc`, `/project/<id>/threads`), posts replies, lists tracked changes and applies an edit as
-a tracked change by sending `applyOtUpdate` operations with `meta.tc` set to a fresh 18-hex-character seed, then
-re-reads the document to confirm the changes were recorded. The Python tool uses it as a drop-in for `olcli`
-(`olcli: olmcp-overleaf`). Credit and licence text for the approach taken from olcli are in
-`node/THIRD_PARTY_NOTICES.md`.
-
-**Not claimed.** It does not stop an agent that can read the cookie file from calling Overleaf directly. It is
-only tested against a fake server written from olcli's source; the `meta.tc` behaviour in particular is the
-understanding of how the editor works, not something verified here.
-
-**Not done yet.** The Python tool does not yet have a "reviewing" mode that routes `address_comment` through
-`edit`; how `olmcp pull` should treat pending tracked changes and what Overleaf's Git export contains for them
-must be established on a scratch project first.
-
-**The `review` mode.** `mode: review` (default), `#review` (per comment) or `address_comment(mode="review")` sends the
-agent's edits through `olmcp-overleaf edit` instead of editing git files. The tool validates `old` against the
-local file, the client validates it again against the live document, and nothing is written to git except the
-conversation record (`review/comments/C-NNNN.json`, status `addressed`). The thread reply says "Tracked change in
-<file>" with the word diff and points at the Review panel. Accepting or rejecting happens in Overleaf; accepted
-text reaches the clone through the normal `olmcp pull`. Refused for `%%` marker comments (the marker is source
-text). Precedence among tags: `#suggest` beats `#review` beats `#direct`. If the client or Overleaf refuses, the tool
-reports it and changes nothing (a multi-file edit can leave earlier files already tracked; the error says which).
-Unknown: what Overleaf's Git export contains while tracked changes are pending, so a `pull` before you decide may
-or may not show the new text; verify on a scratch project.
-
+| Question | Where it stands |
+|---|---|
+| Real-Overleaf behaviour of `#direct`, `#no-agent`, `#agent`, `render_pdf`, subfolders | Built and tested against the fake; the [alpha test plan](alpha-test-plan.md) covers them |
+| Trim the unchanged start and end of each edit so a tracked change covers only the changed words | **[planned]** |
+| Tracked changes under the agent's own name | **[open]** Overleaf has one identity per cookie; a second account would need its own cookie |
+| Editing documents in the newer history format | **[open]** needs a different operation format |
+| Many-document projects: every call joins every document | **[open]** caching, or joining only the document a comment is in |
+| Agents that cannot read PDFs | **[planned]** page images |
+| ChatGPT chat apps | **[open]** needs a remote HTTPS server with real authentication |
+| Windows | **[open]** untested; the code has nothing OS-specific |
+| Reviving Git sync, `%% @agent:` markers or per-hunk decisions | **[open]** they exist in `python-legacy`; port on demand |

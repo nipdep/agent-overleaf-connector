@@ -71,7 +71,7 @@ See [Use `olmcp`](docs/usage.md) for modes, comment tags, the tools, and setting
 - [Connect Claude Code, Codex, or another agent](docs/agents.md)
 - [Try the alpha on your own project](docs/alpha-test-plan.md)
 - [Check current limitations and planned work](docs/status-and-roadmap.md)
-- [Read the detailed design record](docs/design.md) (it also covers the earlier Python version)
+- [Read how it works and why](docs/design.md) (the earlier Python design is kept in [docs/history](docs/history/design-python.md))
 - [Contribute to the project](CONTRIBUTING.md)
 
 Release-by-release changes are listed in the [changelog](CHANGELOG.md). The earlier Python version (Git sync, `%% @agent:` markers, `redline.tex`, GitHub CI mode) lives on the [`python-legacy`](https://github.com/nipdep/agent-overleaf-connector/tree/python-legacy) branch.

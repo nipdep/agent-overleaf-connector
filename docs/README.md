@@ -16,6 +16,6 @@ New to the project? Read the [main README](../README.md) first, then follow the 
 | Document | What you will find there |
 |---|---|
 | [Status and roadmap](status-and-roadmap.md) | What has been verified, current limits, and planned work |
-| [Design record](design.md) | The reasoning behind the design, including alternatives that were not chosen and the earlier Python version |
+| [Design](design.md) | How it works, the decisions and the alternatives they replaced, failure modes, open questions. The earlier Python design is in [history/design-python.md](history/design-python.md) |
 
 For changes between versions, see the [changelog](../CHANGELOG.md). Stable versions are marked with Git tags and GitHub releases when available.
