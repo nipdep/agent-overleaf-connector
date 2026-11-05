@@ -97,6 +97,12 @@ There is no public API for comments or tracked changes, so the client does what 
   insertion is not provably the caller's.
 - **Verification.** After a tracked edit the client re-joins the document and requires changes carrying its seed. If
   there are none it fails loudly, because the edit may have been applied as a plain one.
+- **New files.** Missing folders are created with `POST /project/<id>/folder`, then the file is uploaded the way the
+  editor's upload does (`POST /project/<id>/upload?folder_id=...`, multipart with the CSRF token); a text file with an
+  editable extension becomes a document. File creation is not part of the tracked-change machinery, so it is
+  immediate. The client refuses to overwrite, validates the path (no `..`, empty parts, backslashes, hidden names), limits
+  the extension to editable text and the size to 1,000,000 characters, then re-reads the project and requires the
+  document at that path with exactly the content sent.
 - **PDF.** `POST /project/<id>/compile`, then download `output.pdf` (with the compile server id); on failure, the TeX
   log's error lines are returned.
 - **Not supported.** Documents in Overleaf's newer history format are read but not edited; the client refuses rather
@@ -123,7 +129,7 @@ Everything is read from the thread, so it is stateless.
 ## 7. The tools and what they enforce  [built]
 
 `list_comments`, `show_comment`, `list_files`, `read_file`, `address_comment`, `reply_to_comment`,
-`list_tracked_changes`, `render_pdf`; each takes an optional `project`. `address_comment(comment_id, edits, reply,
+`create_file`, `list_tracked_changes`, `render_pdf`; each takes an optional `project`. `address_comment(comment_id, edits, reply,
 mode?)` is the one that matters:
 
 1. Refuse `#no-agent`, resolved comments, a tag/mode clash, an empty reply or no edits. (A comment the researcher answered after the agent's suggestion is open again, so the agent can revise it.)
@@ -169,6 +175,8 @@ tool: the live project is the only thing edited.
 | A revision leaves the old suggestion as a tracked deletion | Error naming what to reject; nothing else written |
 | Document edited by someone meanwhile | Overleaf rejects the stale version; nothing written |
 | Overleaf did not record the edit as tracked | Error, no reply posted, check History |
+| `create_file` onto an existing name, an unsafe path, a non-text extension | Refused before anything is created |
+| The upload succeeds but the document is missing or its text differs | Error naming the path; nothing is deleted (the researcher decides) |
 | Several-file edit fails part-way | The error names what was already written |
 | Document in the newer history format | Read allowed, edit refused |
 | Overleaf changes its unofficial interface | Calls fail with HTTP errors; the fake-server tests cannot catch it |
@@ -192,8 +200,10 @@ tool: the live project is the only thing edited.
 | Question | Where it stands |
 |---|---|
 | Real-Overleaf behaviour of `#direct`, `#no-agent`, `#agent`, `render_pdf`, subfolders | Built and tested against the fake; the [alpha test plan](alpha-test-plan.md) covers them |
+| `create_file` on the real service | Built and tested against the fake; the upload endpoint is the one olcli uses (alpha test plan scenario 12) |
 | Revising a suggestion in place on the real service | Built and tested against the fake; depends on Overleaf's ranges tracker removing your own inserted text instead of striking it (alpha test plan scenario 11) |
 | Trim the unchanged start and end of each edit so a tracked change covers only the changed words | **[planned]** |
+| Deleting or renaming files, binary uploads | **[open]** deliberately not offered: they cannot be undone through a tracked change |
 | Tracked changes under the agent's own name | **[open]** Overleaf has one identity per cookie; a second account would need its own cookie |
 | Editing documents in the newer history format | **[open]** needs a different operation format |
 | Many-document projects: every call joins every document | **[open]** caching, or joining only the document a comment is in |

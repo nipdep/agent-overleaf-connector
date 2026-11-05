@@ -82,6 +82,7 @@ shown. The agent never resolves a thread: **a handled comment stays open until y
 | `show_comment` | `show ID` | One comment with its thread |
 | `list_files`, `read_file` | | The project's text documents |
 | `address_comment` | `address ID < edit.json` | Edits plus the reply, together; validated first |
+| `create_file` | `create PROJECT PATH < content` | A NEW text file (and missing folders); never overwrites |
 | `reply_to_comment` | `comments reply THREAD TEXT PROJECT` | Reply without editing |
 | `list_tracked_changes` | `changes list PROJECT` | Pending tracked changes |
 | `render_pdf` | `pdf PROJECT -o file.pdf` | Compile with Overleaf's compiler, save the PDF |
@@ -89,6 +90,19 @@ shown. The agent never resolves a thread: **a handled comment stays open until y
 Other commands: `auth`, `init`, `doctor`, `check PROJECT`, `edit PROJECT FILE --old A --new B [--direct] [--dry-run]`,
 `comments list PROJECT [--json]`. Run `olmcp help`. There is no command to resolve, reopen or delete a
 thread, on purpose.
+
+## Creating new files
+
+The agent can add a new text file, for example `sections/related-work.tex`, with `create_file`. Missing folders are
+created too. Only text files that Overleaf opens in its editor are created (`.tex .bib .sty .cls .bst .md .txt .csv` and a
+few more); images and other binaries are not.
+
+Three things to know. First, **a new file is not a tracked change**: Overleaf does not track file creation, so the file
+exists at once, and you delete it in Overleaf if you do not want it. Second, the tool **never overwrites or deletes**:
+a file or folder with that name is an error, and changes to existing files go through `address_comment`. Third, the
+usual pattern is two calls in one reply: `create_file` for the new file and `address_comment` for the `\input` line that
+uses it, which *is* a tracked change you can reject. After creating, the tool re-reads the project and checks that the
+file exists with exactly the content sent.
 
 ## What `address_comment` enforces
 

@@ -62,6 +62,7 @@ That is the whole loop. Setup never has to be repeated, except to refresh the co
 | Apply an edit immediately | Add `#direct` to the comment (the default is a tracked change) |
 | Ask the agent to focus on selected threads | Add `#agent` to those comments |
 | Keep the agent away from a thread | Add `#no-agent` |
+| Ask for a new file (a section, a bibliography) | Say so in a comment; the agent creates it with `create_file` and adds the `\input` line as a tracked change |
 | Ask for another version of a suggestion | Reply in the thread ("shorter please"); the agent updates the suggestion in place, no need to accept or reject first |
 | Accept or reject an edit | Use Accept or Reject in the Review panel |
 | Close a thread | Resolve it yourself; the agent never does |
