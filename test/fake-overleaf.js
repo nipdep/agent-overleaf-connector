@@ -12,18 +12,51 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
   const enc = (s) => Buffer.from(s, 'utf-8').toString('binary');
   const frame = (packets) => (packets.length === 1 ? packets[0] : packets.map((p) => `�${p.length}�${p}`).join(''));
 
+  // A small imitation of Overleaf's ranges tracker as it is understood here: the stored text has tracked insertions
+  // in and tracked deletions out; a deletion is a change {d, p} at one position; an insertion is {i, p} covering its
+  // text. A tracked delete inside your own insertion removes that text from the insertion (no deletion is recorded),
+  // and a tracked insert touching your own insertion extends it. `state.ownInsertMode = 'strike'` makes the server
+  // record a deletion instead, to prove the client notices.
+  const ME = 'u1';
+  const nextId = (tc) => `${tc}${String(++state.seq).padStart(6, '0')}`;
+  const meta = () => ({ user_id: ME, ts: '2026-11-03T00:00:00Z' });
+
+  function shift(doc, from, by, skip) {
+    for (const c of doc.ranges.changes) if (c !== skip && c.op.p >= from) c.op.p += by;
+  }
+
   function applyUpdate(doc, update) {
-    const tc = update.meta?.tc;
+    const tc = update.meta?.tc && state.trackServerSupport ? update.meta.tc : null;
     for (const op of update.op) {
       if (op.i !== undefined) {
+        const own = tc && doc.ranges.changes.find((c) => c.op.i !== undefined && c.metadata.user_id === ME && c.op.p <= op.p && op.p <= c.op.p + c.op.i.length);
         doc.content = doc.content.slice(0, op.p) + op.i + doc.content.slice(op.p);
-        if (tc && state.trackServerSupport) doc.ranges.changes.push({ id: `${tc}${String(++state.seq).padStart(6, '0')}`, op: { i: op.i, p: op.p }, metadata: { user_id: 'u1', ts: '2026-11-03T00:00:00Z' } });
+        if (own) {
+          const at = op.p - own.op.p;
+          own.op.i = own.op.i.slice(0, at) + op.i + own.op.i.slice(at);
+          shift(doc, op.p, op.i.length, own);
+        } else {
+          shift(doc, op.p, op.i.length);
+          if (tc) doc.ranges.changes.push({ id: nextId(tc), op: { i: op.i, p: op.p }, metadata: meta() });
+        }
       } else if (op.d !== undefined) {
-        if (tc && state.trackServerSupport) doc.ranges.changes.push({ id: `${tc}${String(++state.seq).padStart(6, '0')}`, op: { d: op.d, p: op.p }, metadata: { user_id: 'u1', ts: '2026-11-03T00:00:00Z' } });
-        else doc.content = doc.content.slice(0, op.p) + doc.content.slice(op.p + op.d.length);
+        const end = op.p + op.d.length;
+        let strike = !!tc;
+        if (tc && state.ownInsertMode !== 'strike') {
+          const own = doc.ranges.changes.find((c) => c.op.i !== undefined && c.metadata.user_id === ME && c.op.p <= op.p && end <= c.op.p + c.op.i.length);
+          if (own) {
+            const at = op.p - own.op.p;
+            own.op.i = own.op.i.slice(0, at) + own.op.i.slice(at + op.d.length);
+            strike = false;
+            if (own.op.i === '') doc.ranges.changes.splice(doc.ranges.changes.indexOf(own), 1);
+          }
+        }
+        doc.content = doc.content.slice(0, op.p) + doc.content.slice(end);
+        shift(doc, end, -op.d.length);
+        if (strike) doc.ranges.changes.push({ id: nextId(tc), op: { d: op.d, p: op.p }, metadata: meta() });
       }
     }
-    if (tc) state.tcSeen.push(tc);
+    if (update.meta?.tc) state.tcSeen.push(update.meta.tc);
     doc.version += 1;
   }
 
@@ -49,7 +82,7 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
       const send = (code, text, type = 'text/plain') => { res.writeHead(code, { 'content-type': type }); res.end(text); };
       const authed = /overleaf_session2=good/.test(req.headers.cookie || '');
       if (url.pathname === '/project' && req.method === 'GET') {
-        return authed ? send(200, '<html><meta name="ol-csrfToken" content="csrf-1"></html>', 'text/html')
+        return authed ? send(200, '<html><meta name="ol-csrfToken" content="csrf-1"><meta name="ol-user_id" content="u1"></html>', 'text/html')
           : send(200, '<form name="loginForm"></form>', 'text/html');
       }
       if (!authed) return send(403, 'no');

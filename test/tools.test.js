@@ -172,3 +172,25 @@ test('before/after shows the changed passage with a little context, in plain wor
   assert.ok(r.before.length < 260, 'cropped');
   assert.deepEqual(beforeAfter('same', 'same'), { before: 'same', after: 'same' });
 });
+
+test('revising a pending suggestion: the agent changes the temporary text, the original stays pending, the reply is its words', async () => {
+  const f = await startFake({ docs: docs(), threads: threads() });
+  try {
+    const client = await OverleafClient.connect({ baseUrl: f.url, sessionCookie: 'good' });
+    const t = new Tools(client, { project: 'p1', mode: 'review' });
+    await t.addressComment('T1', [{ file: 'main.tex', old: 'always outperforms the baselines', new: 'outperforms most baselines' }], 'First try.');
+    // the researcher asks for another version in the thread
+    f.state.threads.T1.messages.push({ id: 'm9', content: 'shorter please', user: { email: 'me@example.com' } });
+    assert.equal((await t.listComments()).find((c) => c.id === 'T1').status, 'open');
+    const shown = await t.showComment('T1');
+    assert.deepEqual(shown.pending_changes.map((c) => c.kind).sort(), ['delete', 'insert']);
+    assert.match(shown.pending_changes_note, /without waiting/);
+    const out = await t.addressComment('T1', [{ file: 'main.tex', old: 'outperforms most baselines', new: 'beats baselines' }], 'Shortened it.');
+    assert.equal(out.revised, true);
+    const changes = f.state.docs.d1.ranges.changes;
+    assert.equal(changes.length, 2);
+    assert.equal(changes.find((c) => c.op.i).op.i, 'beats baselines');
+    assert.equal(changes.find((c) => c.op.d).op.d, 'always outperforms the baselines');
+    assert.equal(f.state.posted.at(-1).content, '[agent] Shortened it.');
+  } finally { await f.close(); }
+});
