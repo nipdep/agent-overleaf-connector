@@ -47,22 +47,64 @@ test('there is no way to resolve a thread', async () => {
   assert.equal(fake.state.resolveCalls, 0);
 });
 
-test('a tracked edit becomes a tracked delete plus insert and leaves the text for the researcher', async () => {
+test('a tracked edit becomes a tracked delete plus insert; the stored text has the suggestion in and the deleted text out', async () => {
   const result = await client.editDocument('p1', 'main.tex', [{ old: 'always outperforms', new: 'outperforms' }]);
   assert.equal(result.applied, true);
   assert.deepEqual(result.changes.map((c) => c.kind).sort(), ['delete', 'insert']);
   assert.ok(fake.state.tcSeen.length === 1 && /^[0-9a-f]{18}$/.test(fake.state.tcSeen[0]));
   const ins = result.changes.find((c) => c.kind === 'insert');
   assert.equal(ins.text, 'outperforms');
-  assert.equal(ins.position, 22 + 'always outperforms'.length);
-  // the deleted text is still in the document body (it is only marked)
-  assert.match(fake.state.docs.d1.content, /always outperforms\s*outperforms/);
+  assert.equal(ins.position, 22);
+  assert.match(fake.state.docs.d1.content, /^Intro line\nOur method outperforms the baselines/);
   const listed = await client.listChanges('p1');
   assert.equal(listed.length, 2);
 });
 
-test('a second edit onto text that already carries a tracked change is refused', async () => {
-  await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'always outperforms', new: 'x' }]), /already carries a tracked change|more than once/);
+test('an edit that starts outside a pending suggestion and runs into it is refused', async () => {
+  await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'method outperforms', new: 'x' }]), /overlaps a tracked change/);
+});
+
+test('revising the temporary text of a pending suggestion changes it in place, with nothing accepted or rejected', async () => {
+  const before = fake.state.docs.d1.ranges.changes.map((c) => ({ ...c, op: { ...c.op } }));
+  const dry = await client.editDocument('p1', 'main.tex', [{ old: 'outperforms', new: 'beats' }], { dryRun: true });
+  assert.deepEqual([dry.revising, dry.applied], [true, false]);
+  const r = await client.editDocument('p1', 'main.tex', [{ old: 'outperforms', new: 'beats' }]);
+  assert.deepEqual([r.revised, r.applied], [true, true]);
+  const changes = fake.state.docs.d1.ranges.changes;
+  assert.equal(changes.length, 2, 'still one deletion and one insertion');
+  assert.equal(changes.find((c) => c.op.d).op.d, 'always outperforms', 'the original text is still the pending deletion');
+  assert.equal(changes.find((c) => c.op.i).op.i, 'beats');
+  assert.equal(changes.find((c) => c.op.d).id, before.find((c) => c.op.d).id);
+  assert.match(fake.state.docs.d1.content, /^Intro line\nOur method beats the baselines/);
+  // and again: a longer revision inside the same suggestion
+  await client.editDocument('p1', 'main.tex', [{ old: 'beats', new: 'consistently beats' }]);
+  assert.equal(fake.state.docs.d1.ranges.changes.find((c) => c.op.i).op.i, 'consistently beats');
+});
+
+test('a revision cannot be mixed with a new edit in one call', async () => {
+  await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'beats', new: 'wins' }, { old: 'End', new: 'Finish' }]), /cannot both revise/);
+});
+
+test('a direct edit inside a pending suggestion is refused', async () => {
+  await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'consistently beats', new: 'x' }], { tracked: false }), /pending tracked insertion/);
+});
+
+test("a suggestion by someone else is not revised in place", async () => {
+  const other = fake.state.docs.d1.ranges.changes.find((c) => c.op.i);
+  other.metadata.user_id = 'someone-else';
+  try {
+    await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'consistently beats', new: 'x' }]), /not provably yours/);
+  } finally { other.metadata.user_id = 'u1'; }
+});
+
+test('if the server leaves the old suggestion as a tracked deletion, the revision says so', async () => {
+  fake.state.ownInsertMode = 'strike';
+  try {
+    await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'consistently beats', new: 'wins' }]), /did not update the suggestion in place/);
+  } finally {
+    fake.state.ownInsertMode = undefined;
+    fake.state.docs.d1.ranges.changes = fake.state.docs.d1.ranges.changes.filter((c) => !(c.op.d && c.op.d === 'consistently beats'));
+  }
 });
 
 test('direct edit applies plain operations without a tracking id', async () => {

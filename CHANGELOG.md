@@ -3,6 +3,17 @@
 Bump `version` in `package.json` for every change that users can notice, and add a line here.
 
 
+## 1.0.0-alpha.2
+- **Revise a pending suggestion without accepting or rejecting it.** If the researcher answers a suggestion with "try
+  again", the agent calls `address_comment` with `old` = the suggested (inserted) text, and the client changes that
+  temporary text in place: the original text stays as the pending deletion, and the researcher still accepts or
+  rejects one change. Only inside a tracked insertion made by the same account; refused in `direct` mode, when mixed
+  with new edits in one call, or when the insertion is someone else's. After writing, the client re-reads the document
+  and fails loudly if Overleaf left the old suggestion as a tracked deletion. `show_comment` lists the
+  `pending_changes` near a comment, and `read_file` now says what its text is (insertions in, deletions out).
+- Correction: the client now treats a pending tracked deletion as occupying no space in the stored text (as olcli's
+  rejection logic does), and refuses edits that overlap a pending change only when they truly overlap it.
+
 ## 1.0.0-alpha.1
 - Numbered as the first major release line: the public surface (the `olmcp` command, the MCP tools and their arguments,
   the tag syntax) is what 1.x keeps stable. Bugs found in the alpha are fixed in `1.0.0-alpha.N`, then `1.0.0-beta.N`,

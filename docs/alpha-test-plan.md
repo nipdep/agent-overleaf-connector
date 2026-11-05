@@ -32,6 +32,7 @@ Tell the agent: "Address the review comments in <project URL>". Tick what behave
 | 8 | Ask the agent "compile the paper and tell me if there are errors" | A PDF is saved; a deliberate TeX error is reported with its line |
 | 9 | Comment with no selected text (a general comment) | The agent asks or replies; it does not guess an edit |
 | 10 | Leave the tool unused for a few days | `olmcp doctor` says the cookie expired; `olmcp auth` fixes it |
+| 11 | After the agent's suggestion, reply in the thread "shorter please" (do not accept or reject) | The agent revises: the suggestion's new text changes in place, the original is still the one pending deletion, and you can still accept or reject it as a single change; no struck-through leftovers of the first suggestion |
 
 ## What to send back
 

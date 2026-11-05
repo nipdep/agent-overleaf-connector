@@ -29,7 +29,7 @@ export function toItem(c, { commentTags = true } = {}) {
   const status = c.resolved ? 'resolved' : last.from === 'agent' ? 'addressed' : 'open';
   return {
     id: c.threadId, status, file: c.path, line: c.line, selected_text: c.selectedText,
-    request: stripTags(human[0].raw), agent_tag: agent === true ? 'agent' : agent === false ? 'no-agent' : null,
+    position: c.position, request: stripTags(human[0].raw), agent_tag: agent === true ? 'agent' : agent === false ? 'no-agent' : null,
     agent, mode, thread: thread.map(({ from, text, author }) => ({ from, text, author })),
   };
 }
@@ -60,7 +60,7 @@ export class Tools {
   }
 
   present(item, skips) {
-    const { agent, ...rest } = item;
+    const { agent, position, ...rest } = item;
     const why = skips[item.id];
     return { ...rest, mode: item.mode ?? this.defaultMode, mode_chosen_by_researcher: Boolean(item.mode), for_agent: !why, skipped_because: why ?? null };
   }
@@ -81,7 +81,20 @@ export class Tools {
     return { item, skips: skipReasons(items) };
   }
 
-  async showComment(id) { const { item, skips } = await this.#get(id); return this.present(item, skips); }
+  async showComment(id) {
+    const { item, skips } = await this.#get(id);
+    const out = this.present(item, skips);
+    // Suggestions already pending near this comment's text, so the agent can revise them instead of piling on.
+    try {
+      const near = (await this.client.listChanges(this.project)).filter((c) => c.path === item.file
+        && c.position >= item.position - 80 && c.position <= item.position + (item.selected_text || '').length + 80);
+      if (near.length) {
+        out.pending_changes = near.map(({ kind, text }) => ({ kind, text: text.length > 300 ? `${text.slice(0, 300)}\u2026` : text }));
+        out.pending_changes_note = 'Suggestions already waiting here. To change the proposed text without waiting for the researcher to accept or reject it, call address_comment with old = the text of the "insert" (as read_file shows it) and new = your revision; the original text stays as the pending deletion.';
+      }
+    } catch { /* the extra context is optional */ }
+    return out;
+  }
 
   async listFiles() { return { files: await this.client.listFiles(this.project) }; }
 
@@ -93,7 +106,7 @@ export class Tools {
     }
     const truncated = content.length > MAX_CHARS;
     return { path, content: truncated ? content.slice(0, MAX_CHARS) : content, truncated,
-      note: 'Text carrying a pending tracked deletion is still present here.' };
+      note: 'This is the text with pending suggestions applied: tracked insertions are in it, tracked deletions are not shown.' };
   }
 
   async listTrackedChanges() { return { changes: await this.client.listChanges(this.project) }; }
@@ -131,9 +144,10 @@ export class Tools {
       byFile.set(e.file, [...(byFile.get(e.file) || []), { old: e.old, new: e.new ?? '' }]);
     }
     const tracked = editMode === 'review';
+    let revised = false;
     try {
       for (const [file, group] of byFile) await this.client.editDocument(this.project, file, group, { tracked, dryRun: true });
-      for (const [file, group] of byFile) await this.client.editDocument(this.project, file, group, { tracked });
+      for (const [file, group] of byFile) { const r = await this.client.editDocument(this.project, file, group, { tracked }); revised ||= Boolean(r.revised); }
     } catch (e) {
       throw new ToolError(`Overleaf did not take the edit: ${e.message}`);
     }
@@ -144,7 +158,7 @@ export class Tools {
       return `\n\n${edits.length > 1 || e.file !== item.file ? `In ${e.file}:\n` : ''}Before: ${before}\nAfter:  ${after}`;
     }).join('');
     await this.client.reply(this.project, id, AGENT_PREFIX + reply.trim() + changes + (tracked ? '' : DIRECT_HINT));
-    return { comment_id: id, status: 'addressed', mode: editMode, files: [...byFile.keys()],
-      note: tracked ? 'Written into Overleaf as tracked changes; the researcher accepts or rejects them there.' : 'Applied as a plain edit in Overleaf.' };
+    return { comment_id: id, status: 'addressed', mode: editMode, files: [...byFile.keys()], ...(revised ? { revised: true } : {}),
+      note: revised ? 'Updated the pending suggestion in place; the researcher can still accept or reject it as one change.' : tracked ? 'Written into Overleaf as tracked changes; the researcher accepts or rejects them there.' : 'Applied as a plain edit in Overleaf.' };
   }
 }
