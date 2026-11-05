@@ -33,6 +33,7 @@ Tell the agent: "Address the review comments in <project URL>". Tick what behave
 | 9 | Comment with no selected text (a general comment) | The agent asks or replies; it does not guess an edit |
 | 10 | Leave the tool unused for a few days | `olmcp doctor` says the cookie expired; `olmcp auth` fixes it |
 | 11 | After the agent's suggestion, reply in the thread "shorter please" (do not accept or reject) | The agent revises: the suggestion's new text changes in place, the original is still the one pending deletion, and you can still accept or reject it as a single change; no struck-through leftovers of the first suggestion |
+| 12 | Comment "move the related-work paragraph into its own file" | A new file appears in the right folder with the right content, and an `\input` line in the original file is a tracked change; creating a file that already exists is refused, never overwritten |
 
 ## What to send back
 

@@ -3,6 +3,14 @@
 Bump `version` in `package.json` for every change that users can notice, and add a line here.
 
 
+## 1.0.0-alpha.3
+- **The agent can create new files.** New tool and command `create_file` / `olmcp create <project> <path>`: creates a text
+  document (`.tex .bib .sty .cls .md .txt ...`) and any missing folders through the same upload the editor uses, then
+  re-reads the project and checks that the document exists with exactly the content sent. It never overwrites or deletes
+  (an existing file or folder of that name is an error), refuses paths with `..`, empty parts, backslashes or hidden
+  names, and files over 1,000,000 characters. A new file is not a tracked change (Overleaf does not track file
+  creation), so it appears at once; the researcher deletes it in Overleaf if unwanted. Tested against the fake only.
+
 ## 1.0.0-alpha.2
 - **Revise a pending suggestion without accepting or rejecting it.** If the researcher answers a suggestion with "try
   again", the agent calls `address_comment` with `old` = the suggested (inserted) text, and the client changes that

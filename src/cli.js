@@ -20,6 +20,7 @@ const USAGE = `olmcp <command>
   edit <project> <file> (--old TEXT --new TEXT | --stdin) [--direct] [--dry-run] [--json]
        --stdin reads {"edits":[{"old":"...","new":"..."}]}; edits are tracked changes unless --direct
   pdf <project> [-o FILE] [--draft]   compile with Overleaf's compiler and save the PDF (default output.pdf)
+  create <project> <path> [--dry-run]       create a NEW text file with the content read from stdin (never overwrites)
   check <project>
   doctor [--project ID]                     check Node, the cookie, the project and comment access
 
@@ -138,6 +139,12 @@ Add the server to your agent (run from this folder):
     const out = flags.o || 'output.pdf';
     writeFileSync(out, pdf);
     console.log(flags.json ? JSON.stringify({ file: out, bytes: pdf.length }) : `saved ${out} (${pdf.length} bytes)`);
+    return 0;
+  }
+  if (cmd === 'create') {
+    if (!p[1] || !p[2]) throw new Error('usage: create <project> <path> < content');
+    const result = await client.createFile(p[1], p[2], readFileSync(0, 'utf-8'), { dryRun: !!flags['dry-run'] });
+    print(result, flags.json, (r) => r.created ? `created ${r.path}${r.folders_created.length ? ` (new folders: ${r.folders_created.join(', ')})` : ''}` : `dry run: would create ${r.path}`);
     return 0;
   }
   if (cmd === 'check') {

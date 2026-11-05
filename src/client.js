@@ -10,6 +10,25 @@ const csrfFrom = (html) =>
   || /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']ol-csrfToken["']/i.exec(html)?.[1]
   || /name=["']_csrf["'][^>]+value=["']([^"']+)["']/i.exec(html)?.[1];
 
+/** Text files Overleaf opens in its editor (the rest would be stored as opaque uploads, which this tool does not create). */
+export const EDITABLE_EXTENSIONS = new Set(['tex', 'bib', 'sty', 'cls', 'bst', 'bbx', 'cbx', 'def', 'cfg', 'ltx', 'dtx', 'ins', 'ist', 'lco', 'txt', 'md', 'csv', 'tsv', 'json', 'yml', 'yaml']);
+export const MAX_NEW_FILE_CHARS = 1_000_000;
+
+/** A safe relative path for a new document, or an Error saying what is wrong with it. */
+export function checkNewFilePath(path) {
+  if (typeof path !== 'string' || !path.trim()) throw new Error('path is empty');
+  const clean = path.trim().replace(/^\/+/, '');
+  if (/[\\\u0000-\u001f]/.test(clean) || clean.endsWith('/')) throw new Error(`"${path}" is not a valid file path (use forward slashes, no trailing slash)`);
+  const parts = clean.split('/');
+  if (parts.some((p) => p === '' || p === '.' || p === '..')) throw new Error(`"${path}" must not contain empty, "." or ".." parts`);
+  if (parts.some((p) => p.length > 100) || clean.length > 300) throw new Error(`"${path}" is too long`);
+  const name = parts[parts.length - 1];
+  if (name.startsWith('.')) throw new Error(`"${name}": hidden files are not created`);
+  const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+  if (!EDITABLE_EXTENSIONS.has(ext)) throw new Error(`"${name}": only text files Overleaf can edit are created (${[...EDITABLE_EXTENSIONS].map((e) => `.${e}`).join(' ')})`);
+  return { path: clean, dirs: parts.slice(0, -1), name };
+}
+
 const userIdFrom = (html) =>
   /<meta[^>]+name=["']ol-user_id["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1]
   || /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']ol-user_id["']/i.exec(html)?.[1] || null;
@@ -139,6 +158,69 @@ export class OverleafClient {
       const joined = await this.join(socket, doc.id);
       return { path: wanted, content: joined.content };
     } finally { await socket.close(); }
+  }
+
+  async createFolder(projectId, parentId, name) {
+    const res = await request(this.jar, `${this.baseUrl}/project/${projectId}/folder`, {
+      method: 'POST', headers: this.headers(true), body: JSON.stringify({ parent_folder_id: parentId, name }),
+    });
+    if (res.status === 400) throw new Error(`could not create the folder "${name}" (it may already exist)`);
+    if (!res.ok) throw new Error(`could not create the folder "${name}": HTTP ${res.status}`);
+    return JSON.parse(res.text)._id;
+  }
+
+  /**
+   * Create a new text document (and any missing folders) with the given content. Never overwrites: an existing
+   * file or folder of that name is an error. A new file is not a tracked change (Overleaf does not track file
+   * creation), so it appears at once; the researcher can delete it in Overleaf.
+   */
+  async createFile(projectId, path, content, { dryRun = false } = {}) {
+    const target = checkNewFilePath(path);
+    if (typeof content !== 'string') throw new Error('content must be a string');
+    if (content.length > MAX_NEW_FILE_CHARS) throw new Error(`content is larger than ${MAX_NEW_FILE_CHARS} characters`);
+    const socket = await this.openSocket(projectId);
+    let folder; const createdFolders = [];
+    try {
+      const root = socket.project.rootFolder?.[0];
+      if (!root?._id) throw new Error('could not read the project\'s folder tree');
+      folder = root;
+      const missing = [];
+      for (const seg of target.dirs) {
+        const next = missing.length ? null : (folder.folders || []).find((f) => f.name === seg);
+        if (next) folder = next; else missing.push(seg);
+      }
+      if (!missing.length) {
+        const taken = [...(folder.docs || []), ...(folder.fileRefs || []), ...(folder.folders || [])].some((e) => e.name === target.name);
+        if (taken) throw new Error(`${target.path} already exists; this tool never overwrites a file (use address_comment to edit it)`);
+      }
+      if (dryRun) return { path: target.path, created: false, would_create_folders: missing, bytes: Buffer.byteLength(content) };
+      for (const seg of missing) {
+        const id = await this.createFolder(projectId, folder._id, seg);
+        createdFolders.push(seg);
+        folder = { _id: id, name: seg, folders: [], docs: [], fileRefs: [] };
+      }
+    } finally { await socket.close(); }
+    const form = new FormData();
+    form.append('targetFolderId', folder._id);
+    form.append('name', target.name);
+    form.append('type', 'text/plain');
+    form.append('qqfile', new Blob([content], { type: 'text/plain' }), target.name);
+    const res = await request(this.jar, `${this.baseUrl}/project/${projectId}/upload?folder_id=${encodeURIComponent(folder._id)}`, {
+      method: 'POST', headers: this.headers(), body: form, timeoutMs: 60000,
+    });
+    let data = null; try { data = JSON.parse(res.text); } catch { /* not JSON */ }
+    if (!res.ok || data?.success === false) {
+      throw new Error(`Overleaf did not create ${target.path}: ${data?.error || `HTTP ${res.status}`}${createdFolders.length ? ` (folders already created: ${createdFolders.join(', ')})` : ''}`);
+    }
+    // Verify: the document exists at that path with exactly this content.
+    const check = await this.openSocket(projectId);
+    try {
+      const doc = collectDocs(check.project).find((d) => d.path === target.path);
+      if (!doc) throw new Error(`Overleaf accepted the upload but ${target.path} is not an editable document in the project (check the project in Overleaf)`);
+      const joined = await this.join(check, doc.id, { history: false });
+      if (joined.content !== content) throw new Error(`${target.path} was created but its stored text differs from what was sent (${joined.content.length} vs ${content.length} characters); check it in Overleaf`);
+    } finally { await check.close(); }
+    return { path: target.path, created: true, folders_created: createdFolders, bytes: Buffer.byteLength(content) };
   }
 
   async reply(projectId, threadId, content) {

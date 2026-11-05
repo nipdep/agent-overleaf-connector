@@ -1,6 +1,6 @@
 {
   "name": "olmcp",
-  "version": "1.0.0-alpha.2",
+  "version": "1.0.0-alpha.3",
   "description": "Overleaf review comments, tracked-change edits, PDF and an MCP server for AI agents (no runtime dependencies)",
   "type": "module",
   "license": "Apache-2.0",

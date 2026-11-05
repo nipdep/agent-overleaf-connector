@@ -118,6 +118,13 @@ export class Tools {
     return { file, bytes: pdf.length, note: "Compiled by Overleaf's own compiler. Read the PDF to see the pages." };
   }
 
+  async createFile(path, content, { dry_run = false } = {}) {
+    try {
+      return { ...(await this.client.createFile(this.project, path, content, { dryRun: dry_run })),
+        note: 'A new file is not a tracked change: it exists in the project now. To use it, add an \\input (or similar) to an existing file with address_comment. The researcher can delete the file in Overleaf; this tool never overwrites or deletes files.' };
+    } catch (e) { throw new ToolError(e.message); }
+  }
+
   async replyToComment(id, text) {
     const { item } = await this.#get(id);
     if (item.agent === false) throw new ToolError(`the researcher tagged ${id} #no-agent: do not work on it or reply to it`);
