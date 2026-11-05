@@ -30,6 +30,20 @@ Which project: the agent passes `project` (id, project URL or git URL) with each
 Default: `mode` in `.olmcp.json` (or `OLMCP_MODE`); `olmcp init <id> --mode direct` sets it.
 Per comment, use a tag. The agent may choose a mode only for untagged comments.
 
+## Ask for another version, without accepting or rejecting
+
+If you do not like a suggestion, you do not have to reject it before asking again. Reply in the thread ("shorter
+please", "keep the citation"). The thread becomes open again and the agent **revises the suggestion in place**: the
+suggested (new) text changes, the original text stays as the one pending deletion, and you still accept or reject a
+single change at the end. Repeat as often as you like.
+
+How it works: the agent reads the text as Overleaf stores it (suggested text in, deleted text out) and sends an edit
+whose old text is the suggested text. `show_comment` lists the pending changes near the comment so the agent knows. This
+only works on a suggestion made by your own account (that is the account the tool acts with); an insertion by a
+collaborator is never rewritten, and a `#direct` edit never touches pending suggestions. After writing, the tool
+re-reads the document and reports an error if Overleaf left the first suggestion behind as a struck-through deletion
+(then reject that stray change in the Review panel).
+
 ## Comment tags (all optional)
 
 Write hashtags anywhere in a comment, for example `we need to fix the wording here to shorten this #agent #suggest`.
@@ -78,11 +92,12 @@ thread, on purpose.
 
 ## What `address_comment` enforces
 
-- Every edit's `old` text must occur exactly once in the live document and must not overlap an existing tracked
-  change; otherwise nothing is written and the error says why.
+- Every edit's `old` text must occur exactly once in the live document and must not overlap a pending change,
+  except that it may lie entirely inside a suggestion of your own account, which revises it in place; otherwise
+  nothing is written and the error says why.
 - Several files: all are validated before any is written. The reply is posted only after the edits are in.
 - A `#no-agent` comment is refused; a tag that disagrees with the agent's `mode` argument is refused.
-- Text that carries a pending tracked deletion is still present in what `read_file` returns.
+- `read_file` returns the text as Overleaf stores it: pending suggestions are in, pending deletions are not shown.
 
 ## Limits
 

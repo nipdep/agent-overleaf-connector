@@ -85,6 +85,16 @@ There is no public API for comments or tracked changes, so the client does what 
   new. Sent with a tracking id (`meta.tc`, an 18-hex seed, the same marker the editor uses in Reviewing mode), the
   server records a *tracked* deletion and insertion instead of changing the text. If someone else edited meanwhile the
   version no longer matches and Overleaf rejects the update.
+- **What the stored text is.** For a normal (legacy) document the text Overleaf stores has every tracked insertion
+  in it and every tracked deletion out: an insertion occupies its length, a deletion is a record `{d, p}` at one
+  position. (This is how olcli's rejection logic treats it; the fake server models it the same way.)
+- **Revising.** When `old` lies entirely inside a tracked insertion made by the same account (the `ol-user_id` of the
+  page equals the change's user), the same delete-and-insert operations change the insertion in place: Overleaf shrinks
+  the insertion by the deleted text and extends it by the inserted text, and records no deletion for your own
+  text. The client then re-reads the document and requires the stored text to equal the expected text and no new
+  deletion to have appeared. If Overleaf instead leaves the old suggestion as a struck-through deletion, the client
+  errors and names what to reject. A revision is refused when mixed with new edits, in `direct` mode, or when the
+  insertion is not provably the caller's.
 - **Verification.** After a tracked edit the client re-joins the document and requires changes carrying its seed. If
   there are none it fails loudly, because the edit may have been applied as a plain one.
 - **PDF.** `POST /project/<id>/compile`, then download `output.pdf` (with the compile server id); on failure, the TeX
@@ -116,9 +126,9 @@ Everything is read from the thread, so it is stateless.
 `list_tracked_changes`, `render_pdf`; each takes an optional `project`. `address_comment(comment_id, edits, reply,
 mode?)` is the one that matters:
 
-1. Refuse `#no-agent`, resolved comments, a tag/mode clash, an empty reply or no edits.
+1. Refuse `#no-agent`, resolved comments, a tag/mode clash, an empty reply or no edits. (A comment the researcher answered after the agent's suggestion is open again, so the agent can revise it.)
 2. Validate every edit against the live document (a dry run per file): `old` must occur exactly once and must not
-   overlap an existing tracked change; several files are all checked before any is written.
+   overlap a pending change, unless it lies wholly inside a suggestion of the same account (a revision); several files are all checked before any is written.
 3. Write the edits (tracked in `review`, plain in `direct`).
 4. Post the reply, only now: an edit that failed never leaves a reply claiming it happened.
 
@@ -155,7 +165,8 @@ tool: the live project is the only thing edited.
 |---|---|
 | Cookie expired or missing | A clear error; `olmcp doctor` says what to do |
 | `old` text not found / found more than once | Nothing written; the error says how to retry |
-| `old` overlaps an existing tracked change | Refused; accept or reject that change first |
+| `old` overlaps a pending change (not wholly inside your own suggestion) | Refused; accept or reject that change first, or edit only inside your own suggestion |
+| A revision leaves the old suggestion as a tracked deletion | Error naming what to reject; nothing else written |
 | Document edited by someone meanwhile | Overleaf rejects the stale version; nothing written |
 | Overleaf did not record the edit as tracked | Error, no reply posted, check History |
 | Several-file edit fails part-way | The error names what was already written |
@@ -181,6 +192,7 @@ tool: the live project is the only thing edited.
 | Question | Where it stands |
 |---|---|
 | Real-Overleaf behaviour of `#direct`, `#no-agent`, `#agent`, `render_pdf`, subfolders | Built and tested against the fake; the [alpha test plan](alpha-test-plan.md) covers them |
+| Revising a suggestion in place on the real service | Built and tested against the fake; depends on Overleaf's ranges tracker removing your own inserted text instead of striking it (alpha test plan scenario 11) |
 | Trim the unchanged start and end of each edit so a tracked change covers only the changed words | **[planned]** |
 | Tracked changes under the agent's own name | **[open]** Overleaf has one identity per cookie; a second account would need its own cookie |
 | Editing documents in the newer history format | **[open]** needs a different operation format |
