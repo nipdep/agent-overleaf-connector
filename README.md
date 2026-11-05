@@ -10,11 +10,13 @@
 
 - **Ask where you already work.** Select text and leave a normal Review comment.
 - **Review where you already review.** The agent's edit appears as a tracked deletion and insertion with Accept and Reject buttons. Reject restores your text.
+- **Revise before you decide.** Reply “shorter please” or “try again” while a suggestion is pending, and the agent can update that suggestion in place without making you accept or reject the first attempt.
+- **Create supporting files.** The agent can add a new section, bibliography, style, or other text file and connect it to the paper. Existing files are never overwritten.
 - **Steer per comment, optionally.** `#direct` applies an edit immediately, `#no-agent` keeps the agent away, `#agent` focuses it on selected threads.
 - **You close the threads.** The agent replies in plain words but never resolves, closes, or approves a thread; the tool has no such command.
 - **Any MCP agent.** Claude Code, Codex, or any client that can start a local MCP server. The agent can also compile the project with Overleaf's compiler and read the PDF.
 
-> **Status:** 1.0.0-alpha.1. Used by the author with Claude Code and Codex on a real project, and covered by automated tests; it relies on Overleaf's unofficial web interface and needs wider testing. Want to help? See the [alpha test plan](docs/alpha-test-plan.md) and [Status and roadmap](docs/status-and-roadmap.md).
+> **Status:** 1.0.0-alpha.3. Used by the author with Claude Code and Codex on a real project, and covered by automated tests; it relies on Overleaf's unofficial web interface and needs wider testing. Want to help? See the [alpha test plan](docs/alpha-test-plan.md) and [Status and roadmap](docs/status-and-roadmap.md).
 
 ## Set up (once per computer)
 
@@ -63,6 +65,8 @@ That is the whole loop. Setup never has to be repeated, except to refresh the co
 | Ask the agent to focus on selected threads | Add `#agent` to those comments |
 | Keep the agent away from a thread | Add `#no-agent` |
 | Accept or reject an edit | Use Accept or Reject in the Review panel |
+| Ask for another version of a pending suggestion | Reply in the thread, for example “shorter please”; the agent updates its pending text in place |
+| Add a new file | Ask for the file in a comment; it appears immediately, while any `\input` or bibliography change is proposed separately as a tracked edit |
 | Close a thread | Resolve it yourself; the agent never does |
 | Undo a `#direct` edit | Use Overleaf History |
 

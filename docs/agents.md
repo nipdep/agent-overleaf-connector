@@ -15,8 +15,9 @@ from a folder where you ran `olmcp init`, which holds the project id and an `AGE
 
 ## Safety rules enforced by the connector
 
-Enforced in code: edits validated before anything is written, `#no-agent` refusal, the researcher's tag beating the
-agent's mode, no way to resolve, reopen or delete a thread. Only instruction (in `AGENTS.md`, which you can
+Enforced in code: edits validated before anything is written, pending suggestions revised only when they belong to
+the same account, new files never overwriting or deleting existing content, `#no-agent` refusal, the researcher's tag
+beating the agent's mode, no way to resolve, reopen or delete a thread. Only instruction (in `AGENTS.md`, which you can
 edit): how to word replies, when to ask instead of guess, "do not use another way to reach Overleaf".
 
 An agent with a shell can still read your cookie file or call Overleaf by other means; the tool does not claim to

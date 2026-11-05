@@ -11,7 +11,7 @@ New to the project? Read the [main README](../README.md) first, then follow the 
 | Guide | What you will find there |
 |---|---|
 | [Set up the connector](setup.md) | Installation, your Overleaf session cookie, connecting an agent, and troubleshooting |
-| [Use `olmcp`](usage.md) | The normal workflow, edit modes, comment tags, what the agent's reply shows, tools, and limits |
+| [Use `olmcp`](usage.md) | The normal workflow, revising suggestions, creating files, edit modes, comment tags, tools, and limits |
 | [Connect an AI agent](agents.md) | Instructions for Claude Code, Codex, and other local MCP clients |
 | [Alpha test plan](alpha-test-plan.md) | A 20-minute checklist for trying the alpha on your own project and computer |
 

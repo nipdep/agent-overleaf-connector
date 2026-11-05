@@ -7,8 +7,8 @@ reject, except `direct` mode, which you can undo with Overleaf's History.
 ## Install and check
 
 ```bash
-npm install -g github:nipdep/agent-overleaf-connector#v1.0.0-alpha.1
-olmcp --version                     # 1.0.0-alpha.1
+npm install -g github:nipdep/agent-overleaf-connector#main
+olmcp --version                     # 1.0.0-alpha.3
 olmcp auth --cookie "<overleaf_session2 value>"
 olmcp doctor --project <project-id>  # all [ok]
 claude mcp add --scope user olmcp -- "$(which olmcp)" mcp   # and/or: codex mcp add olmcp -- "$(which olmcp)" mcp

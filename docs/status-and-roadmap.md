@@ -1,6 +1,6 @@
 # Status and roadmap
 
-The project is at version 1.0.0-alpha.1 and is still early. The author uses it on a real project, but it has not yet been tested by a wider group of users.
+The project is at version 1.0.0-alpha.3 and is still early. The author uses it on a real project, but it has not yet been tested by a wider group of users.
 
 This page separates what has been verified from what still needs real-world testing. It also records current limitations and the next planned work. Update it with every change that moves something between columns.
 
@@ -13,7 +13,7 @@ This page separates what has been verified from what still needs real-world test
 | `review` mode: tracked deletion and insertion with a thread reply, reject/accept in Overleaf | The author, on a real project |
 | Use from Claude Code and Codex | The author (earlier with the Python version; the Node server was used with Codex) |
 | MCP protocol | Tests, and the official Python MCP SDK's client against the server |
-| Everything above except real Overleaf | 46 automated tests against a fake Overleaf (`npm test`), including a regression suite: the packed program installed into a clean prefix and run end to end, the cookie never appearing in output, no resolve/reopen/delete anywhere, a stable tool surface, docs commands that exist, a 24-document project |
+| Everything above except real Overleaf | 57 automated tests against a fake Overleaf (`npm test`), including pending-suggestion revision, safe file creation, and a regression suite: the packed program installed into a clean prefix and run end to end, the cookie never appearing in output, no resolve/reopen/delete anywhere, a stable tool surface, docs commands that exist, a 24-document project |
 
 ## Not verified
 

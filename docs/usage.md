@@ -60,6 +60,37 @@ changed words plus a little context; `…` marks the crop) and a note that it wa
 History can undo it. When a direct edit touches a different file than the comment, or several files, the file name is
 shown. The agent never resolves a thread: **a handled comment stays open until you resolve it**.
 
+## Revise a pending suggestion
+
+You do not have to accept or reject an agent's suggestion before asking for another version. Reply in the same
+thread with something like “shorter please” or “try again,” then ask the agent to address the comments again.
+
+The agent sees the pending insertion in `show_comment` and reads its current text with `read_file`. It then calls
+`address_comment` with that suggested text as `old` and the revised wording as `new`. Overleaf updates the temporary
+insertion in place: the paper's original wording remains the one pending deletion, and you still accept or reject a
+single change.
+
+This works only in `review` mode and only for a tracked insertion made through the same Overleaf account. A revision
+cannot be mixed with unrelated new edits in the same call. If Overleaf does not preserve the change cleanly, the tool
+reports the problem instead of claiming success.
+
+## Create a new file
+
+The agent can create a new text file with `create_file`, including any missing folders. For example, it can create
+`sections/related-work.tex`, then use `address_comment` to propose the `\input{sections/related-work}` line in an
+existing document.
+
+File creation is immediate because Overleaf cannot represent a new file as a tracked change. The connector therefore
+never overwrites or deletes files: an existing path is refused, and you can delete an unwanted new file in Overleaf.
+Only editable text formats are accepted, including `.tex`, `.bib`, `.sty`, `.cls`, `.bst`, `.md`, `.txt`, `.csv`,
+`.json`, `.yml`, and `.yaml`. Content is limited to 1,000,000 characters.
+
+From the CLI, provide the new file's content on standard input:
+
+```bash
+olmcp create <project> sections/related-work.tex < related-work.tex
+```
+
 ## The tools (MCP) and the CLI
 
 | Tool | CLI | Does |
@@ -68,6 +99,7 @@ shown. The agent never resolves a thread: **a handled comment stays open until y
 | `show_comment` | `show ID` | One comment with its thread |
 | `list_files`, `read_file` | | The project's text documents |
 | `address_comment` | `address ID < edit.json` | Edits plus the reply, together; validated first |
+| `create_file` | `create PROJECT PATH < file` | Create a new text file and any missing folders; never overwrite |
 | `reply_to_comment` | `comments reply THREAD TEXT PROJECT` | Reply without editing |
 | `list_tracked_changes` | `changes list PROJECT` | Pending tracked changes |
 | `render_pdf` | `pdf PROJECT -o file.pdf` | Compile with Overleaf's compiler, save the PDF |
@@ -78,11 +110,11 @@ thread, on purpose.
 
 ## What `address_comment` enforces
 
-- Every edit's `old` text must occur exactly once in the live document and must not overlap an existing tracked
-  change; otherwise nothing is written and the error says why.
+- Every edit's `old` text must occur exactly once in the live document. It may be revised when it lies entirely
+  inside the agent's own pending insertion; other overlaps with tracked changes are refused.
 - Several files: all are validated before any is written. The reply is posted only after the edits are in.
 - A `#no-agent` comment is refused; a tag that disagrees with the agent's `mode` argument is refused.
-- Text that carries a pending tracked deletion is still present in what `read_file` returns.
+- `read_file` shows pending insertions and omits pending deletions, matching the text currently visible in the editor.
 
 ## Limits
 

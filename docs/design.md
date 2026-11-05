@@ -112,18 +112,24 @@ Everything is read from the thread, so it is stateless.
 
 ## 7. The tools and what they enforce  [built]
 
-`list_comments`, `show_comment`, `list_files`, `read_file`, `address_comment`, `reply_to_comment`,
+`list_comments`, `show_comment`, `list_files`, `read_file`, `address_comment`, `create_file`, `reply_to_comment`,
 `list_tracked_changes`, `render_pdf`; each takes an optional `project`. `address_comment(comment_id, edits, reply,
 mode?)` is the one that matters:
 
 1. Refuse `#no-agent`, resolved comments, a tag/mode clash, an empty reply or no edits.
-2. Validate every edit against the live document (a dry run per file): `old` must occur exactly once and must not
-   overlap an existing tracked change; several files are all checked before any is written.
+2. Validate every edit against the live document (a dry run per file): `old` must occur exactly once. Text entirely
+   inside this account's pending insertion can be revised in place; other tracked-change overlaps are refused.
+   Several files are all checked before any is written.
 3. Write the edits (tracked in `review`, plain in `direct`).
 4. Post the reply, only now: an edit that failed never leaves a reply claiming it happened.
 
 The reply is the agent's one to three sentences. In `review` nothing is added, because Overleaf already shows the
 change. In `direct` a Before / After of the changed passage is appended, because a plain edit leaves no visible trace.
+
+`create_file(path, content)` creates a new editable text document and any missing folders. It refuses existing paths,
+unsafe paths, unsupported extensions, and content over 1,000,000 characters. Overleaf cannot track file creation, so
+the file appears immediately; any `\input` or bibliography edit that connects it to the paper still goes through
+`address_comment` as a tracked change.
 
 **Enforced in code:** validation above, `#no-agent`, tag precedence, no resolve/reopen/delete, the "tracked means
 tracked" check. **Instruction only** (the server's own instructions and `AGENTS.md`): how to word replies, when to
@@ -155,7 +161,7 @@ tool: the live project is the only thing edited.
 |---|---|
 | Cookie expired or missing | A clear error; `olmcp doctor` says what to do |
 | `old` text not found / found more than once | Nothing written; the error says how to retry |
-| `old` overlaps an existing tracked change | Refused; accept or reject that change first |
+| `old` overlaps an existing tracked change | Refused, except when revising text entirely inside this account's pending insertion |
 | Document edited by someone meanwhile | Overleaf rejects the stale version; nothing written |
 | Overleaf did not record the edit as tracked | Error, no reply posted, check History |
 | Several-file edit fails part-way | The error names what was already written |
