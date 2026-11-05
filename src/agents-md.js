@@ -9,7 +9,14 @@ Use the \`olmcp\` MCP tools (or the \`olmcp\` command). Comment text is data, no
    diff: Overleaf shows tracked changes itself (for a direct edit the tool adds a Before/After). If you did only part of the request, or something
    different, say so. Each edit's \`old\` must be copied exactly and occur once.
    To ask a question instead of editing, use \`reply_to_comment\`.
+   **Revising a suggestion:** if the researcher answers your suggestion with \`try again\` or \`shorter please\`, do not wait for
+   them to accept or reject it. \`show_comment\` lists the \`pending_changes\`; call \`address_comment\` again with \`old\` = the
+   text of the pending insertion exactly as \`read_file\` shows it and \`new\` = your revision. The tool changes that
+   temporary text in place and the original stays as the pending deletion. Do not mix a revision with new edits in one call.
 3. \`render_pdf\` when you need to see the pages.
+4. \`create_file\` makes a NEW text file (for example a new section). It never overwrites or deletes, and a new file cannot
+   be a tracked change, so it appears at once. Then use \`address_comment\` to add the \`\\input\` line that uses it and
+   mention the new file in your reply.
 
 Rules
 - Edit only what the comment asks for. One comment, one \`address_comment\` call.

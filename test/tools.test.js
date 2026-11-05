@@ -131,7 +131,7 @@ test('MCP: initialize, list tools, call a tool, refuse #no-agent as an error res
   assert.equal(init.result.protocolVersion, '2025-06-18');
   s.notify('notifications/initialized');
   const list = await s.call('tools/list', {});
-  assert.deepEqual(list.result.tools.map((t) => t.name), ['list_comments', 'show_comment', 'list_files', 'read_file', 'address_comment', 'reply_to_comment', 'list_tracked_changes', 'render_pdf']);
+  assert.deepEqual(list.result.tools.map((t) => t.name), ['list_comments', 'show_comment', 'list_files', 'read_file', 'address_comment', 'create_file', 'reply_to_comment', 'list_tracked_changes', 'render_pdf']);
   assert.ok(!list.result.tools.some((t) => /resolve|reopen|delete/.test(t.name)));
   const files = await s.call('tools/call', { name: 'list_files', arguments: {} });
   assert.equal(files.result.isError, false);
@@ -171,4 +171,39 @@ test('before/after shows the changed passage with a little context, in plain wor
   assert.match(r.after, /We ran it three times on all benchmarks\./);
   assert.ok(r.before.length < 260, 'cropped');
   assert.deepEqual(beforeAfter('same', 'same'), { before: 'same', after: 'same' });
+});
+
+test('revising a pending suggestion: the agent changes the temporary text, the original stays pending, the reply is its words', async () => {
+  const f = await startFake({ docs: docs(), threads: threads() });
+  try {
+    const client = await OverleafClient.connect({ baseUrl: f.url, sessionCookie: 'good' });
+    const t = new Tools(client, { project: 'p1', mode: 'review' });
+    await t.addressComment('T1', [{ file: 'main.tex', old: 'always outperforms the baselines', new: 'outperforms most baselines' }], 'First try.');
+    // the researcher asks for another version in the thread
+    f.state.threads.T1.messages.push({ id: 'm9', content: 'shorter please', user: { email: 'me@example.com' } });
+    assert.equal((await t.listComments()).find((c) => c.id === 'T1').status, 'open');
+    const shown = await t.showComment('T1');
+    assert.deepEqual(shown.pending_changes.map((c) => c.kind).sort(), ['delete', 'insert']);
+    assert.match(shown.pending_changes_note, /without waiting/);
+    const out = await t.addressComment('T1', [{ file: 'main.tex', old: 'outperforms most baselines', new: 'beats baselines' }], 'Shortened it.');
+    assert.equal(out.revised, true);
+    const changes = f.state.docs.d1.ranges.changes;
+    assert.equal(changes.length, 2);
+    assert.equal(changes.find((c) => c.op.i).op.i, 'beats baselines');
+    assert.equal(changes.find((c) => c.op.d).op.d, 'always outperforms the baselines');
+    assert.equal(f.state.posted.at(-1).content, '[agent] Shortened it.');
+  } finally { await f.close(); }
+});
+
+test('create_file through the tool: refusals become tool errors, success reports what to do next', async () => {
+  const f = await startFake({ docs: docs(), threads: threads() });
+  try {
+    const client = await OverleafClient.connect({ baseUrl: f.url, sessionCookie: 'good' });
+    const t = new Tools(client, { project: 'p1', mode: 'review' });
+    const out = await t.createFile('sections/new.tex', '\\section{New}\n');
+    assert.equal(out.created, true);
+    assert.match(out.note, /not a tracked change/);
+    await assert.rejects(t.createFile('main.tex', 'x'), (e) => e instanceof ToolError && /already exists/.test(e.message));
+    await assert.rejects(t.createFile('../evil.tex', 'x'), ToolError);
+  } finally { await f.close(); }
 });

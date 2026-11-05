@@ -64,3 +64,12 @@ test('doctor reports the cookie, project and comment access', async () => {
   assert.match(r.out, /\[ok\] session cookie present/);
   assert.match(r.out, /\[ok\] Overleaf reachable, 1 comment thread\(s\) readable/);
 });
+
+test('create writes a new file from stdin', async () => {
+  const r = await run(['create', 'p1', 'sections/from-cli.tex', '--json'], '\\section{CLI}\n');
+  assert.equal(r.code, 0, r.err);
+  assert.equal(JSON.parse(r.out).created, true);
+  const again = await run(['create', 'p1', 'sections/from-cli.tex'], 'x');
+  assert.equal(again.code, 1);
+  assert.match(again.err, /already exists/);
+});

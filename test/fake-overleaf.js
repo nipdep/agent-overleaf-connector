@@ -7,23 +7,83 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
   const state = {
     docs, threads, sockets: new Map(), posted: [], tcSeen: [], resolveCalls: 0, seq: 0, sid: 0, trackServerSupport,
   };
-  const project = () => ({ rootFolder: [{ _id: 'root', docs: Object.entries(state.docs).filter(([, d]) => !d.folder).map(([id, d]) => ({ _id: id, name: d.name })),
-    folders: [{ _id: 'f1', name: 'sections', docs: Object.entries(state.docs).filter(([, d]) => d.folder).map(([id, d]) => ({ _id: id, name: d.name })), folders: [] }] }] });
+  state.extraFolders = new Set();
+  const dirOf = (d) => d.dir ?? (d.folder ? 'sections' : '');
+  const folderId = (path) => (path === '' ? 'root' : `f:${path}`);
+  const pathOfFolder = (id) => (id === 'root' ? '' : id.replace(/^f:/, ''));
+  const project = () => {
+    const dirs = new Set(['']);
+    const addDir = (d) => { for (let i = 1; i <= d.split('/').length && d; i++) dirs.add(d.split('/').slice(0, i).join('/')); };
+    for (const d of Object.values(state.docs)) addDir(dirOf(d));
+    for (const f of state.extraFolders) addDir(f);
+    const node = (path) => ({
+      _id: folderId(path), name: path === '' ? 'rootFolder' : path.split('/').pop(),
+      docs: Object.entries(state.docs).filter(([, d]) => dirOf(d) === path).map(([id, d]) => ({ _id: id, name: d.name })),
+      fileRefs: [],
+      folders: [...dirs].filter((x) => x !== '' && x.split('/').slice(0, -1).join('/') === path).map(node),
+    });
+    return { rootFolder: [node('')] };
+  };
+  // multipart/form-data: just enough to read named text fields and the uploaded file's bytes
+  const multipart = (buf, type) => {
+    const boundary = /boundary=(.+)$/.exec(type)?.[1];
+    const out = { fields: {}, file: null };
+    if (!boundary) return out;
+    for (const part of buf.toString('latin1').split(`--${boundary}`)) {
+      const m = /^\r\nContent-Disposition: form-data; name="([^"]+)"(?:; filename="[^"]*")?\r\n(?:Content-Type: [^\r\n]*\r\n)?\r\n([\s\S]*)\r\n$/.exec(part);
+      if (!m) continue;
+      if (m[1] === 'qqfile') out.file = Buffer.from(m[2], 'latin1').toString('utf-8'); else out.fields[m[1]] = m[2];
+    }
+    return out;
+  };
   const enc = (s) => Buffer.from(s, 'utf-8').toString('binary');
   const frame = (packets) => (packets.length === 1 ? packets[0] : packets.map((p) => `�${p.length}�${p}`).join(''));
 
+  // A small imitation of Overleaf's ranges tracker as it is understood here: the stored text has tracked insertions
+  // in and tracked deletions out; a deletion is a change {d, p} at one position; an insertion is {i, p} covering its
+  // text. A tracked delete inside your own insertion removes that text from the insertion (no deletion is recorded),
+  // and a tracked insert touching your own insertion extends it. `state.ownInsertMode = 'strike'` makes the server
+  // record a deletion instead, to prove the client notices.
+  const ME = 'u1';
+  const nextId = (tc) => `${tc}${String(++state.seq).padStart(6, '0')}`;
+  const meta = () => ({ user_id: ME, ts: '2026-11-03T00:00:00Z' });
+
+  function shift(doc, from, by, skip) {
+    for (const c of doc.ranges.changes) if (c !== skip && c.op.p >= from) c.op.p += by;
+  }
+
   function applyUpdate(doc, update) {
-    const tc = update.meta?.tc;
+    const tc = update.meta?.tc && state.trackServerSupport ? update.meta.tc : null;
     for (const op of update.op) {
       if (op.i !== undefined) {
+        const own = tc && doc.ranges.changes.find((c) => c.op.i !== undefined && c.metadata.user_id === ME && c.op.p <= op.p && op.p <= c.op.p + c.op.i.length);
         doc.content = doc.content.slice(0, op.p) + op.i + doc.content.slice(op.p);
-        if (tc && state.trackServerSupport) doc.ranges.changes.push({ id: `${tc}${String(++state.seq).padStart(6, '0')}`, op: { i: op.i, p: op.p }, metadata: { user_id: 'u1', ts: '2026-11-03T00:00:00Z' } });
+        if (own) {
+          const at = op.p - own.op.p;
+          own.op.i = own.op.i.slice(0, at) + op.i + own.op.i.slice(at);
+          shift(doc, op.p, op.i.length, own);
+        } else {
+          shift(doc, op.p, op.i.length);
+          if (tc) doc.ranges.changes.push({ id: nextId(tc), op: { i: op.i, p: op.p }, metadata: meta() });
+        }
       } else if (op.d !== undefined) {
-        if (tc && state.trackServerSupport) doc.ranges.changes.push({ id: `${tc}${String(++state.seq).padStart(6, '0')}`, op: { d: op.d, p: op.p }, metadata: { user_id: 'u1', ts: '2026-11-03T00:00:00Z' } });
-        else doc.content = doc.content.slice(0, op.p) + doc.content.slice(op.p + op.d.length);
+        const end = op.p + op.d.length;
+        let strike = !!tc;
+        if (tc && state.ownInsertMode !== 'strike') {
+          const own = doc.ranges.changes.find((c) => c.op.i !== undefined && c.metadata.user_id === ME && c.op.p <= op.p && end <= c.op.p + c.op.i.length);
+          if (own) {
+            const at = op.p - own.op.p;
+            own.op.i = own.op.i.slice(0, at) + own.op.i.slice(at + op.d.length);
+            strike = false;
+            if (own.op.i === '') doc.ranges.changes.splice(doc.ranges.changes.indexOf(own), 1);
+          }
+        }
+        doc.content = doc.content.slice(0, op.p) + doc.content.slice(end);
+        shift(doc, end, -op.d.length);
+        if (strike) doc.ranges.changes.push({ id: nextId(tc), op: { d: op.d, p: op.p }, metadata: meta() });
       }
     }
-    if (tc) state.tcSeen.push(tc);
+    if (update.meta?.tc) state.tcSeen.push(update.meta.tc);
     doc.version += 1;
   }
 
@@ -45,11 +105,12 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
     const chunks = [];
     req.on('data', (c) => chunks.push(c));
     req.on('end', async () => {
-      const body = Buffer.concat(chunks).toString('utf-8');
+      const raw = Buffer.concat(chunks);
+      const body = raw.toString('utf-8');
       const send = (code, text, type = 'text/plain') => { res.writeHead(code, { 'content-type': type }); res.end(text); };
       const authed = /overleaf_session2=good/.test(req.headers.cookie || '');
       if (url.pathname === '/project' && req.method === 'GET') {
-        return authed ? send(200, '<html><meta name="ol-csrfToken" content="csrf-1"></html>', 'text/html')
+        return authed ? send(200, '<html><meta name="ol-csrfToken" content="csrf-1"><meta name="ol-user_id" content="u1"></html>', 'text/html')
           : send(200, '<form name="loginForm"></form>', 'text/html');
       }
       if (!authed) return send(403, 'no');
@@ -67,6 +128,25 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
         }
         const out = sock.queue.splice(0);
         return send(200, out.length ? frame(out) : '8::');
+      }
+      const folderRoute = /\/project\/\w+\/folder$/.exec(url.pathname);
+      if (folderRoute && req.method === 'POST') {
+        const { parent_folder_id: parent, name } = JSON.parse(body);
+        const path = [pathOfFolder(parent), name].filter(Boolean).join('/');
+        const exists = state.extraFolders.has(path) || Object.values(state.docs).some((d) => dirOf(d) === path || dirOf(d).startsWith(`${path}/`));
+        if (exists) return send(400, 'exists');
+        state.extraFolders.add(path); state.foldersCreated = [...(state.foldersCreated || []), path];
+        return send(200, JSON.stringify({ _id: folderId(path), name }), 'application/json');
+      }
+      if (/\/project\/\w+\/upload$/.test(url.pathname) && req.method === 'POST') {
+        const form = multipart(raw, req.headers['content-type'] || '');
+        const dir = pathOfFolder(url.searchParams.get('folder_id') || form.fields.targetFolderId || 'root');
+        if (state.uploadFails) return send(422, JSON.stringify({ success: false, error: 'invalid_filename' }), 'application/json');
+        if (Object.values(state.docs).some((d) => d.name === form.fields.name && dirOf(d) === dir)) return send(422, JSON.stringify({ success: false, error: 'file_already_exists' }), 'application/json');
+        const id = `n${++state.seq}`;
+        state.docs[id] = { name: form.fields.name, dir, version: 1, content: form.file ?? '', ranges: { comments: [], changes: [] } };
+        state.uploads = [...(state.uploads || []), { name: form.fields.name, dir, csrf: req.headers['x-csrf-token'] }];
+        return send(200, JSON.stringify({ success: true, entity_id: id, entity_type: 'doc' }), 'application/json');
       }
       if (url.pathname.endsWith('/threads')) return send(200, JSON.stringify(state.threads), 'application/json');
       const msg = /\/thread\/(\w+)\/messages$/.exec(url.pathname);

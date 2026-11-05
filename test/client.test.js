@@ -47,22 +47,64 @@ test('there is no way to resolve a thread', async () => {
   assert.equal(fake.state.resolveCalls, 0);
 });
 
-test('a tracked edit becomes a tracked delete plus insert and leaves the text for the researcher', async () => {
+test('a tracked edit becomes a tracked delete plus insert; the stored text has the suggestion in and the deleted text out', async () => {
   const result = await client.editDocument('p1', 'main.tex', [{ old: 'always outperforms', new: 'outperforms' }]);
   assert.equal(result.applied, true);
   assert.deepEqual(result.changes.map((c) => c.kind).sort(), ['delete', 'insert']);
   assert.ok(fake.state.tcSeen.length === 1 && /^[0-9a-f]{18}$/.test(fake.state.tcSeen[0]));
   const ins = result.changes.find((c) => c.kind === 'insert');
   assert.equal(ins.text, 'outperforms');
-  assert.equal(ins.position, 22 + 'always outperforms'.length);
-  // the deleted text is still in the document body (it is only marked)
-  assert.match(fake.state.docs.d1.content, /always outperforms\s*outperforms/);
+  assert.equal(ins.position, 22);
+  assert.match(fake.state.docs.d1.content, /^Intro line\nOur method outperforms the baselines/);
   const listed = await client.listChanges('p1');
   assert.equal(listed.length, 2);
 });
 
-test('a second edit onto text that already carries a tracked change is refused', async () => {
-  await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'always outperforms', new: 'x' }]), /already carries a tracked change|more than once/);
+test('an edit that starts outside a pending suggestion and runs into it is refused', async () => {
+  await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'method outperforms', new: 'x' }]), /overlaps a tracked change/);
+});
+
+test('revising the temporary text of a pending suggestion changes it in place, with nothing accepted or rejected', async () => {
+  const before = fake.state.docs.d1.ranges.changes.map((c) => ({ ...c, op: { ...c.op } }));
+  const dry = await client.editDocument('p1', 'main.tex', [{ old: 'outperforms', new: 'beats' }], { dryRun: true });
+  assert.deepEqual([dry.revising, dry.applied], [true, false]);
+  const r = await client.editDocument('p1', 'main.tex', [{ old: 'outperforms', new: 'beats' }]);
+  assert.deepEqual([r.revised, r.applied], [true, true]);
+  const changes = fake.state.docs.d1.ranges.changes;
+  assert.equal(changes.length, 2, 'still one deletion and one insertion');
+  assert.equal(changes.find((c) => c.op.d).op.d, 'always outperforms', 'the original text is still the pending deletion');
+  assert.equal(changes.find((c) => c.op.i).op.i, 'beats');
+  assert.equal(changes.find((c) => c.op.d).id, before.find((c) => c.op.d).id);
+  assert.match(fake.state.docs.d1.content, /^Intro line\nOur method beats the baselines/);
+  // and again: a longer revision inside the same suggestion
+  await client.editDocument('p1', 'main.tex', [{ old: 'beats', new: 'consistently beats' }]);
+  assert.equal(fake.state.docs.d1.ranges.changes.find((c) => c.op.i).op.i, 'consistently beats');
+});
+
+test('a revision cannot be mixed with a new edit in one call', async () => {
+  await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'beats', new: 'wins' }, { old: 'End', new: 'Finish' }]), /cannot both revise/);
+});
+
+test('a direct edit inside a pending suggestion is refused', async () => {
+  await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'consistently beats', new: 'x' }], { tracked: false }), /pending tracked insertion/);
+});
+
+test("a suggestion by someone else is not revised in place", async () => {
+  const other = fake.state.docs.d1.ranges.changes.find((c) => c.op.i);
+  other.metadata.user_id = 'someone-else';
+  try {
+    await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'consistently beats', new: 'x' }]), /not provably yours/);
+  } finally { other.metadata.user_id = 'u1'; }
+});
+
+test('if the server leaves the old suggestion as a tracked deletion, the revision says so', async () => {
+  fake.state.ownInsertMode = 'strike';
+  try {
+    await assert.rejects(client.editDocument('p1', 'main.tex', [{ old: 'consistently beats', new: 'wins' }]), /did not update the suggestion in place/);
+  } finally {
+    fake.state.ownInsertMode = undefined;
+    fake.state.docs.d1.ranges.changes = fake.state.docs.d1.ranges.changes.filter((c) => !(c.op.d && c.op.d === 'consistently beats'));
+  }
 });
 
 test('direct edit applies plain operations without a tracking id', async () => {
@@ -106,4 +148,42 @@ test('a failed compile reports the TeX error lines', async () => {
   try {
     await assert.rejects(client.renderPdf('p1'), /did not succeed \(error\):\n! Undefined control sequence/);
   } finally { fake.state.compileFails = false; }
+});
+
+test('create_file: a new file in an existing folder, a new nested folder, and the content is verified', async () => {
+  const f = await startFake({ docs: sampleDocs(), threads: {} });
+  try {
+    const c = await OverleafClient.connect({ baseUrl: f.url, sessionCookie: 'good' });
+    const dry = await c.createFile('p1', 'sections/related.tex', '\\section{Related work}\n', { dryRun: true });
+    assert.deepEqual([dry.created, dry.would_create_folders], [false, []]);
+    assert.equal(Object.values(f.state.docs).some((d) => d.name === 'related.tex'), false, 'a dry run creates nothing');
+    const a = await c.createFile('p1', 'sections/related.tex', '\\section{Related work}\nCaf\u00e9 \u{1F600}\n');
+    assert.deepEqual([a.created, a.folders_created], [true, []]);
+    const b = await c.createFile('p1', '/appendix/extra/tables.tex', 'x');
+    assert.deepEqual(b.folders_created, ['appendix', 'extra']);
+    const docs = Object.values(f.state.docs);
+    assert.deepEqual(docs.find((d) => d.name === 'related.tex').content, '\\section{Related work}\nCaf\u00e9 \u{1F600}\n');
+    assert.equal(docs.find((d) => d.name === 'tables.tex').dir, 'appendix/extra');
+    assert.ok(f.state.uploads.every((u) => u.csrf === 'csrf-1'), 'uploads carry the CSRF token');
+    assert.deepEqual((await c.listFiles('p1')).sort(), ['appendix/extra/tables.tex', 'main.tex', 'sections/related.tex', 'sections/results.tex']);
+  } finally { await f.close(); }
+});
+
+test('create_file never overwrites, and refuses unsafe or unsupported paths without writing', async () => {
+  const f = await startFake({ docs: sampleDocs(), threads: {} });
+  try {
+    const c = await OverleafClient.connect({ baseUrl: f.url, sessionCookie: 'good' });
+    const n = Object.keys(f.state.docs).length;
+    await assert.rejects(c.createFile('p1', 'main.tex', 'x'), /already exists/);
+    await assert.rejects(c.createFile('p1', 'sections/results.tex', 'x'), /already exists/);
+    await assert.rejects(c.createFile('p1', 'sections', 'x'), /only text files/);
+    for (const bad of ['', '../x.tex', 'a/../x.tex', 'a//x.tex', 'a\\x.tex', '.hidden.tex', 'sections/', 'figure.png', 'noext', 'x.exe']) {
+      await assert.rejects(c.createFile('p1', bad, 'x'), /./, `refused: ${JSON.stringify(bad)}`);
+    }
+    await assert.rejects(c.createFile('p1', 'big.tex', 'x'.repeat(1_000_001)), /larger than/);
+    assert.equal(Object.keys(f.state.docs).length, n);
+    assert.deepEqual(f.state.uploads ?? [], []);
+    f.state.uploadFails = true;
+    await assert.rejects(c.createFile('p1', 'new.tex', 'x'), /Overleaf did not create new\.tex: invalid_filename/);
+  } finally { await f.close(); }
 });

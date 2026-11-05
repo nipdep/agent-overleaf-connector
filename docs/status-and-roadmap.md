@@ -19,6 +19,8 @@ This page separates what has been verified from what still needs real-world test
 
 | Area | Why it matters |
 |---|---|
+| Creating new files (`create_file`) | Uses the editor's upload endpoint like olcli; fake only so far (alpha test plan scenario 12) |
+| Revising a pending suggestion in place (`address_comment` on suggested text) | Depends on how Overleaf's ranges tracker treats a delete/insert inside your own tracked insertion; the fake models it, the real service is untried (alpha test plan scenario 11) |
 | `direct` mode and tags (`#no-agent`, `#agent`) on a real project | Tested against the fake only |
 | `render_pdf` | Tested against the fake only |
 | Documents in Overleaf's newer history format | Refused for editing; reading untested |
