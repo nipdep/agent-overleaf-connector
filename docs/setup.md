@@ -96,11 +96,28 @@ the loop is:
 The agent lists the comments, edits the live document as tracked changes, replies in each thread, and leaves the
 threads open for you. Only the cookie ever needs refreshing (it expires after a few days).
 
+## Update to the latest version
+
+New features arrive on the `main` branch. To get them:
+
+```bash
+npm uninstall -g olmcp
+npm install -g github:nipdep/agent-overleaf-connector#main
+olmcp --version
+```
+
+If the version did not change, npm is reusing a cached copy of the branch. Clear it and try again
+(`npm cache clean --force`), or install a specific commit, which can never be served from an older cache:
+`npm install -g github:nipdep/agent-overleaf-connector#<commit>`. Then **quit your agent completely and start it
+again**: a running agent keeps the old server until it restarts, so new tools such as `create_file` appear only after
+that. Your cookie and the agent registration stay valid; `which -a olmcp` should list a single `olmcp`.
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
 | `olmcp --version` or `olmcp help` shows the old Python tool (`pull`, `mode`, ...) | The Python version is still installed and first on your `PATH`: `pipx uninstall agent-overleaf-connector` (and `pipx uninstall paper-review` if present), then open a new shell |
+| A new feature or tool is missing after updating | The agent is still running the old server (restart it completely), or npm served a cached copy: see [Update to the latest version](#update-to-the-latest-version) |
 | `doctor` says the session expired or the cookie is missing | Run `olmcp auth --cookie ...` again |
 | The agent says the executable is missing | The global link points at a moved or deleted folder: reinstall (step 1), then `codex mcp remove olmcp` and add it again with the new `which olmcp` |
 | The agent still behaves like an old version | A running agent keeps its server process: quit it completely and start it again |
