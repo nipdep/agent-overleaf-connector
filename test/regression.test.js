@@ -40,7 +40,7 @@ test('the packed program installs and both command names run', async () => {
   const r = await run(['help']);
   assert.equal(r.code, 0);
   assert.match(r.out, /^olmcp <command>/);
-  for (const c of ['auth', 'comments list', 'comments reply', 'changes list', 'edit', 'pdf', 'check', 'doctor', 'init', 'mcp', 'list', 'show', 'address']) assert.ok(r.out.includes(c), `help lists ${c}`);
+  for (const c of ['auth', 'comments list', 'comments reply', 'changes list', 'edit', 'pdf', 'check', 'doctor', 'init', 'mcp', 'list', 'show', 'address', 'create']) assert.ok(r.out.includes(c), `help lists ${c}`);
 });
 
 test('the version has one source and the commands report it', async () => {
@@ -104,13 +104,13 @@ test('the MCP tool surface is stable', () => {
   const surface = TOOLS.map((t) => [t.name, (t.inputSchema.required || []).join(',')]);
   assert.deepEqual(surface, [
     ['list_comments', ''], ['show_comment', 'comment_id'], ['list_files', ''], ['read_file', 'path'],
-    ['address_comment', 'comment_id,edits,reply'], ['reply_to_comment', 'comment_id,text'], ['list_tracked_changes', ''], ['render_pdf', ''],
+    ['address_comment', 'comment_id,edits,reply'], ['create_file', 'path,content'], ['reply_to_comment', 'comment_id,text'], ['list_tracked_changes', ''], ['render_pdf', ''],
   ]);
   assert.ok(TOOLS.every((t) => t.inputSchema.properties.project), 'every tool takes project');
 });
 
 test('every command the docs tell you to run exists', async () => {
-  const known = new Set(['auth', 'comments', 'changes', 'edit', 'pdf', 'check', 'doctor', 'init', 'mcp', 'list', 'show', 'address', 'help']);
+  const known = new Set(['auth', 'comments', 'changes', 'edit', 'pdf', 'check', 'doctor', 'init', 'mcp', 'list', 'show', 'address', 'create', 'help']);
   const texts = ['README.md', 'docs/setup.md', 'docs/usage.md', 'docs/agents.md', 'CONTRIBUTING.md'].map((f) => readFileSync(join(ROOT, f), 'utf-8'));
   const seen = new Set();
   for (const t of texts) {

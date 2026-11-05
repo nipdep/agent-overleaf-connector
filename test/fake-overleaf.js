@@ -7,8 +7,35 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
   const state = {
     docs, threads, sockets: new Map(), posted: [], tcSeen: [], resolveCalls: 0, seq: 0, sid: 0, trackServerSupport,
   };
-  const project = () => ({ rootFolder: [{ _id: 'root', docs: Object.entries(state.docs).filter(([, d]) => !d.folder).map(([id, d]) => ({ _id: id, name: d.name })),
-    folders: [{ _id: 'f1', name: 'sections', docs: Object.entries(state.docs).filter(([, d]) => d.folder).map(([id, d]) => ({ _id: id, name: d.name })), folders: [] }] }] });
+  state.extraFolders = new Set();
+  const dirOf = (d) => d.dir ?? (d.folder ? 'sections' : '');
+  const folderId = (path) => (path === '' ? 'root' : `f:${path}`);
+  const pathOfFolder = (id) => (id === 'root' ? '' : id.replace(/^f:/, ''));
+  const project = () => {
+    const dirs = new Set(['']);
+    const addDir = (d) => { for (let i = 1; i <= d.split('/').length && d; i++) dirs.add(d.split('/').slice(0, i).join('/')); };
+    for (const d of Object.values(state.docs)) addDir(dirOf(d));
+    for (const f of state.extraFolders) addDir(f);
+    const node = (path) => ({
+      _id: folderId(path), name: path === '' ? 'rootFolder' : path.split('/').pop(),
+      docs: Object.entries(state.docs).filter(([, d]) => dirOf(d) === path).map(([id, d]) => ({ _id: id, name: d.name })),
+      fileRefs: [],
+      folders: [...dirs].filter((x) => x !== '' && x.split('/').slice(0, -1).join('/') === path).map(node),
+    });
+    return { rootFolder: [node('')] };
+  };
+  // multipart/form-data: just enough to read named text fields and the uploaded file's bytes
+  const multipart = (buf, type) => {
+    const boundary = /boundary=(.+)$/.exec(type)?.[1];
+    const out = { fields: {}, file: null };
+    if (!boundary) return out;
+    for (const part of buf.toString('latin1').split(`--${boundary}`)) {
+      const m = /^\r\nContent-Disposition: form-data; name="([^"]+)"(?:; filename="[^"]*")?\r\n(?:Content-Type: [^\r\n]*\r\n)?\r\n([\s\S]*)\r\n$/.exec(part);
+      if (!m) continue;
+      if (m[1] === 'qqfile') out.file = Buffer.from(m[2], 'latin1').toString('utf-8'); else out.fields[m[1]] = m[2];
+    }
+    return out;
+  };
   const enc = (s) => Buffer.from(s, 'utf-8').toString('binary');
   const frame = (packets) => (packets.length === 1 ? packets[0] : packets.map((p) => `�${p.length}�${p}`).join(''));
 
@@ -78,7 +105,8 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
     const chunks = [];
     req.on('data', (c) => chunks.push(c));
     req.on('end', async () => {
-      const body = Buffer.concat(chunks).toString('utf-8');
+      const raw = Buffer.concat(chunks);
+      const body = raw.toString('utf-8');
       const send = (code, text, type = 'text/plain') => { res.writeHead(code, { 'content-type': type }); res.end(text); };
       const authed = /overleaf_session2=good/.test(req.headers.cookie || '');
       if (url.pathname === '/project' && req.method === 'GET') {
@@ -100,6 +128,25 @@ export function startFake({ docs, threads = {}, trackServerSupport = true }) {
         }
         const out = sock.queue.splice(0);
         return send(200, out.length ? frame(out) : '8::');
+      }
+      const folderRoute = /\/project\/\w+\/folder$/.exec(url.pathname);
+      if (folderRoute && req.method === 'POST') {
+        const { parent_folder_id: parent, name } = JSON.parse(body);
+        const path = [pathOfFolder(parent), name].filter(Boolean).join('/');
+        const exists = state.extraFolders.has(path) || Object.values(state.docs).some((d) => dirOf(d) === path || dirOf(d).startsWith(`${path}/`));
+        if (exists) return send(400, 'exists');
+        state.extraFolders.add(path); state.foldersCreated = [...(state.foldersCreated || []), path];
+        return send(200, JSON.stringify({ _id: folderId(path), name }), 'application/json');
+      }
+      if (/\/project\/\w+\/upload$/.test(url.pathname) && req.method === 'POST') {
+        const form = multipart(raw, req.headers['content-type'] || '');
+        const dir = pathOfFolder(url.searchParams.get('folder_id') || form.fields.targetFolderId || 'root');
+        if (state.uploadFails) return send(422, JSON.stringify({ success: false, error: 'invalid_filename' }), 'application/json');
+        if (Object.values(state.docs).some((d) => d.name === form.fields.name && dirOf(d) === dir)) return send(422, JSON.stringify({ success: false, error: 'file_already_exists' }), 'application/json');
+        const id = `n${++state.seq}`;
+        state.docs[id] = { name: form.fields.name, dir, version: 1, content: form.file ?? '', ranges: { comments: [], changes: [] } };
+        state.uploads = [...(state.uploads || []), { name: form.fields.name, dir, csrf: req.headers['x-csrf-token'] }];
+        return send(200, JSON.stringify({ success: true, entity_id: id, entity_type: 'doc' }), 'application/json');
       }
       if (url.pathname.endsWith('/threads')) return send(200, JSON.stringify(state.threads), 'application/json');
       const msg = /\/thread\/(\w+)\/messages$/.exec(url.pathname);

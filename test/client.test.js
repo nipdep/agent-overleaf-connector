@@ -149,3 +149,41 @@ test('a failed compile reports the TeX error lines', async () => {
     await assert.rejects(client.renderPdf('p1'), /did not succeed \(error\):\n! Undefined control sequence/);
   } finally { fake.state.compileFails = false; }
 });
+
+test('create_file: a new file in an existing folder, a new nested folder, and the content is verified', async () => {
+  const f = await startFake({ docs: sampleDocs(), threads: {} });
+  try {
+    const c = await OverleafClient.connect({ baseUrl: f.url, sessionCookie: 'good' });
+    const dry = await c.createFile('p1', 'sections/related.tex', '\\section{Related work}\n', { dryRun: true });
+    assert.deepEqual([dry.created, dry.would_create_folders], [false, []]);
+    assert.equal(Object.values(f.state.docs).some((d) => d.name === 'related.tex'), false, 'a dry run creates nothing');
+    const a = await c.createFile('p1', 'sections/related.tex', '\\section{Related work}\nCaf\u00e9 \u{1F600}\n');
+    assert.deepEqual([a.created, a.folders_created], [true, []]);
+    const b = await c.createFile('p1', '/appendix/extra/tables.tex', 'x');
+    assert.deepEqual(b.folders_created, ['appendix', 'extra']);
+    const docs = Object.values(f.state.docs);
+    assert.deepEqual(docs.find((d) => d.name === 'related.tex').content, '\\section{Related work}\nCaf\u00e9 \u{1F600}\n');
+    assert.equal(docs.find((d) => d.name === 'tables.tex').dir, 'appendix/extra');
+    assert.ok(f.state.uploads.every((u) => u.csrf === 'csrf-1'), 'uploads carry the CSRF token');
+    assert.deepEqual((await c.listFiles('p1')).sort(), ['appendix/extra/tables.tex', 'main.tex', 'sections/related.tex', 'sections/results.tex']);
+  } finally { await f.close(); }
+});
+
+test('create_file never overwrites, and refuses unsafe or unsupported paths without writing', async () => {
+  const f = await startFake({ docs: sampleDocs(), threads: {} });
+  try {
+    const c = await OverleafClient.connect({ baseUrl: f.url, sessionCookie: 'good' });
+    const n = Object.keys(f.state.docs).length;
+    await assert.rejects(c.createFile('p1', 'main.tex', 'x'), /already exists/);
+    await assert.rejects(c.createFile('p1', 'sections/results.tex', 'x'), /already exists/);
+    await assert.rejects(c.createFile('p1', 'sections', 'x'), /only text files/);
+    for (const bad of ['', '../x.tex', 'a/../x.tex', 'a//x.tex', 'a\\x.tex', '.hidden.tex', 'sections/', 'figure.png', 'noext', 'x.exe']) {
+      await assert.rejects(c.createFile('p1', bad, 'x'), /./, `refused: ${JSON.stringify(bad)}`);
+    }
+    await assert.rejects(c.createFile('p1', 'big.tex', 'x'.repeat(1_000_001)), /larger than/);
+    assert.equal(Object.keys(f.state.docs).length, n);
+    assert.deepEqual(f.state.uploads ?? [], []);
+    f.state.uploadFails = true;
+    await assert.rejects(c.createFile('p1', 'new.tex', 'x'), /Overleaf did not create new\.tex: invalid_filename/);
+  } finally { await f.close(); }
+});
