@@ -1,125 +1,182 @@
 # Use `olmcp`
 
-Most of the time, your workflow is simple:
+The normal loop has three participants:
 
+```text
+you ask in Overleaf → the agent proposes through olmcp → you decide in Overleaf
 ```
-you comment in Overleaf  →  tell the agent "address the review comments"  →  you accept or reject in Overleaf
+
+There is no pull or push step. The MCP reads and edits the live Overleaf project.
+
+## The daily review loop
+
+1. In Overleaf, select text and leave a Review comment.
+2. Tell the agent, “Address the review comments.”
+3. The agent reads the comment, the selected text, its thread, and the current file.
+4. The agent proposes an edit and replies in the same thread.
+5. You accept or reject the tracked change, reply with a follow-up, or resolve the thread.
+
+The agent never resolves the discussion for you.
+
+## What a proposed edit means
+
+The default mode is `review`. In this mode, Overleaf records two related changes:
+
+- A tracked deletion containing your original text.
+- A tracked insertion containing the agent's proposed text.
+
+Nothing is finally accepted until you use Overleaf's **Accept** button. **Reject** restores the original text.
+
+The thread reply is intentionally short because the Review panel already shows the exact change:
+
+```text
+[agent] Shortened the sentence and removed the repeated claim.
 ```
 
-The agent lists your open comments, and for each one makes the edit and replies in the thread. There is nothing to
-pull or push: the tool works on the live project, so your edits and the agent's are in the same document.
+Tracked changes are attributed to your Overleaf account. `olmcp` uses your session and cannot create a separate identity for the agent.
 
-## Ask for a change
+## Choose between review and direct edits
 
-Select text in Overleaf's editor and add a Review comment. The agent receives your message, the selected text, the
-file and line, and the whole thread. A later message you write in the thread is a follow-up it will see; if the
-agent had already answered, the comment is open again.
+| Mode | What happens | How to undo or decide |
+|---|---|---|
+| `review` (default) | The edit appears as a tracked deletion and insertion | Accept or reject it in Overleaf |
+| `direct` | The live text changes immediately, without tracked-change controls | Use Overleaf History |
 
-A comment's status is derived from its thread: **open** (needs the agent), **addressed** (the agent's reply is the
-last message), **resolved** (you closed it).
+Use `review` for normal work. Use `direct` only when you intentionally want an immediate edit.
 
-## Choose how edits are applied
+The default mode comes from `.olmcp.json` or `OLMCP_MODE`. A tag on a comment takes precedence over the default and over the agent's requested mode.
 
-- **`review`** (default): the edit is written into Overleaf as a **tracked change**: a tracked deletion of the old
-  text and a tracked insertion of the new, which you accept or reject in the Review panel. Reject restores your text.
-- **`direct`**: the edit is applied as a plain edit (undo it with Overleaf's History).
+## Comment tags
 
-Which project: the agent passes `project` (id, project URL or git URL) with each tool call, or it comes from `.olmcp.json`
-(`olmcp init`), `--project`, `OVERLEAF_PROJECT` or the git remote of the folder.
+Tags are optional and may appear anywhere in one of your messages.
 
-Default: `mode` in `.olmcp.json` (or `OLMCP_MODE`); `olmcp init <id> --mode direct` sets it.
-Per comment, use a tag. The agent may choose a mode only for untagged comments.
-
-## Comment tags (all optional)
-
-Write hashtags anywhere in a comment, for example `we need to fix the wording here to shorten this #agent #suggest`.
-
-| Tag | Effect |
+| Tag | Meaning |
 |---|---|
-| `#agent` | Focus: while any open comment has it, only those are listed for the agent |
-| `#no-agent` | Hands off: the comment is hidden from the agent and its tools refuse to edit or reply to it |
-| `#review` / `#suggest` | Make the edit as a tracked change |
-| `#direct` | Make the edit as a plain edit |
+| `#review` or `#suggest` | Propose a tracked change |
+| `#direct` | Apply a plain edit immediately |
+| `#no-agent` | Hide this thread from the agent and refuse edits or replies to it |
+| `#agent` | Focus the normal comment list on tagged threads while any remain open |
 
-If tags conflict in one comment the safe side wins: `#no-agent` beats `#agent`, and `#suggest`/`#review` beats
-`#direct`. The latest message of yours that carries a tag decides. Focus is advisory (the agent can be told to
-do all comments); `#no-agent` is enforced. Tags are removed from the request text the agent reads. Without tags
-everything works as usual; `.olmcp.json` with `"commentTags": false` turns tag reading off.
+Examples:
 
-## What the agent's reply shows
-
-In `review` mode the reply is just the agent's words, one to three plain sentences about what it did and why, because
-Overleaf already shows the change itself (struck-through old text, added new text, Accept and Reject buttons):
-
-```
-[agent] Shortened the sentence and dropped the repeated claim.
+```text
+Make this claim more cautious. #review
+Fix the typo directly. #direct
+This is a note for my coauthor. #no-agent
+Handle these two comments first. #agent
 ```
 
-A `direct` edit leaves no visible trace, so its reply adds **Before / After** of the changed passage (cropped to the
-changed words plus a little context; `…` marks the crop) and a note that it was applied directly and that Overleaf's
-History can undo it. When a direct edit touches a different file than the comment, or several files, the file name is
-shown. The agent never resolves a thread: **a handled comment stays open until you resolve it**.
+If tags conflict, the safer choice wins: `#no-agent` beats `#agent`, and review beats direct. The most recent message from you that mentions a tag sets the thread's current choice. Tags are removed from the request shown to the agent.
 
-## Revise a pending suggestion
+`#no-agent` is enforced. `#agent` is a focus filter, not an access-control boundary; you may still explicitly ask an agent to include skipped comments. Set `"commentTags": false` in `.olmcp.json` if you do not want tags parsed.
 
-You do not have to accept or reject an agent's suggestion before asking for another version. Reply in the same
-thread with something like “shorter please” or “try again,” then ask the agent to address the comments again.
+## Comment status
 
-The agent sees the pending insertion in `show_comment` and reads its current text with `read_file`. It then calls
-`address_comment` with that suggested text as `old` and the revised wording as `new`. Overleaf updates the temporary
-insertion in place: the paper's original wording remains the one pending deletion, and you still accept or reject a
-single change.
+The connector does not keep a separate review database. It derives status from the Overleaf thread:
 
-This works only in `review` mode and only for a tracked insertion made through the same Overleaf account. A revision
-cannot be mixed with unrelated new edits in the same call. If Overleaf does not preserve the change cleanly, the tool
-reports the problem instead of claiming success.
+| Status | Meaning |
+|---|---|
+| `open` | Your message is the latest and needs an agent response |
+| `addressed` | The latest message is the agent's reply |
+| `resolved` | You resolved the thread in Overleaf |
+
+Replying after the agent makes the thread `open` again automatically.
+
+## Ask for another version of a pending suggestion
+
+You do not need to accept or reject the first proposal. Reply in the same thread with something like “shorter please” or “keep the first sentence,” then ask the agent to address comments again.
+
+The connector shows the agent the pending changes near that comment. The agent can replace the text inside its own pending insertion, while the paper's original wording remains the pending deletion. You still see one proposal to accept or reject.
+
+This revision works only when:
+
+- The edit is in `review` mode.
+- The insertion was created through the same Overleaf account.
+- The call contains the revision only, not unrelated new edits.
+
+If those conditions are not met, the MCP refuses the request instead of stacking an unsafe edit on another change.
 
 ## Create a new file
 
-The agent can create a new text file with `create_file`, including any missing folders. For example, it can create
-`sections/related-work.tex`, then use `address_comment` to propose the `\input{sections/related-work}` line in an
-existing document.
+The `create_file` tool can add a new editable text file and any missing folders. A typical request is:
 
-File creation is immediate because Overleaf cannot represent a new file as a tracked change. The connector therefore
-never overwrites or deletes files: an existing path is refused, and you can delete an unwanted new file in Overleaf.
-Only editable text formats are accepted, including `.tex`, `.bib`, `.sty`, `.cls`, `.bst`, `.md`, `.txt`, `.csv`,
-`.json`, `.yml`, and `.yaml`. Content is limited to 1,000,000 characters.
+> Move this related-work section into `sections/related-work.tex` and include it here.
 
-From the CLI, provide the new file's content on standard input:
+The safe sequence is:
+
+1. The agent creates `sections/related-work.tex`. The file appears immediately.
+2. The agent separately proposes the `\input{sections/related-work}` edit in an existing file.
+3. You review the new file directly and accept or reject the `\input` change.
+
+Overleaf cannot represent file creation as a tracked change. For that reason, `olmcp` never overwrites or deletes an existing path. If you do not want the new file, delete it yourself in Overleaf.
+
+Supported files are editable text formats such as `.tex`, `.bib`, `.sty`, `.cls`, `.bst`, `.md`, `.txt`, `.csv`, `.json`, `.yml`, and `.yaml`. Hidden files, unsafe paths, binary formats, and content over 1,000,000 characters are refused.
+
+The equivalent CLI command reads the content from standard input:
 
 ```bash
-olmcp create <project> sections/related-work.tex < related-work.tex
+olmcp create <project-id> sections/related-work.tex < related-work.tex
 ```
 
-## The tools (MCP) and the CLI
+Add `--dry-run` to validate the path without creating anything.
 
-| Tool | CLI | Does |
+## What the MCP can do
+
+The MCP exposes nine tools. Every tool accepts a `project` value—a 24-character ID, an Overleaf project URL, or an Overleaf Git URL—but it may be omitted when the server already has a project from `.olmcp.json` or its startup options.
+
+| Tool | What it gives the agent | Does it change Overleaf? |
 |---|---|---|
-| `list_comments` | `list [--status s] [--all]` | Comments with selected text, request, thread, mode, `for_agent` |
-| `show_comment` | `show ID` | One comment with its thread |
-| `list_files`, `read_file` | | The project's text documents |
-| `address_comment` | `address ID < edit.json` | Edits plus the reply, together; validated first |
-| `create_file` | `create PROJECT PATH < file` | Create a new text file and any missing folders; never overwrite |
-| `reply_to_comment` | `comments reply THREAD TEXT PROJECT` | Reply without editing |
-| `list_tracked_changes` | `changes list PROJECT` | Pending tracked changes |
-| `render_pdf` | `pdf PROJECT -o file.pdf` | Compile with Overleaf's compiler, save the PDF |
+| `list_comments` | Open comments, selected text, requests, status, mode, and thread context | No |
+| `show_comment` | One complete thread and nearby pending changes | No |
+| `list_files` | Paths of editable text documents | No |
+| `read_file` | Live document text, with pending insertions visible and pending deletions omitted | No |
+| `address_comment` | Validated edits plus one reply to the thread | Yes |
+| `create_file` | One new text file and missing folders | Yes, immediately |
+| `reply_to_comment` | A reply or question without an edit | Yes, reply only |
+| `list_tracked_changes` | Pending tracked insertions and deletions | No |
+| `render_pdf` | A PDF compiled by Overleaf and saved on the local computer | Compiles, but does not edit project files |
 
-Other commands: `auth`, `init`, `doctor`, `check PROJECT`, `edit PROJECT FILE --old A --new B [--direct] [--dry-run]`,
-`comments list PROJECT [--json]`. Run `olmcp help`. There is no command to resolve, reopen or delete a
-thread, on purpose.
+`address_comment` checks that each `old` passage appears exactly once in the live document. It validates every file first, then writes the changes, and posts the reply only after the edits succeed. A failure during a multi-file write can leave an earlier file changed; the error reports what happened.
 
-## What `address_comment` enforces
+## What the MCP cannot do
 
-- Every edit's `old` text must occur exactly once in the live document. It may be revised when it lies entirely
-  inside the agent's own pending insertion; other overlaps with tracked changes are refused.
-- Several files: all are validated before any is written. The reply is posted only after the edits are in.
-- A `#no-agent` comment is refused; a tag that disagrees with the agent's `mode` argument is refused.
-- `read_file` shows pending insertions and omits pending deletions, matching the text currently visible in the editor.
+There is no MCP tool or CLI command to:
 
-## Limits
+- Accept or reject a tracked change.
+- Resolve, reopen, close, or delete a comment thread.
+- Overwrite or delete an existing file.
+- Create a binary file such as an image.
+- Edit a document that uses the unsupported newer Overleaf history format.
+- Monitor a project continuously or react to comments in the background.
+- Synchronize a local Git clone.
+- Give edits an identity different from the account represented by the session cookie.
 
-- Tracked changes are attributed to **your** Overleaf account (the tool acts with your cookie).
-- Documents in Overleaf's newer history format are read but not edited yet.
-- Unofficial interface: it can break when Overleaf changes, and the cookie expires after a few days.
-- Overleaf's own warning applies: pushing from Git while tracked changes are pending can displace them. This tool
-  does not use Git.
+These omissions are deliberate. Decisions that hide or finalize work stay with the researcher in Overleaf.
+
+## Useful CLI commands
+
+Most people use the MCP through an agent. The CLI is useful for setup and diagnosis:
+
+| Command | Purpose |
+|---|---|
+| `olmcp auth --cookie VALUE` | Store an Overleaf session |
+| `olmcp init PROJECT --mode review` | Save a project and write agent instructions in the current folder |
+| `olmcp doctor` | Check Node, credentials, project selection, and comment access |
+| `olmcp check PROJECT` | Confirm that comment threads are readable |
+| `olmcp comments list PROJECT` | List comment threads directly |
+| `olmcp changes list PROJECT` | List pending tracked changes |
+| `olmcp pdf PROJECT -o output.pdf` | Compile and save the PDF |
+| `olmcp create PROJECT PATH < file` | Create a new text file without overwriting |
+| `olmcp mcp` | Run the local MCP server over standard input/output |
+
+Run `olmcp help` for the complete command syntax.
+
+## Limits to keep in mind
+
+- The connector uses an unofficial Overleaf interface and may need updates when Overleaf changes.
+- The browser session cookie expires periodically.
+- Every call currently joins every document, so very large projects may be slower.
+- Overleaf warns that Git pushes can disrupt pending tracked changes. Avoid pushing from Git until review changes are decided.
+- The newer Overleaf document-history format is read-only through this connector for now.
+
+For the security boundary around agents and shell access, read [Connect an AI agent](agents.md#security-and-trust).

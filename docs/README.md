@@ -1,25 +1,29 @@
 # Documentation
 
-<p align="center">
-  <img src="assets/olmcp-logo.png" alt="Agent standing over a leaf" width="140">
-</p>
+If this is your first visit, read the [main README](../README.md), then follow [Set up the connector](setup.md).
 
-New to the project? Read the [main README](../README.md) first, then follow the [setup guide](setup.md).
+## Choose the guide for your task
 
-## For people using the connector
-
-| Guide | What you will find there |
+| I want to… | Read |
 |---|---|
-| [Set up the connector](setup.md) | Installation, your Overleaf session cookie, connecting an agent, and troubleshooting |
-| [Use `olmcp`](usage.md) | The normal workflow, revising suggestions, creating files, edit modes, comment tags, tools, and limits |
-| [Connect an AI agent](agents.md) | Instructions for Claude Code, Codex, and other local MCP clients |
-| [Alpha test plan](alpha-test-plan.md) | A 20-minute checklist for trying the alpha on your own project and computer |
+| Install `olmcp` and make the first tracked edit | [Set up the connector](setup.md) |
+| Understand proposals, follow-up revisions, tags, or new files | [Use `olmcp`](usage.md) |
+| See exactly what the MCP can and cannot do | [MCP capabilities](usage.md#what-the-mcp-can-do) and [Safety boundaries](agents.md#security-and-trust) |
+| Register Claude Code, Codex, or another MCP client | [Connect an AI agent](agents.md) |
+| Test the alpha on a disposable project | [Alpha test plan](alpha-test-plan.md) |
+| Check what has been verified or remains experimental | [Status and roadmap](status-and-roadmap.md) |
+| Understand the implementation and design decisions | [Technical design](design.md) |
 
-## Reference and project details
+## Recommended reading order
 
-| Document | What you will find there |
-|---|---|
-| [Status and roadmap](status-and-roadmap.md) | What has been verified, current limits, and planned work |
-| [Design](design.md) | How it works, the decisions and the alternatives they replaced, failure modes, open questions. The earlier Python design is in [history/design-python.md](history/design-python.md) |
+1. [Setup](setup.md): install, authenticate, register the MCP, and choose a project.
+2. [Usage](usage.md): the daily review loop and the meaning of a proposed edit.
+3. [Agents and safety](agents.md): permissions, enforced limits, and the session-cookie trust boundary.
 
-For changes between versions, see the [changelog](../CHANGELOG.md). Stable versions are marked with Git tags and GitHub releases when available.
+The other pages are reference material; you do not need them for normal use.
+
+## Project history
+
+The current program is the Node-only connector described in these pages. The earlier Python design is archived at [history/design-python.md](history/design-python.md), and its code remains on the [`python-legacy`](https://github.com/nipdep/agent-overleaf-connector/tree/python-legacy) branch.
+
+Release-by-release changes are listed in the [changelog](../CHANGELOG.md).

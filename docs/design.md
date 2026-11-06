@@ -1,8 +1,19 @@
-# olmcp: design
+# Technical design
 
-How the current tool works and why. It is the Node program `olmcp` (also installed as `olmcp-overleaf`). The design
-record of the earlier Python version, with the options it weighed, is kept in
-[history/design-python.md](history/design-python.md).
+This page is for contributors and readers who want to understand how `olmcp` works. For installation, start with the
+[setup guide](setup.md). For the human review workflow and capability boundaries, read [Using `olmcp`](usage.md).
+
+The current tool is the Node program `olmcp` (also installed as `olmcp-overleaf`). The design record of the retired
+Python version is kept in [history/design-python.md](history/design-python.md).
+
+## Design in one minute
+
+- Overleaf remains the source of truth; there is no local review database.
+- The MCP reads live comments and files using the user's Overleaf session.
+- The agent supplies exact old and new text; the connector validates and applies the operation.
+- Review mode creates native Overleaf tracked changes. The researcher accepts, rejects, and closes threads.
+- The tool intentionally exposes no resolve, delete, overwrite, or accept/reject operation.
+- Rules enforced by the tools are stronger than rules that exist only in `AGENTS.md`.
 
 Status tags: **[built]** exists and is tested against a fake Overleaf, **[verified]** the author has seen it work on a
 real project, **[planned]** agreed but not built, **[open]** undecided. What is verified and what is not is tracked
@@ -19,15 +30,17 @@ Overleaf** and **a reviewable change in Overleaf**.
 
 ## 2. Goals and non-goals
 
-Goals
+**Goals**
+
 - G1. Comment in Overleaf's Review panel; the agent receives the message, the selected text and the thread.
 - G2. The agent's edit appears where you already review: as a **tracked change** with Accept and Reject. **[verified]**
 - G3. The agent replies in the same thread, in plain words, and never closes it. **[verified]**
 - G4. Per-comment, optional steering with hashtags; a default mode for the rest.
-- G5. Nothing to install but one Node program; no paid Overleaf plan, no Git, no clone, no TeX, nothing hosted.
+- G5. The runtime is one dependency-free Node program; no paid Overleaf plan, project clone, local TeX, or hosted connector backend.
 - G6. Any agent that can start a local MCP server (Claude Code, Codex, ...).
 
-Non-goals
+**Non-goals**
+
 - Replacing the editor or real-time co-editing.
 - Deciding *how* an agent should work for a kind of task. That belongs in the user's instructions.
 - Hiding the fact that this rests on Overleaf's unofficial web interface.

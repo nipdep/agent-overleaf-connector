@@ -6,86 +6,134 @@
 
 [![tests](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml)
 
-`olmcp` lets an AI coding agent work on your Overleaf paper without taking you out of the review loop. You leave a comment in Overleaf; the agent reads it with its selected text, edits the paper as **tracked changes** you accept or reject, and replies in the same thread. Open source (Apache 2.0); nothing is hosted for you.
+`olmcp` lets an AI agent respond to review comments in an Overleaf project.
 
-- **Ask where you already work.** Select text and leave a normal Review comment.
-- **Review where you already review.** The agent's edit appears as a tracked deletion and insertion with Accept and Reject buttons. Reject restores your text.
-- **Revise before you decide.** Reply “shorter please” or “try again” while a suggestion is pending, and the agent can update that suggestion in place without making you accept or reject the first attempt.
-- **Create supporting files.** The agent can add a new section, bibliography, style, or other text file and connect it to the paper. Existing files are never overwritten.
-- **Steer per comment, optionally.** `#direct` applies an edit immediately, `#no-agent` keeps the agent away, `#agent` focuses it on selected threads.
-- **You close the threads.** The agent replies in plain words but never resolves, closes, or approves a thread; the tool has no such command.
-- **Any MCP agent.** Claude Code, Codex, or any client that can start a local MCP server. The agent can also compile the project with Overleaf's compiler and read the PDF.
+You comment in Overleaf. The agent reads the comment and the selected text, proposes an edit as an Overleaf tracked change, and replies in the same thread. You remain the reviewer: you accept or reject the edit and close the thread.
 
-> **Status:** 1.0.0-alpha.3. Used by the author with Claude Code and Codex on a real project, and covered by automated tests; it relies on Overleaf's unofficial web interface and needs wider testing. Want to help? See the [alpha test plan](docs/alpha-test-plan.md) and [Status and roadmap](docs/status-and-roadmap.md).
+`olmcp` has no hosted backend: the connector runs on your computer and uses your Overleaf session. Your chosen AI client may still send MCP results to its model provider under that client's own privacy terms.
 
-## Set up (once per computer)
+## The workflow
 
-You need **Node.js 20 or newer** and an Overleaf account. No Python, Git, TeX, or paid Overleaf plan is required, and nothing runs in the background. Everything heavy (reading, tracking changes, compiling) happens on Overleaf's servers, so the program is not tied to an operating system (tested on Linux and macOS; Windows is untested).
-
-```bash
-npm install -g github:nipdep/agent-overleaf-connector        # 1. install
-olmcp auth --cookie "<overleaf_session2 cookie value>"          # 2. sign in (never paste the cookie into a chat)
-claude mcp add --scope user olmcp -- "$(which olmcp)" mcp       # 3. connect your agent (restart it afterwards)
-codex mcp add olmcp -- "$(which olmcp)" mcp                     #    ...or Codex
+```text
+1. You select text and leave a comment in Overleaf.
+2. The agent reads the comment and the live project.
+3. The agent proposes a tracked change and replies in the thread.
+4. You accept, reject, request another version, or resolve the thread.
 ```
 
-Where to find the cookie, and troubleshooting: [setup guide](docs/setup.md).
+By default, an edit is a **proposal**, not a silent replacement. Overleaf shows the original text as a tracked deletion and the proposed text as a tracked insertion.
 
-## Connect a project (pick one)
+> **Project status:** `1.0.0-alpha.3`. The core review flow has been used on real Overleaf projects; newer features such as pending-suggestion revision and file creation still need real-service testing. Start with a disposable project.
 
-- **A. Just use the project URL.** Nothing to set up. You paste the URL when you ask (see below).
-- **B. Work from a clone.** If you want a local folder per paper, clone it with the Git command Overleaf shows (**Menu → Sync → Git**, a premium feature) and start the agent in that folder:
+## What the MCP can and cannot do
 
-  ```bash
-  git clone https://git@git.overleaf.com/<project-id> my-paper && cd my-paper
-  ```
-
-  `olmcp` finds the project from the clone, so you never have to name it. The agent's edits still go into the live Overleaf project, not the clone (`git pull` to catch up).
-
-`olmcp doctor --project <project-id>` checks that everything works.
-
-## Use it (every time)
-
-1. In Overleaf, select text and leave a comment such as “make this clearer.”
-2. Tell your agent, in its chat or from the command line:
-
-   > Address the review comments.
-
-   With option A, add the project: *“Address the review comments in https://www.overleaf.com/project/&lt;project-id&gt;”*. To run it without opening a chat, use your agent's one-shot mode, for example `claude -p "Address the review comments"` or `codex exec "Address the review comments"`.
-3. Back in Overleaf, accept or reject each tracked change, reply in the thread, or resolve it.
-
-That is the whole loop. Setup never has to be repeated, except to refresh the cookie when it expires after a few days.
-
-## Common tasks
-
-| When you want to… | Do this |
+| It can | It deliberately cannot |
 |---|---|
-| Request a change | Select text and leave an Overleaf Review comment |
-| Apply an edit immediately | Add `#direct` to the comment (the default is a tracked change) |
-| Ask the agent to focus on selected threads | Add `#agent` to those comments |
-| Keep the agent away from a thread | Add `#no-agent` |
-| Accept or reject an edit | Use Accept or Reject in the Review panel |
-| Ask for another version of a pending suggestion | Reply in the thread, for example “shorter please”; the agent updates its pending text in place |
-| Add a new file | Ask for the file in a comment; it appears immediately, while any `\input` or bibliography change is proposed separately as a tracked edit |
-| Close a thread | Resolve it yourself; the agent never does |
-| Undo a `#direct` edit | Use Overleaf History |
+| Read comments, threads, selected text, and text files in the project | Accept or reject a tracked change for you |
+| Propose tracked edits in `review` mode | Resolve, reopen, close, or delete a comment thread |
+| Apply a plain edit when you explicitly use `#direct` | Overwrite or delete an existing file |
+| Reply in a comment thread | Edit documents that use Overleaf's unsupported newer history format |
+| Revise its own pending suggestion when you ask for another version | Create images, PDFs, or other binary project files |
+| Create a new text file and missing folders | Work continuously in the background or watch for new comments |
+| Compile the project on Overleaf and save the PDF locally | Give the agent a separate Overleaf identity; changes use your account |
 
-See [Use `olmcp`](docs/usage.md) for modes, comment tags, the tools, and settings.
+The tool surface enforces these limits. However, an agent with unrestricted shell access could read the stored session cookie and contact Overleaf outside the MCP. See [Security and trust](docs/agents.md#security-and-trust).
+
+## Quick start
+
+You need Node.js 20 or newer, an Overleaf account, and an MCP-capable agent such as Claude Code or Codex. You do **not** need Python, TeX, or Overleaf's paid Git integration. The current GitHub-based installation may also need the `git` command; normal use does not.
+
+### 1. Install `olmcp`
+
+```bash
+npm install -g github:nipdep/agent-overleaf-connector
+olmcp --version
+```
+
+### 2. Sign in to Overleaf
+
+Copy the `overleaf_session2` cookie from your browser's developer tools, then run:
+
+```bash
+olmcp auth --cookie "<cookie value>"
+```
+
+Treat this cookie like a password. Never paste it into an agent chat, issue, or commit. The [setup guide](docs/setup.md#2-sign-in-to-overleaf) shows where to find it and what to do when it expires.
+
+### 3. Register the MCP server
+
+Choose your agent, then restart it:
+
+```bash
+# Claude Code
+claude mcp add --scope user olmcp -- "$(which olmcp)" mcp
+
+# Codex
+codex mcp add olmcp -- "$(which olmcp)" mcp
+```
+
+Windows PowerShell commands and other MCP clients are covered in [Connect an AI agent](docs/agents.md).
+
+### 4. Save your project in a working folder
+
+Create or enter a folder for the paper, then use the 24-character ID from its Overleaf URL:
+
+```bash
+mkdir my-paper-agent
+cd my-paper-agent
+olmcp init <project-id> --mode review
+olmcp doctor
+```
+
+`olmcp init` writes `.olmcp.json` and, if one does not already exist, `AGENTS.md`. It does not clone or modify the paper. The agent reads the live project through the MCP.
+
+You may instead give the full Overleaf project URL in every request; no folder setup is required. See [Choosing a project](docs/setup.md#4-choose-how-to-name-the-project).
+
+### 5. Address a comment
+
+In Overleaf, select a sentence and comment “make this clearer.” Start your agent in the working folder and say:
+
+> Address the review comments.
+
+Back in Overleaf, review the tracked edit. Accept or reject it, reply with another request, or resolve the thread yourself.
+
+## Everyday controls
+
+| When you want to… | Do this in Overleaf |
+|---|---|
+| Propose a normal reviewable edit | Leave an ordinary comment; `review` is the default |
+| Apply an edit without tracked changes | Add `#direct` to the comment |
+| Keep the agent away from a thread | Add `#no-agent` |
+| Focus the agent on particular threads | Add `#agent` to those comments |
+| Ask for another version of a pending suggestion | Reply in the same thread, for example “shorter please,” then run the agent again |
+| Add a new section or bibliography file | Ask in a comment; the new file appears immediately, while the `\input` or bibliography edit is proposed separately |
+| Finish a discussion | Resolve the thread yourself |
+
+Read [Using `olmcp`](docs/usage.md) for examples, modes, tags, file creation, and the complete MCP tool list.
+
+## Important safety details
+
+- Tracked changes are attributed to your Overleaf account because the connector uses your session.
+- A newly created file cannot be a tracked change. It appears immediately; the connector never overwrites or deletes files.
+- `#direct` changes are immediate. Use Overleaf History if you need to undo one.
+- The interface is unofficial and may break when Overleaf changes it.
+- The session cookie usually expires after a few days. Run `olmcp auth` again when `olmcp doctor` reports an expired session.
 
 ## Documentation
 
-- [Set up the connector](docs/setup.md)
-- [Use comments, tags, and edit modes](docs/usage.md)
-- [Connect Claude Code, Codex, or another agent](docs/agents.md)
-- [Try the alpha on your own project](docs/alpha-test-plan.md)
-- [Check current limitations and planned work](docs/status-and-roadmap.md)
-- [Read how it works and why](docs/design.md) (the earlier Python design is kept in [docs/history](docs/history/design-python.md))
-- [Contribute to the project](CONTRIBUTING.md)
+- [Start here: documentation map](docs/README.md)
+- [Install and set up](docs/setup.md)
+- [Use comments, proposals, tags, and files](docs/usage.md)
+- [Connect and constrain an AI agent](docs/agents.md)
+- [Run the alpha test checklist](docs/alpha-test-plan.md)
+- [Check verified behavior and current limits](docs/status-and-roadmap.md)
+- [Understand the technical design](docs/design.md)
+- [Contribute](CONTRIBUTING.md)
 
-Release-by-release changes are listed in the [changelog](CHANGELOG.md). The earlier Python version (Git sync, `%% @agent:` markers, `redline.tex`, GitHub CI mode) lives on the [`python-legacy`](https://github.com/nipdep/agent-overleaf-connector/tree/python-legacy) branch.
+Release changes are in the [changelog](CHANGELOG.md). The retired Python workflow—Git sync, source markers, `redline.tex`, and GitHub Actions—remains on the [`python-legacy`](https://github.com/nipdep/agent-overleaf-connector/tree/python-legacy) branch.
 
-Logo files are available as [PNG](docs/assets/olmcp-logo.png) and [SVG](docs/assets/olmcp-logo.svg).
+Logo files: [PNG](docs/assets/olmcp-logo.png) · [SVG](docs/assets/olmcp-logo.svg)
 
-## Credits and license
+## License and credit
 
-Apache 2.0. See [LICENSE](LICENSE). The Overleaf protocol handling follows the approach of [olcli](https://github.com/aloth/olcli) by Alexander Loth (MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The tool uses Overleaf's unofficial web interface and your session cookie, so it can break when Overleaf changes; keep the cookie private.
+Apache 2.0. See [LICENSE](LICENSE). The Overleaf protocol handling follows the approach used by [olcli](https://github.com/aloth/olcli) by Alexander Loth (MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

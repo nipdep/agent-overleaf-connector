@@ -1,42 +1,70 @@
 # Alpha test plan
 
-For anyone trying the alpha on their own project and computer. About 20 minutes. Use a **scratch project** first
-(copy a paper into a new Overleaf project), not your real paper. Everything the agent does is a tracked change you can
-reject, except `direct` mode, which you can undo with Overleaf's History.
+Use this checklist when trying `olmcp` on a new computer, agent, or Overleaf environment. It takes about 20 minutes.
 
-## Install and check
+Start with a disposable Overleaf project, not an important paper. Most edits are tracked and rejectable, but `#direct` edits and new-file creation happen immediately.
+
+## Prepare
+
+Complete the [setup guide](setup.md), then check the installed version and connection:
 
 ```bash
 npm install -g github:nipdep/agent-overleaf-connector#main
-olmcp --version                     # 1.0.0-alpha.3
-olmcp auth --cookie "<overleaf_session2 value>"
-olmcp doctor --project <project-id>  # all [ok]
-claude mcp add --scope user olmcp -- "$(which olmcp)" mcp   # and/or: codex mcp add olmcp -- "$(which olmcp)" mcp
+olmcp --version
+olmcp doctor --project <project-id>
 ```
 
-If you had the old Python tool: `pipx uninstall agent-overleaf-connector` first. Restart the agent after registering.
+Restart the MCP client after installing or updating. If the retired Python tool is still present, remove it with `pipx uninstall agent-overleaf-connector` before reinstalling.
 
-## Scenarios
+Create a scratch project with:
 
-Tell the agent: "Address the review comments in <project URL>". Tick what behaves as described.
+- At least two `.tex` files, one inside a folder.
+- A sentence containing an accented character or emoji.
+- A paper that compiles successfully.
 
-| # | Do in Overleaf | Expect |
+Tell the agent:
+
+> Address the review comments in &lt;project URL&gt;.
+
+## Core review behavior
+
+| # | Try this in Overleaf | Expected result |
 |---|---|---|
-| 1 | Select a sentence, comment "make this shorter" | The sentence shows a tracked deletion and insertion; the thread has an `[agent]` reply of one to three plain sentences; the thread is still open |
-| 2 | Click Reject on that change | The original text is back |
-| 3 | Comment "make this clearer #direct" | The text changes with no tracking; the reply shows Before/After |
-| 4 | Comment "ignore this one #no-agent" next to two ordinary comments | The agent does not touch or answer it |
-| 5 | Two ordinary comments plus one with `#agent` | The agent works on the `#agent` one first/only |
-| 6 | Reply in an answered thread: "not like that, try again" | The thread counts as open again and the agent addresses it |
-| 7 | Comment on text inside a file in a folder, and on text after an emoji or accent | Edits land in the right place |
-| 8 | Ask the agent "compile the paper and tell me if there are errors" | A PDF is saved; a deliberate TeX error is reported with its line |
-| 9 | Comment with no selected text (a general comment) | The agent asks or replies; it does not guess an edit |
-| 10 | Leave the tool unused for a few days | `olmcp doctor` says the cookie expired; `olmcp auth` fixes it |
-| 11 | After the agent's suggestion, reply in the thread "shorter please" (do not accept or reject) | The agent revises: the suggestion's new text changes in place, the original is still the one pending deletion, and you can still accept or reject it as a single change; no struck-through leftovers of the first suggestion |
-| 12 | Comment "move the related-work paragraph into its own file" | A new file appears in the right folder with the right content, and an `\input` line in the original file is a tracked change; creating a file that already exists is refused, never overwritten |
+| 1 | Select a sentence and comment “make this shorter” | Overleaf shows a tracked deletion and insertion; the thread receives a short `[agent]` reply and stays open |
+| 2 | Reject the proposed change | The original text returns |
+| 3 | Accept a proposed change | The proposed text remains and the thread still closes only when you resolve it |
+| 4 | Reply to an answered thread with “try again” | The thread becomes open and the agent handles the follow-up |
+| 5 | Leave a general comment without selected text | The agent asks or replies instead of guessing an unsafe edit |
 
-## What to send back
+## Modes and scope controls
 
-Use the bug report template. Include `olmcp --version`, your OS, Node version (`node --version`), which agent, the
-scenario number, what you expected and saw, and `olmcp doctor`. **Remove cookies, names and emails.** A screenshot of
-the Overleaf Review panel helps a lot.
+| # | Try this in Overleaf | Expected result |
+|---|---|---|
+| 6 | Comment “make this clearer #direct” | The text changes without tracking; the reply shows Before/After and mentions Overleaf History |
+| 7 | Add `#no-agent` to one thread beside ordinary threads | The protected thread is neither listed nor answered |
+| 8 | Add `#agent` to one thread beside ordinary threads | The focused thread is handled first or exclusively in the normal list |
+| 9 | Comment on text in a subfolder and after an emoji or accent | The edit lands in the correct file and position |
+
+## Recent features
+
+| # | Try this in Overleaf | Expected result |
+|---|---|---|
+| 10 | Before accepting or rejecting a proposal, reply “shorter please” | The proposed insertion changes in place; the original remains the one pending deletion, with no leftover tracked deletion of the first proposal |
+| 11 | Ask to move a paragraph into `sections/related-work.tex` | The new file appears immediately; the `\input` edit is tracked separately; an existing path is never overwritten |
+| 12 | Ask the agent to compile the paper | Overleaf compiles it and the MCP saves a PDF; a deliberate TeX error is reported clearly |
+
+## Expiration and recovery
+
+After the session cookie expires, `olmcp doctor` should report the problem clearly. Storing a fresh `overleaf_session2` value with `olmcp auth` should restore access.
+
+## Report the result
+
+For a bug, include:
+
+- `olmcp --version` and `node --version`.
+- Operating system and MCP client.
+- Scenario number.
+- What you expected and what happened.
+- Redacted `olmcp doctor` output.
+
+A screenshot of the Review panel is useful. Remove the session cookie, project text, names, email addresses, and private project IDs before sharing anything.
