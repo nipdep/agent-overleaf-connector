@@ -146,7 +146,7 @@ test('every command the docs tell you to run exists', async () => {
   const texts = ['README.md', 'docs/setup.md', 'docs/usage.md', 'docs/agents.md', 'CONTRIBUTING.md'].map((f) => readFileSync(join(ROOT, f), 'utf-8'));
   const seen = new Set();
   for (const t of texts) {
-    const code = [...t.matchAll(/```[\s\S]*?```|`[^`\n]+`/g)].map((m) => m[0]).join('\n');
+    const code = [...t.matchAll(/```(?:bash|sh|shell)\n[\s\S]*?```|`[^`\n]+`/g)].map((m) => m[0]).join('\n'); // shell blocks and inline code; text diagrams are prose
     for (const m of code.matchAll(/(?:^|[\s`(])olmcp(?:-overleaf)? ([a-z][a-z-]*)/g)) seen.add(m[1]);
   }
   for (const cmd of seen) assert.ok(known.has(cmd), `docs mention "olmcp ${cmd}" which does not exist`);

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Agent over leaf logo</title>
+  <desc id="description">A compact AI agent standing above a green leaf.</desc>
+
+  <defs>
+    <mask id="leaf-cutout">
+      <rect width="512" height="512" fill="white"/>
+      <path
+        d="M112 422C176 377 255 354 362 343"
+        fill="none"
+        stroke="black"
+        stroke-width="12"
+        stroke-linecap="round"
+      />
+    </mask>
+    <mask id="face-cutout">
+      <rect width="512" height="512" fill="white"/>
+      <rect x="194" y="111" width="124" height="82" rx="40" fill="black"/>
+    </mask>
+  </defs>
+
+  <!-- Leaf: the visual “leaf” beneath the agent. -->
+  <path
+    d="M74 466C91 448 102 432 114 416C87 363 104 314 151 283C210 244 305 272 449 247C433 324 389 402 314 441C239 480 154 467 108 433C97 447 88 458 79 470Z"
+    fill="#087A3E"
+    mask="url(#leaf-cutout)"
+  />
+
+  <!-- Agent head and ears. -->
+  <g mask="url(#face-cutout)">
+    <circle cx="164" cy="153" r="29" fill="#202124"/>
+    <circle cx="348" cy="153" r="29" fill="#202124"/>
+    <rect x="169" y="76" width="174" height="154" rx="74" fill="#202124"/>
+  </g>
+  <rect x="224" y="134" width="14" height="35" rx="7" fill="#202124"/>
+  <rect x="274" y="134" width="14" height="35" rx="7" fill="#202124"/>
+
+  <!-- Compact body with an arms-akimbo agent pose. -->
+  <path
+    d="M204 220C219 210 236 205 256 205C276 205 293 210 308 220L361 271C374 283 375 304 363 317C351 330 331 330 319 317L304 301L316 352H285L274 287H238L227 352H196L208 301L193 317C181 330 161 330 149 317C137 304 138 283 151 271Z"
+    fill="#202124"
+  />
+
+  <!-- Feet resting on the leaf. -->
+  <path d="M196 346H231V365H184C184 355 188 349 196 346Z" fill="#202124"/>
+  <path d="M281 346H316C324 349 328 355 328 365H281Z" fill="#202124"/>
+</svg>

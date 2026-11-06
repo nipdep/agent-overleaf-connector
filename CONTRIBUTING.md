@@ -2,7 +2,7 @@
 
 Thanks for helping. This project is small and the maintainer reads every issue and pull request.
 Read [docs/usage.md](docs/usage.md) for what the tool does, [docs/design.md](docs/design.md) for the reasoning behind
-decisions (it also records the earlier Python version), and [docs/status-and-roadmap.md](docs/status-and-roadmap.md)
+decisions and the alternatives they replaced (the earlier Python design is in [docs/history](docs/history/design-python.md)), and [docs/status-and-roadmap.md](docs/status-and-roadmap.md)
 for what is open.
 
 ## Ground rules
@@ -38,8 +38,8 @@ Overleaf's behaviour, so it cannot prove the real service agrees.
 2. Write the test first or alongside the change.
 3. Keep the docs true: `README.md`, `docs/usage.md`, `docs/agents.md`, `src/agents-md.js` (what agents are told),
    `docs/status-and-roadmap.md` (move things between "verified" and "not verified"), `CHANGELOG.md`.
-4. Add a `CHANGELOG.md` entry and bump `version` in `package.json` (the only place). While the
-   project is 0.x: a feature or behaviour change is a minor bump, a fix is a patch.
+4. Add a `CHANGELOG.md` entry and bump `version` in `package.json` (the only source of the version). During the
+   prerelease cycle, increment `alpha.N` or `beta.N`; after 1.0, use semantic versioning as described below.
 5. Conventions: ES modules, no shell strings for subprocesses, the `mcp` command must keep stdout clean (it is the
    protocol channel), and agent-facing refusals are `ToolError` messages that say how to retry.
 
@@ -51,13 +51,17 @@ or the thread messages need this check on a **scratch project** (never your real
 1. `olmcp doctor --project <id>`: all `[ok]`.
 2. A comment on selected text shows up in `olmcp list` with the right `selected_text`, including after a
    non-ASCII character earlier in the file.
-3. `edit <id> main.tex --old "..." --new "..." --dry-run`, then without it: Overleaf shows a tracked deletion and
-   insertion; Reject restores the text; Accept keeps the new text.
-4. The same in a file inside a folder, and where another tracked change already exists (it must refuse).
-5. `--direct`: the text changes with no tracking.
+3. `olmcp edit <id> main.tex --old "..." --new "..." --dry-run`, then without `--dry-run`: Overleaf shows a
+   tracked deletion and insertion; Reject restores the text; Accept keeps the new text.
+4. Repeat in a subfolder and beside another tracked change; an unsafe overlap must be refused.
+5. Add `--direct`: the text changes without tracking.
 6. `olmcp pdf <id> -o /tmp/p.pdf` produces the PDF; a deliberate TeX error prints the error lines.
-7. An agent with `olmcp mcp`: `#no-agent` comments are ignored, `#agent` focuses, the thread gets the reply
-   with the diff and stays unresolved.
+7. Through `olmcp mcp`, confirm that `#no-agent` is refused, `#agent` focuses the normal list, the thread receives a
+   short reply, and the thread stays unresolved.
+8. Ask for another version while a tracked suggestion is pending; the inserted text changes in place without a
+   leftover tracked deletion of the first proposal.
+9. Create a new text file in a new folder; confirm its exact content, then confirm an existing path is refused rather
+   than overwritten.
 
 Record the result in `docs/status-and-roadmap.md`.
 
