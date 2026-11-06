@@ -74,26 +74,19 @@ codex mcp add olmcp -- "$(which olmcp)" mcp
 
 Windows PowerShell commands and other MCP clients are covered in [Connect an AI agent](docs/agents.md).
 
-### 4. Save your project in a working folder
+### 4. Give the agent your project URL
 
-Create or enter a folder for the paper, then use the 24-character ID from its Overleaf URL:
+No project folder or clone is required. After connecting the MCP, paste the Overleaf project URL into the request:
 
-```bash
-mkdir my-paper-agent
-cd my-paper-agent
-olmcp init <project-id> --mode review
-olmcp doctor
-```
+> Address the comments in https://www.overleaf.com/project/&lt;project-id&gt;.
 
-`olmcp init` writes `.olmcp.json` and, if one does not already exist, `AGENTS.md`. It does not clone or modify the paper. The agent reads the live project through the MCP.
-
-You may instead give the full Overleaf project URL in every request; no folder setup is required. See [Choosing a project](docs/setup.md#4-choose-how-to-name-the-project).
+If you prefer not to paste the URL each time, you can save the project ID in a working folder with `olmcp init`. See [Choosing a project](docs/setup.md#4-choose-how-to-name-the-project).
 
 ### 5. Address a comment
 
-In Overleaf, select a sentence and comment “make this clearer.” Start your agent in the working folder and say:
+In Overleaf, select a sentence and comment “make this clearer.” Then tell your agent:
 
-> Address the review comments.
+> Address the comments in https://www.overleaf.com/project/&lt;project-id&gt;.
 
 Back in Overleaf, review the tracked edit. Accept or reject it, reply with another request, or resolve the thread yourself.
 

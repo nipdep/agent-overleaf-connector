@@ -48,7 +48,13 @@ Restart the client after adding or updating `olmcp`.
 
 ## Give the agent a project
 
-The simplest reliable setup is a working folder containing `.olmcp.json`:
+The simplest approach needs no local project setup. Include the Overleaf URL in your request:
+
+> Address the comments in https://www.overleaf.com/project/&lt;project-id&gt;.
+
+The agent passes the URL to each MCP tool.
+
+If you do not want to paste the URL each time, save the project in a working folder:
 
 ```bash
 mkdir my-paper-agent
@@ -56,9 +62,7 @@ cd my-paper-agent
 olmcp init <project-id> --mode review
 ```
 
-Start the agent in that folder. You can then say, “Address the review comments.”
-
-Without a saved project, include the full Overleaf project URL in the request. The agent passes that URL to each MCP tool.
+Start the agent in that folder. You can then say, “Address the comments,” without including the URL.
 
 ## The expected agent workflow
 

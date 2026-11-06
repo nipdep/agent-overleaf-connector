@@ -5,7 +5,7 @@ This guide takes you from a fresh computer to one reviewable agent edit in Overl
 The recommended path is:
 
 ```text
-install → sign in → register the MCP → save a project ID → run doctor → try one comment
+install → sign in → register the MCP → paste a project URL → try one comment
 ```
 
 ## Before you begin
@@ -92,7 +92,21 @@ On Windows PowerShell, replace `"$(which olmcp)"` with `(Get-Command olmcp).Sour
 
 Every MCP call needs an Overleaf project. Choose one of these approaches.
 
-### Recommended: save the project ID in a folder
+### Easiest: paste the project URL into the request
+
+No project folder or clone is required. Start the agent anywhere and say:
+
+> Address the comments in https://www.overleaf.com/project/&lt;project-id&gt;.
+
+The project ID, project URL, and Overleaf Git URL are accepted by the MCP tools. Include one whenever the agent cannot infer the project from saved configuration.
+
+To check the connection first, run:
+
+```bash
+olmcp doctor --project <project-id>
+```
+
+### Optional: save the project ID in a folder
 
 Take the 24-character ID from the project's URL, create or enter a working folder, and run:
 
@@ -108,17 +122,9 @@ This writes:
 - `.olmcp.json`, containing the project ID and default edit mode.
 - `AGENTS.md`, containing the recommended instructions for the agent, unless the folder already has one.
 
-It does not download or modify the paper. Start the agent in this folder and say, “Address the review comments.”
+It does not download or modify the paper. Start the agent in this folder and say, “Address the comments.” Because the project is saved, you no longer need to include its URL.
 
 If you already have a Git clone of the Overleaf project, you may run `olmcp init` inside it. The MCP still reads and edits the live Overleaf project; the local clone can be behind.
-
-### Alternative: include the project URL in the request
-
-No project folder is required. Start the agent anywhere and say:
-
-> Address the review comments in https://www.overleaf.com/project/&lt;project-id&gt;.
-
-The project ID, project URL, and Overleaf Git URL are accepted by the MCP tools. You must include one whenever the agent cannot infer the project from `.olmcp.json` or an Overleaf Git remote.
 
 ### Other configuration choices
 
@@ -129,7 +135,7 @@ For automation, `--project <id>` and `OVERLEAF_PROJECT` can provide the project.
 Use a disposable Overleaf project for the first run.
 
 1. Select one sentence in Overleaf and leave the comment “make this shorter.”
-2. In the agent, say “Address the review comments.”
+2. In the agent, say “Address the comments in `<project URL>`.”
 3. Confirm that Overleaf shows a tracked deletion and insertion.
 4. Confirm that the thread contains an `[agent]` reply and remains open.
 5. Click **Reject** and confirm that the original sentence returns.
@@ -138,10 +144,11 @@ The [alpha test plan](alpha-test-plan.md) covers tags, PDFs, pending-suggestion 
 
 ## Check the installation
 
-Run this from the project folder, or add `--project <project-id>` elsewhere:
+With a pasted-URL workflow, pass the project ID explicitly. If you saved the project with `olmcp init`, the shorter command is enough:
 
 ```bash
-olmcp doctor
+olmcp doctor --project <project-id>  # no saved project
+olmcp doctor                         # inside a configured folder
 ```
 
 A healthy result reports:
