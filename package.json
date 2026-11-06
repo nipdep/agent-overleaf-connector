@@ -1,9 +1,11 @@
 {
   "name": "olmcp",
   "version": "1.0.0-alpha.3",
+  "mcpName": "io.github.nipdep/agent-overleaf-connector",
   "description": "Overleaf review comments, tracked-change edits, PDF and an MCP server for AI agents (no runtime dependencies)",
   "type": "module",
   "license": "Apache-2.0",
+  "author": "nipdep",
   "bin": {
     "olmcp": "src/cli.js",
     "olmcp-overleaf": "src/cli.js"
@@ -19,11 +21,18 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "prepublishOnly": "node scripts/prepublish-check.js && npm test"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nipdep/agent-overleaf-connector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nipdep/agent-overleaf-connector/issues"
   },
   "homepage": "https://github.com/nipdep/agent-overleaf-connector",
   "keywords": [

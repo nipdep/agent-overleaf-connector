@@ -29,8 +29,11 @@ before(async () => {
   fake = await startFake({ docs: sampleDocs(), threads: sampleThreads() });
   home = mkdtempSync(join(tmpdir(), 'olmcp-home-'));
   prefix = mkdtempSync(join(tmpdir(), 'olmcp-prefix-'));
-  const pack = execFileSync('npm', ['pack', '--silent', '--pack-destination', prefix], { cwd: ROOT, encoding: 'utf-8' }).trim().split('\n').pop();
-  execFileSync('npm', ['install', '-g', '--prefix', prefix, join(prefix, pack)], { stdio: 'ignore' });
+  // When the suite runs from `npm publish` (prepublishOnly), npm exports its own settings (dry-run, tag, ...) to child
+  // processes; the nested npm commands must behave as a plain user's would.
+  const cleanEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^npm_(config|command|lifecycle|package|execpath|node_execpath)/i.test(k)));
+  const pack = execFileSync('npm', ['pack', '--silent', '--pack-destination', prefix], { cwd: ROOT, encoding: 'utf-8', env: cleanEnv }).trim().split('\n').pop();
+  execFileSync('npm', ['install', '-g', '--prefix', prefix, join(prefix, pack)], { stdio: 'ignore', env: cleanEnv });
   bin = join(prefix, 'bin', 'olmcp');
 });
 after(() => fake.close());
@@ -41,6 +44,35 @@ test('the packed program installs and both command names run', async () => {
   assert.equal(r.code, 0);
   assert.match(r.out, /^olmcp <command>/);
   for (const c of ['auth', 'comments list', 'comments reply', 'changes list', 'edit', 'pdf', 'check', 'doctor', 'init', 'mcp', 'list', 'show', 'address', 'create']) assert.ok(r.out.includes(c), `help lists ${c}`);
+});
+
+test('npm and MCP Registry metadata agree with each other', () => {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
+  const server = JSON.parse(readFileSync(join(ROOT, 'server.json'), 'utf-8'));
+  assert.equal(server.name, pkg.mcpName, 'server.json name must equal package.json mcpName (the registry checks it)');
+  assert.match(server.name, /^io\.github\.nipdep\//, 'GitHub login ownership: the name must start with io.github.<login>/');
+  assert.equal(server.version, pkg.version);
+  const [p0] = server.packages;
+  assert.deepEqual([p0.registryType, p0.identifier, p0.version, p0.transport.type], ['npm', pkg.name, pkg.version, 'stdio']);
+  assert.deepEqual(p0.packageArguments, [{ type: 'positional', value: 'mcp' }], 'the registry starts the package with `mcp`');
+  assert.ok(server.description.length <= 100, `registry descriptions are limited to 100 characters (${server.description.length})`);
+  assert.ok(pkg.bin[pkg.name], 'npx runs the bin named like the package');
+  assert.equal(pkg.scripts.prepublishOnly, 'node scripts/prepublish-check.js && npm test');
+});
+
+test('a prerelease cannot be published as latest by accident, and a stable version cannot go under a prerelease tag', () => {
+  const check = (tag) => { try { execFileSync(process.execPath, [join(ROOT, 'scripts', 'prepublish-check.js')], { env: { PATH: process.env.PATH, ...(tag ? { npm_config_tag: tag } : {}) }, stdio: 'pipe' }); return 0; } catch (e) { return e.status; } };
+  const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8')).version;
+  if (version.includes('-')) {
+    const label = version.split('-')[1].split('.')[0];
+    assert.equal(check(undefined), 1);
+    assert.equal(check('latest'), 1);
+    assert.equal(check('beta-wrong'), 1);
+    assert.equal(check(label), 0);
+  } else {
+    assert.equal(check(undefined), 0);
+    assert.equal(check('alpha'), 1);
+  }
 });
 
 test('the version has one source and the commands report it', async () => {

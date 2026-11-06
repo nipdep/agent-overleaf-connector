@@ -4,6 +4,8 @@ Bump `version` in `package.json` for every change that users can notice, and add
 
 
 ## 1.0.0-alpha.3
+- Packaging for npm and the MCP Registry: `mcpName` and `server.json` (name `io.github.nipdep/agent-overleaf-connector`, started as
+  `olmcp mcp`), a `prepublishOnly` guard that refuses to publish a prerelease as `latest`, and `docs/publishing.md`.
 - **The agent can create new files.** New tool and command `create_file` / `olmcp create <project> <path>`: creates a text
   document (`.tex .bib .sty .cls .md .txt ...`) and any missing folders through the same upload the editor uses, then
   re-reads the project and checks that the document exists with exactly the content sent. It never overwrites or deletes

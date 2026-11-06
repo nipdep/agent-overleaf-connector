@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.nipdep/agent-overleaf-connector",
+  "title": "Overleaf for AI agents (olmcp)",
+  "description": "Overleaf for AI agents: review comments, tracked-change edits, new files and PDFs; no Git needed",
+  "repository": {
+    "url": "https://github.com/nipdep/agent-overleaf-connector",
+    "source": "github"
+  },
+  "version": "1.0.0-alpha.3",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "olmcp",
+      "version": "1.0.0-alpha.3",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "OVERLEAF_SESSION",
+          "description": "Your Overleaf session cookie (overleaf_session2). Optional: `olmcp auth` stores it in ~/.config/olmcp instead.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "OVERLEAF_BASE_URL",
+          "description": "Only for a self-hosted Overleaf, e.g. https://overleaf.example.edu. Defaults to https://www.overleaf.com.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
