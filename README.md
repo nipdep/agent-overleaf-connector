@@ -4,7 +4,7 @@
 
 # Agent–Overleaf Connector (`olmcp`)
 
-[![tests](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml)  [![M8ven Score](https://m8ven.ai/badge/mcp/nipdep/agent-overleaf-connector)](https://m8ven.ai/mcp/nipdep/agent-overleaf-connector?s=readme) 
+[![tests](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml)  [![M8ven Score](https://m8ven.ai/badge/mcp/nipdep-agent-overleaf-connector-6pmuuh?v=a03c1c8cb8515b4b0ec2199a739a622a)](https://m8ven.ai/mcp/nipdep-agent-overleaf-connector-6pmuuh?s=readme)
 
 [![Overleaf for AI agents (olmcp) MCP server](https://mcprush.com/badge/overleaf-for-ai-agents-olmcp/card.svg)](https://mcprush.com/to/overleaf-for-ai-agents-olmcp?ref=badge)
 
