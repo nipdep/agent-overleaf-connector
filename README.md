@@ -6,6 +6,8 @@
 
 [![tests](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/nipdep/agent-overleaf-connector/actions/workflows/ci.yml)  [![M8ven Score](https://m8ven.ai/badge/mcp/nipdep/agent-overleaf-connector)](https://m8ven.ai/mcp/nipdep/agent-overleaf-connector?s=readme) 
 
+[![Overleaf for AI agents (olmcp) MCP server](https://mcprush.com/badge/overleaf-for-ai-agents-olmcp/card.svg)](https://mcprush.com/to/overleaf-for-ai-agents-olmcp?ref=badge)
+
 
 `olmcp` lets an AI agent respond to review comments in an Overleaf project.
 
